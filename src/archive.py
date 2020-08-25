@@ -16,7 +16,6 @@ import importlib
 
 import dep
 import instrument
-import instr_nires
 
 
 class Archive():
@@ -30,6 +29,11 @@ class Archive():
         #load config file
         with open('config.live.ini') as f: 
             self.config = yaml.safe_load(f)
+
+        #create logger first
+        self.create_logger('koadep', self.config['ROOTDIR'], instr)
+        log = logging.getLogger('koadep')
+        log.info("Starting DEP")
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
@@ -47,13 +51,40 @@ class Archive():
             log.error("Cannot run DEP.  Unable to decipher inputs.")
 
 
-
     def __del__(self):
         """Destructor"""
 
         #Close the database connection
         if self.db:
             self.db.close()
+
+
+    def create_log(self, name, rootdir, instr):
+        """Creates a logger based on rootdir, instr and date"""
+
+        # Create logger object
+        log = lg.getLogger(name)
+        log.setLevel(lg.INFO)
+
+        # Create a file handler
+        processDir = f'{rootdir}/{instr.upper()}'
+        ymd = datetime.utcnow().strftime('%Y%m%d')
+        logFile =  f'{processDir}/dep_{instr.upper()}_{ymd}.log'
+        handle = lg.FileHandler(logFile)
+        handle.setLevel(lg.INFO)
+        formatter = lg.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s')
+        handle.setFormatter(formatter)
+        log.addHandler(handle)
+
+        #add stdout to output so we don't need both log and print statements(>= warning only)
+        sh = lg.StreamHandler(sys.stdout)
+        sh.setLevel(lg.WARNING)
+        formatter = lg.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        sh.setFormatter(formatter)
+        log.addHandler(sh)
+        
+        #init message and return
+        log.info('logger created')
 
 
     def reprocess_time_range(instr, starttime, endtime):
@@ -152,15 +183,7 @@ if __name__ == "__main__":
     parser.add_argument('--status' , type=str, default=None, help='Status to query for reprocessing.')
     parser.add_argument('--outdir' , type=str, default=None, help='Outdir match to query for reprocessing.')
     parser.add_argument('--koaxfr', dest="dev", default=False, action="store_true", help='')
-    args = parser.parse_args()
-
-    #create logger first
-    #todo: redo this to create 2 loggers.  One for just starting DEP and the other instrument specific? Or create a log based on KOAID?
-    logdir = '/tmp' if args.dev else '/log'
-    create_logger('koadep', logdir)
-    log = logging.getLogger('koadep')
-    log.info("Starting DEP")
-    
+    args = parser.parse_args()    
 
     #todo: if options require reprocessing or query, always prompt with confirmation 
     # and tell them how many files are affected and what the datetime range is
