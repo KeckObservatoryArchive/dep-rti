@@ -24,7 +24,7 @@ log = logging.getLogger('koadep')
 
 class DEP:
 
-    def __init__(self, instr, filepath, config, db, reprocess, reprocess):
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
         #class inputs
         self.instr     = instr
@@ -32,6 +32,7 @@ class DEP:
         self.config    = config
         self.db        = db
         self.reprocess = reprocess
+        self.tpx       = tpx
 
         #init other vars
         self.koaid = '';
@@ -49,12 +50,12 @@ class DEP:
 
         #todo: tpx confirm or any other confirm checks still needed? 
         ok = True
-        if ok: ok = self.load_fits(filepath)
+        if ok: ok = self.load_fits(self.filepath)
         if ok: ok = self.set_koaid()
         if ok: ok = self.processing_init()
         if ok: ok = self.check_koa_db_entry()
-        if ok: ok = self.copy_fits()  #todo: update savepath
         if ok: ok = self.validate_fits()
+        if ok: ok = self.copy_raw_fits()  
         if ok: ok = self.run_dqa()
         if ok: ok = self.write_fits() 
         if ok:      self.make_jpg()
@@ -62,7 +63,7 @@ class DEP:
         if ok: ok = self.xfr_ipac()
 
 
-   def processing_init(self):
+    def processing_init(self):
         '''
         Perform specific initialization tasks for DEP processing.
         '''
@@ -93,13 +94,12 @@ class DEP:
         # Unless this is a full pyDEP run, in which case we exit with warning
         for key, dir in self.dirs.items():
             if os.path.isdir(dir):
-                if key != 'process':
-                    raise Exception('instrument.py: Staging and/or output directories already exist')
+                log.info(f'Output directory exists: {dir}')
             else:
                 try:
                     os.makedirs(dir)
                 except:
-                    raise Exception('instrument.py: could not create directory: {}'.format(dir))
+                    raise Exception(f'instrument.py: could not create directory: {dir}')
 
         # Additions for NIRSPEC
         # TODO: move this to instr_nirspec.py?
@@ -118,7 +118,6 @@ class DEP:
         ymd = self.utDateDir
 
         dirs = {}
-        dirs['stage']   = ''.join((rootdir, '/stage/', instr, '/', ymd))
         dirs['process'] = ''.join((rootdir, '/', instr))
         dirs['output']  = ''.join((rootdir, '/', instr, '/', ymd))
         dirs['lev0']    = ''.join((rootdir, '/', instr, '/', ymd, '/lev0'))
@@ -142,10 +141,12 @@ class DEP:
         return True
 
 
-    def check_koa_db_entry():
+    def check_koa_db_entry(self, ):
 
         #If we are not updating DB, just return 
-        if not self.tpx: return True
+        if not self.tpx:
+            log.info("TPX is off.  Not creating DB entry.") 
+            return True
 
         # See if entry exists
         query = f'select count(*) as num from dep_status where instr="{self.instr}" and koaid="{self.koaid}"'
@@ -172,7 +173,7 @@ class DEP:
                 f" filepath='{self.filepath}' ",
                 f" dep_step='{__name__}' ",
                 f" dep_status='PROGRESS' ",
-                f" creation_time='{dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}' ")
+                f" creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
         log.info(query)
         result = self.db.query('koa', query)
         if result is False: 
@@ -181,8 +182,8 @@ class DEP:
         return True
 
 
-    def delete_status(instr, koaid):
-        query = f"delete from dep_status where koaid='{self.koaid}' "
+    def delete_status(self, instr, koaid):
+        query = f"delete from dep_status where instr='{instr}' and koaid='{koaid}' "
         log.info(query)
         result = self.db.query('koa', query)
         if result is False: 
@@ -191,8 +192,14 @@ class DEP:
         return True
 
 
-    def update_koatpx(column, value):
-        """Sends command to update KOA data."""
+    def delete_local_files(self, instr, koaid):
+        '''Delete local archived output files.  This is important if we are reprocessing data.'''
+        #todo: finish this
+        pass
+
+
+    def update_koatpx(self, column, value):
+        """Sends command to update KOA dep_status."""
 
         #If we are not updating DB, just return 
         if not self.tpx: return True
@@ -206,7 +213,134 @@ class DEP:
         return True
 
 
-    def verify_date(date=''):
+    def validate_fits(self):
+        '''Basic checks for valid FITS before proceeding with archiving'''
+
+        #todo: There was some special logic in dep_locate for DEIMOS having a 'FCSIMGFI' keyword. See if we still need it.
+
+        #certain text in filepath is indication that it should not be archived.
+        #TODO: review this logic with Jeff
+        rejects = ['mira', 'savier-protected', 'SPEC/ORP', '/subtracted', 'idf']
+        for reject in rejects:
+            if reject in self.filepath:
+                self.copy_bad_file(self.instr, self.filepath, f"Filepath contains '{reject}'")
+                return False
+
+        # check for empty file
+        if (os.path.getsize(self.filepath) == 0):
+            self.copy_bad_file(self.instr, self.filepath, "Empty file")
+            log.error(f"Empty file: {self.filepath}")
+            return False
+
+        # Get fits header (check for bad header)
+        try:
+            if instr == 'NIRC2':
+              header0 = fits.getheader(self.filepath, ignore_missing_end=True)
+              header0['INSTRUME'] = 'NIRC2'
+            else:
+              header0 = fits.getheader(self.filepath)
+        except:
+            self.copy_bad_file(self.instr, self.filepath, "Unreadable header")
+            return False
+
+        # Construct the original file name
+        filename, ok = self.construct_filename(self.instr, self.filepath, header0)
+        if not ok:
+          self.copy_bad_file(self.instr, self.filepath, 'Bad Header')
+          return False
+
+        # Make sure constructed filename matches basename.
+        basename = os.path.basename(self.filepath)
+        basename = basename.replace(".fits.gz", ".fits")
+        if filename != basename:
+          copy_bad_file(self.instr, self.filepath, 'Mismatched filename')
+          return False
+
+        return True
+
+
+    def construct_filename(instr, fitsFile, keywords):
+        """Constructs the original filename from the fits header keywords"""
+
+#TODO: CLEAN THIS UP AND GET IT WORKING
+        #TODO: move this to instrument classes
+
+        if instr in ['MOSFIRE', 'NIRES', 'NIRSPEC', 'OSIRIS']:
+            try:
+                outfile = keywords['DATAFILE']
+                if '.fits' not in outfile:
+                    outfile = ''.join((outfile, '.fits'))
+                return outfile, True
+            except KeyError:
+                copy_bad_file(instr, fitsFile, ancDir, 'Bad Outfile', log)
+                return '', False
+        elif instr in ['KCWI']:
+            try:
+                outfile = keywords['OFNAME']
+                return outfile, True
+            except KeyError:
+                copy_bad_file(instr, fitsFile, ancDir, 'Bad Outfile', log)
+                return '', False
+        else:
+            try:
+                outfile = keywords['OUTFILE']
+            except KeyError:
+                try:
+                    outfile = keywords['ROOTNAME']
+                except KeyError:
+                    try:
+                        outfile = keywords['FILENAME']
+                    except KeyError:
+                        copy_bad_file(instr, fitsFile, ancDir, 'Bad Outfile', log)
+                        return '', False
+
+        # Get the frame number of the file
+        if outfile[:2] == 'kf':   frameno = keywords['IMGNUM']
+        elif instr == 'MOSFIRE':  frameno = keywords['FRAMENUM']
+        elif instr == 'NIRES':    garbage, frameno = keywords['DATAFILE'].split('_')
+        else:
+            try:
+                frameno = keywords['FRAMENO']
+            except KeyError:
+                try:
+                    frameno = keywords['FILENUM']
+                except KeyError:
+                    try:
+                        frameno = keywords['FILENUM2']
+                    except KeyError:
+                        copy_bad_file(
+                                instr, fitsFile, ancDir, 'Bad Frameno', log)
+                        return '', False
+
+        #Pad frameno and construct filename
+        frameno = str(frameno).strip().zfill(4)
+        filename = f'{outfile.strip()}{frameno}.fits'
+        return filename, True
+
+
+    def copy_bad_file(self, instr, filepath, reason):
+        #todo: What are we doing with bad files?
+        pass
+
+
+    def copy_raw_fits(self):
+        '''Make a permanent read-only copy of the FITS file on Keck storageserver'''
+
+        #If we are not updating DB, just return 
+        if not self.tpx:
+            log.info("TPX is off.  Not copying raw fits to storageserver.") 
+            return True
+
+        if self.reprocess:
+            log.info("Reprocessing.  Not copying raw fits to storageserver.") 
+            return True
+
+
+        #todo: finish this
+        #todo: update savepath
+
+
+    def verify_date(self, date=''):
         """
         Verify that date value has format yyyy-mm-dd
             yyyy >= 1990
@@ -228,7 +362,7 @@ class DEP:
         assert int(day) >= 1 and int(day) <= 31, 'day value must be between 1 and 31'
 
 
-    def verify_utc(utc=''):
+    def verify_utc(self, utc=''):
         """
         Verify that utc value has the format hh:mm:ss[.ss]
         hh between 0 and 24

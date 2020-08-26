@@ -11,15 +11,13 @@ from astropy.io import fits
 from datetime import timedelta, datetime as dt
 from envlog import *
 import shutil
-import create_log as cl
-from verification import *
-import urllib.request
 import json
 import numpy as np
 import re
-from dep_obtain import get_obtain_data
 import math
+
 import db_conn
+import dep
 
 import matplotlib as mpl
 mpl.use('Agg')
@@ -33,12 +31,12 @@ log = logging.getLogger('koadep')
 
 
 
-class Instrument(dep.DEP:
+class Instrument(dep.DEP):
 
-    def __init__(self, instr, filepath, config, db, reprocess):
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
         # Call the parent init to get all the shared variables
-        super().__init__(instr, filepath, config, db)
+        super().__init__(instr, filepath, config, db, reprocess, tpx)
 
          # Keyword values to be used with a FITS file during runtime
         # NOTE: array may be used to denote an ordered list of possible keywords to look for.
@@ -498,13 +496,13 @@ class Instrument(dep.DEP:
         progtl1 = title[0:50]
         progtl2 = title[50:100]
         progtl3 = title[100:150]
-         self.set_keyword('PROGTL1',  progtl1, 'Program title 1')
+        self.set_keyword('PROGTL1',  progtl1, 'Program title 1')
         self.set_keyword('PROGTL2',  progtl2, 'Program title 2')
         self.set_keyword('PROGTL3',  progtl3, 'Program title 3')
 
 
         #NOTE: PROGTITL goes in metadata but not in header so we store in temp dict for later
-        self.extraMeta['PROGTITL'] = data['progtitl']
+        self.extraMeta['PROGTITL'] = title
         
         return True
 

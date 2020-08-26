@@ -3,8 +3,8 @@ Class to handle the various command line parameters and call DEP appropriately.
 '''
 import sys
 import argparse
-from datetime import datetime as dt
 import configparser
+import datetime as dt
 import traceback
 import os
 import smtplib
@@ -13,14 +13,28 @@ import logging
 import yaml
 import db_conn
 import importlib
+from pathlib import Path
 
 import dep
 import instrument
 
+import logging
+log = logging.getLogger('koadep')
+
 
 class Archive():
 
-    def __init__(instr, filepath=None, reprocess=False, starttime=None, endtime=None, status=None, outdir=None):
+    def __init__(self, instr, tpx=1, filepath=None, reprocess=False, 
+                 starttime=None, endtime=None, status=None, outdir=None):
+
+        self.instr = instr
+        self.tpx = tpx
+        self.filepath = filepath
+        self.reprocess = reprocess
+        self.starttime = starttime
+        self.endtime = endtime
+        self.status = status
+        self.outdir = outdir
 
         #cd to script dir so relative paths work
         #todo: is this needed?
@@ -31,8 +45,8 @@ class Archive():
             self.config = yaml.safe_load(f)
 
         #create logger first
-        self.create_logger('koadep', self.config['ROOTDIR'], instr)
-        log = logging.getLogger('koadep')
+        global log
+        log = self.create_logger('koadep', self.config[instr]['ROOTDIR'], instr)
         log.info("Starting DEP")
 
         # Establish database connection 
@@ -40,13 +54,13 @@ class Archive():
 
         #routing
         if filepath:
-            process_file(instr, filepath, reprocess)
+            self.process_file(instr, filepath, reprocess, tpx)
         elif starttime and endtime:
-            reprocess_time_range(instr, starttime, endtime)
+            self.reprocess_time_range(instr, starttime, endtime, tpx)
         elif status:
-            reprocess_by_status(instr, status)
+            self.reprocess_by_status(instr, status, tpx)
         elif outdir:
-            reprocess_by_outdir(instr, outdir)
+            self.reprocess_by_outdir(instr, outdir, tpx)
         else:
             log.error("Cannot run DEP.  Unable to decipher inputs.")
 
@@ -59,35 +73,60 @@ class Archive():
             self.db.close()
 
 
-    def create_log(self, name, rootdir, instr):
+    def create_logger(self, name, rootdir, instr):
         """Creates a logger based on rootdir, instr and date"""
 
         # Create logger object
-        log = lg.getLogger(name)
-        log.setLevel(lg.INFO)
+        log = logging.getLogger(name)
+        log.setLevel(logging.INFO)
+
+        #paths
+        processDir = f'{rootdir}/{instr.upper()}'
+        ymd = dt.datetime.utcnow().strftime('%Y%m%d')
+        logFile =  f'{processDir}/dep_{instr.upper()}_{ymd}.log'
+
+        #create directory if it does not exist
+        try:
+            Path(processDir).mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            print(str(e))
+            print(f"ERROR: Unable to create logger at {logFile}")
+            sys.exit(1)
 
         # Create a file handler
-        processDir = f'{rootdir}/{instr.upper()}'
-        ymd = datetime.utcnow().strftime('%Y%m%d')
-        logFile =  f'{processDir}/dep_{instr.upper()}_{ymd}.log'
-        handle = lg.FileHandler(logFile)
-        handle.setLevel(lg.INFO)
-        formatter = lg.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s')
+        handle = logging.FileHandler(logFile)
+        handle.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
         handle.setFormatter(formatter)
         log.addHandler(handle)
 
         #add stdout to output so we don't need both log and print statements(>= warning only)
-        sh = lg.StreamHandler(sys.stdout)
-        sh.setLevel(lg.WARNING)
-        formatter = lg.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setLevel(logging.WARNING)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
         sh.setFormatter(formatter)
         log.addHandler(sh)
         
         #init message and return
         log.info('logger created')
+        return log
 
 
-    def reprocess_time_range(instr, starttime, endtime):
+    def process_file(self, instr, filepath, reprocess, tpx):
+
+        #TODO: Test that if an invalid instrument is used, this will throw an error and admin will be emailed.
+        module = importlib.import_module('instr_' + instr.lower())
+        instr_class = getattr(module, instr.capitalize())
+        instr_obj = instr_class(instr, self.filepath, self.config, self.db, self.reprocess, self.tpx)
+
+        ok = instr_obj.process()
+        if not ok:
+            self.handle_dep_error()
+        else:
+            log.info("DEP finished successfully!")
+
+
+    def reprocess_time_range(instr, starttime, endtime, tpx):
         '''Look for fits files that have a UTC time within the range given and reprocess.'''
 
         #todo: this is pseudo code and untested
@@ -100,25 +139,12 @@ class Archive():
         files = self.db.query(query)
 
         for f in files:
-            self.process_file(instr, f['savepath'], True)
+            self.process_file(instr, f['savepath'], True, tpx)
 
 
-    def process_file(instr, filepath, reprocess):
-
-        instr_obj = create_instr_obj(instr, self.filepath, self.config, self.db, self.reprocess)
-        ok = instr_obj.process()
-        if not ok:
-            handle_dep_error()
-        else:
-            log.info("DEP finished successfully!")
-
-
-    def create_instr_obj(instr):
-        #TODO: Test if an invalid instrument is used, this will throw an error and admin will be emailed.
-        module = importlib.import_module('instr_' + instr.lower())
-        instr_class = getattr(module, instr.capitalize())
-        instr_obj = instr_class(instr)
-        return instr_obj
+    def handle_dep_error(self):
+        log.error("DEP ERROR!")
+        #todo:
 
 
 def handle_fatal_error(args):
@@ -176,20 +202,20 @@ if __name__ == "__main__":
     # Define Input parameters
     parser = argparse.ArgumentParser(description='DEP input parameters')
     parser.add_argument('instr', help='Keck Instrument')
+    parser.add_argument('--tpx' , type=int, default=1, help='Update DB tables and transfer to IPAC.  Else, create files only and no transfer.')
     parser.add_argument('--filepath' , type=str, default=None, help='Filepath to FITS file for archiving.')
     parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
     parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--endtime' , type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--status' , type=str, default=None, help='Status to query for reprocessing.')
     parser.add_argument('--outdir' , type=str, default=None, help='Outdir match to query for reprocessing.')
-    parser.add_argument('--koaxfr', dest="dev", default=False, action="store_true", help='')
     args = parser.parse_args()    
 
     #todo: if options require reprocessing or query, always prompt with confirmation 
     # and tell them how many files are affected and what the datetime range is
 
     try:
-        archive = Archive(instr, filepath=args.filepath, reprocess=args.reprocess,
+        archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, reprocess=args.reprocess,
                   starttime=args.starttime, endtime=args.endtime,
                   status=args.status, outdir=args.outdir)
     except Exception as error:

@@ -303,16 +303,14 @@ def construct_filename(instr, fitsFile, ancDir, keywords, log):
                outfile = ''.join((outfile, '.fits'))
            return outfile, True
        except KeyError:
-           copy_bad_file(
-                   instr, fitsFile, ancDir, 'Bad Outfile', log)
+           copy_bad_file(instr, fitsFile, ancDir, 'Bad Outfile', log)
            return '', False
    elif instr in ['KCWI']:
        try:
            outfile = keywords['OFNAME']
            return outfile, True
        except KeyError:
-           copy_bad_file(
-                   instr, fitsFile, ancDir, 'Bad Outfile', log)
+           copy_bad_file(instr, fitsFile, ancDir, 'Bad Outfile', log)
            return '', False
    else:
        try:
@@ -324,8 +322,7 @@ def construct_filename(instr, fitsFile, ancDir, keywords, log):
                try:
                    outfile = keywords['FILENAME']
                except KeyError:
-                   copy_bad_file(
-                           instr, fitsFile, ancDir, 'Bad Outfile', log)
+                   copy_bad_file(instr, fitsFile, ancDir, 'Bad Outfile', log)
                    return '', False
 
    # Get the frame number of the file

@@ -12,14 +12,14 @@ log = logging.getLogger('koadep')
 
 class Nires(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess):
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
         # Call the parent init to get all the shared variables
-        super().__init__(instr, filepath, config, db, reprocess)
+        super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         # Set any unique keyword index values here
-        self.keywordMap['OFNAME']       = 'DATAFILE'        
-        self.keywordMap['FRAMENO']      = 'FRAMENUM'
+        self.keymap['OFNAME']       = 'DATAFILE'        
+        self.keymap['FRAMENO']      = 'FRAMENUM'
 
 
     def run_dqa(self, progData):
