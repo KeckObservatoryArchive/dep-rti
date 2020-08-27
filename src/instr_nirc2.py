@@ -86,7 +86,7 @@ class Nirc2(instrument.Instrument):
         Check OUTDIR to verify NIRC2 and add INSTRUME
         '''
 
-        self.log.info('set_instr: setting INSTRUME to NIRC2')
+        log.info('set_instr: setting INSTRUME to NIRC2')
         if 'nirc' in self.get_keyword('OUTDIR'):
             #update instrument
             self.set_keyword('INSTRUME', 'NIRC2', 'KOA: Instrument')
@@ -104,7 +104,7 @@ class Nirc2(instrument.Instrument):
             koaimtyp = self.set_caltype(koaimtyp)
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            self.log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
         #update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
@@ -188,7 +188,7 @@ class Nirc2(instrument.Instrument):
                 imagetyp = 'dark'
             print('Image Type: ',imagetyp)
 
-#        self.log.info('get_koaimtyp: getting KOAIMTYP')
+#        log.info('get_koaimtyp: getting KOAIMTYP')
         return imagetyp
 
     def set_wavelengths(self):
@@ -214,7 +214,7 @@ class Nirc2(instrument.Instrument):
         self.set_keyword('WAVERED',maxwave,'KOA: Maximum Wavelength')
         self.set_keyword('WAVEBLUE',minwave,'KOA: Minimum Wavelength')
         self.set_keyword('WAVECNTR',cenwave,'KOA: Center Wavelength')
-        self.log.info('set_wavelengths: setting WAVERED, WAVEBLUE, WAVECNTR')
+        log.info('set_wavelengths: setting WAVERED, WAVEBLUE, WAVECNTR')
         return True
 
     def set_detdisp(self):
@@ -241,7 +241,7 @@ class Nirc2(instrument.Instrument):
         self.set_keyword('DISPERS',disp,'KOA: Dispersion')
         self.set_keyword('DETGAIN',4,'KOA: Detector Gain')
         self.set_keyword('DETRN',39,'KOA: Detector Read Noise')
-        self.log.info('set_detdisp: setting DETMODE, DETGAIN, DETRN, DISPERS')
+        log.info('set_detdisp: setting DETMODE, DETGAIN, DETRN, DISPERS')
         return True
 
     def set_wcs(self):
@@ -249,7 +249,7 @@ class Nirc2(instrument.Instrument):
         Set the WCS keywords for NIRC2 images
         '''
 
-        self.log.info('set_wcs: Setting WCS keywords')
+        log.info('set_wcs: Setting WCS keywords')
 
         pixscale = radecsys = wcsdim = 'null'
         crval1 = crval2 = crpix1 = crpix2 = 'null'
@@ -363,7 +363,7 @@ class Nirc2(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword
         '''
-        self.log.info('set_elaptime: determining ELAPTIME from ITIME')
+        log.info('set_elaptime: determining ELAPTIME from ITIME')
 
         #skip it it exists
         if self.get_keyword('ELAPTIME', False) != None: 
@@ -374,7 +374,7 @@ class Nirc2(instrument.Instrument):
         coadds = self.get_keyword('COADDS')
         #if exposure time or # of exposures doesn't exist, throw error
         if (itime == None or coadds == None):
-            self.log.error('set_elaptime: ITIME and COADDS values needed to set ELAPTIME')
+            log.error('set_elaptime: ITIME and COADDS values needed to set ELAPTIME')
             return False
 
         #update elaptime val (seconds)
@@ -387,7 +387,7 @@ class Nirc2(instrument.Instrument):
         '''
         Sets OFNAME to value of FILENAME
         '''
-        self.log.info('set_ofname: setting OFNAME = FILENAME')
+        log.info('set_ofname: setting OFNAME = FILENAME')
         self.set_keyword('OFNAME',self.get_keyword('FILENAME'),'KOA: Original Filename')
 
         return True
@@ -424,13 +424,13 @@ class Nirc2(instrument.Instrument):
         '''
         Determines number of saturated pixels above linearity, adds NLINEAR to header
         '''
-        self.log.info('set_nlinear: setting number of pixels above linearity keyword value')
+        log.info('set_nlinear: setting number of pixels above linearity keyword value')
 
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
             
         if satVal == None:
-            self.log.warning("set_nlinear: Could not find SATURATE keyword")
+            log.warning("set_nlinear: Could not find SATURATE keyword")
         else:
             image = self.fits_hdu[0].data     
             linSat = image[np.where(image >= satVal)]
@@ -482,7 +482,7 @@ class Nirc2(instrument.Instrument):
         Calculates S/N for CCD image
         '''
 
-        self.log.info('set_sig2nois: Adding SIG2NOIS')
+        log.info('set_sig2nois: Adding SIG2NOIS')
 
         image = self.fits_hdu[0].data
 
@@ -521,10 +521,10 @@ class Nirc2(instrument.Instrument):
             for word in drp.split(' '):
                 cmd.append(word)
 
-            self.log.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
+            log.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
             p = subprocess.Popen(cmd)
             p.wait()
-            self.log.info('run_drp: DRP finished')
+            log.info('run_drp: DRP finished')
 
         return True
 
@@ -537,7 +537,7 @@ class Nirc2(instrument.Instrument):
         try:
             psfr = self.config[self.instr]['PSFR']
         except:
-            self.log.error('run_psfr: PSFR config item is not defined')
+            log.error('run_psfr: PSFR config item is not defined')
             return False
 
         cmd = []
@@ -548,7 +548,7 @@ class Nirc2(instrument.Instrument):
         host = gethostname()
         cmd.append(f"/net/{host}{self.dirs['lev0']}")
 
-        self.log.info(f'run_psfr: Starting PSFR command: {" ".join(cmd)}')
+        log.info(f'run_psfr: Starting PSFR command: {" ".join(cmd)}')
         p = subprocess.Popen(cmd)
 
         return True

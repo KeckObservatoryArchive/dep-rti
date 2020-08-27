@@ -103,7 +103,7 @@ class Osiris(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword
         '''
-        self.log.info('set_elaptime: determining ELAPTIME from TRUITIME')
+        log.info('set_elaptime: determining ELAPTIME from TRUITIME')
 
         #skip it it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
@@ -113,7 +113,7 @@ class Osiris(instrument.Instrument):
         coadds = self.get_keyword('COADDS')
         #if exposure time or # of exposures doesn't exist, throw error
         if (itime == None or coadds == None):
-            self.log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
+            log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
             return False
 
         #update elaptime val (seconds)
@@ -127,7 +127,7 @@ class Osiris(instrument.Instrument):
         Assuming instrument is OSIRIS since INSTRUME not provided in header
         '''
 
-        self.log.info('set_instr: setting INSTRUME to OSIRIS')
+        log.info('set_instr: setting INSTRUME to OSIRIS')
         #update instrument
         self.set_keyword('INSTRUME', 'OSIRIS', 'KOA: Instrument')
         
@@ -138,7 +138,7 @@ class Osiris(instrument.Instrument):
         '''
         Adds KOAIMTYP keyword
         '''
-        self.log.info('set_koaimtyp: setting KOAIMTYP keyword from algorithm')
+        log.info('set_koaimtyp: setting KOAIMTYP keyword from algorithm')
 
         koaimtyp = 'undefined'
         ifilter = self.get_keyword('IFILTER', default='')
@@ -199,11 +199,11 @@ class Osiris(instrument.Instrument):
             elif 'c' in datafile:
                 koaimtyp = 'calib'
         except Exception as e:
-            self.log.error('set_koaimtype: ' + str(e))
+            log.error('set_koaimtype: ' + str(e))
 
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            self.log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
         #update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
@@ -235,7 +235,7 @@ class Osiris(instrument.Instrument):
         pi = np.pi
 
         if instr.lower() == 'imag' and 'position angle' in rotmode:
-            self.log.info('set_wcs_keywords: setting WCS keyword values')
+            log.info('set_wcs_keywords: setting WCS keyword values')
             ctype1 = 'RA---TAN'
             ctype2 = 'DEC--TAN'
             wat0_001 = 'system=image'
@@ -291,7 +291,7 @@ class Osiris(instrument.Instrument):
         Populates filter from ifilter or sfilter
         '''
 
-        self.log.info('set_wavelengths: setting FILTER keyword value')
+        log.info('set_wavelengths: setting FILTER keyword value')
 
         instr = self.get_keyword('INSTR')
         ifilter = self.get_keyword('IFILTER', default='')
@@ -313,7 +313,7 @@ class Osiris(instrument.Instrument):
         Set wavelength values based off filters used
         '''
 
-        self.log.info('set_wavelengths: setting WAVE keyword values from FILTER')
+        log.info('set_wavelengths: setting WAVE keyword values from FILTER')
 
         waveblue = wavecntr = wavered = 'null'
 
@@ -372,13 +372,13 @@ class Osiris(instrument.Instrument):
         Determines number of saturated pixels above linearity, adds NLINEAR to header
         '''
 
-        self.log.info('set_nlinear: setting number of pixels above linearity keyword value')
+        log.info('set_nlinear: setting number of pixels above linearity keyword value')
 
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
             
         if satVal == None:
-            self.log.warning("set_nlinear: Could not find SATURATE keyword")
+            log.warning("set_nlinear: Could not find SATURATE keyword")
         else:
             satVal = 0.8 * satVal * self.get_keyword('COADDS')
             image = self.fits_hdu[0].data     
@@ -394,7 +394,7 @@ class Osiris(instrument.Instrument):
         Sets scale
         '''       
 
-        self.log.info('set_scale: setting SCALE from SSCALE')
+        log.info('set_scale: setting SCALE from SSCALE')
 
         sscale = self.get_keyword('SSCALE')
         instr = self.get_keyword('INSTR')
@@ -414,7 +414,7 @@ class Osiris(instrument.Instrument):
         NOTE: This is a direct port from old IDL code.  Not sure what it is for.
         '''
 
-        self.log.info('check_noninteger_values: checking SHTRANG, SHTRACT and IHTRACT')
+        log.info('check_noninteger_values: checking SHTRANG, SHTRACT and IHTRACT')
 
         kws = ['SHTRANG', 'SHTRACT', 'IHTRACT']
         for kw in kws:
@@ -436,10 +436,10 @@ class Osiris(instrument.Instrument):
         progid = self.get_keyword('PROGID')
 
         if progid == 'ENG' and koaimtyp == 'calib':
-            pp = self.extraMeta['PROPINT']
+            pp = self.extra_meta['PROPINT']
             log = 'check_propint: Changing PROPINT from ' + str(pp) + ' to 0'
-            self.log.info(log)
-            self.extraMeta['PROPINT'] = 0
+            log.info(log)
+            self.extra_meta['PROPINT'] = 0
 
         return True
 
@@ -456,7 +456,7 @@ class Osiris(instrument.Instrument):
             return True
 
         if koaimtyp == 'calib' and (float(ra) < -720 or float(ra) > 720):
-            self.log.info('check_ra: changing RA to null')
+            log.info('check_ra: changing RA to null')
             self.set_keyword('RA', None)
 
         return True
@@ -474,10 +474,10 @@ class Osiris(instrument.Instrument):
             cmd.append(word)
         cmd.append(self.utDate)
 
-        self.log.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
+        log.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
         p = subprocess.Popen(cmd)
         p.wait()
-        self.log.info('run_drp: DRP finished')
+        log.info('run_drp: DRP finished')
 
         return True
 

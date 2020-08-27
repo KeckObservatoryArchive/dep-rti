@@ -234,7 +234,7 @@ class DEP:
 
         # Get fits header (check for bad header)
         try:
-            if instr == 'NIRC2':
+            if self.instr == 'NIRC2':
               header0 = fits.getheader(self.filepath, ignore_missing_end=True)
               header0['INSTRUME'] = 'NIRC2'
             else:
@@ -259,7 +259,7 @@ class DEP:
         return True
 
 
-    def construct_filename(instr, fitsFile, keywords):
+    def construct_filename(self, instr, fitsFile, keywords):
         """Constructs the original filename from the fits header keywords"""
 
 #TODO: CLEAN THIS UP AND GET IT WORKING
@@ -272,14 +272,14 @@ class DEP:
                     outfile = ''.join((outfile, '.fits'))
                 return outfile, True
             except KeyError:
-                copy_bad_file(instr, fitsFile, ancDir, 'Bad Outfile', log)
+                copy_bad_file(instr, fitsFile, 'Bad Outfile')
                 return '', False
         elif instr in ['KCWI']:
             try:
                 outfile = keywords['OFNAME']
                 return outfile, True
             except KeyError:
-                copy_bad_file(instr, fitsFile, ancDir, 'Bad Outfile', log)
+                copy_bad_file(instr, fitsFile, 'Bad Outfile')
                 return '', False
         else:
             try:
@@ -291,7 +291,7 @@ class DEP:
                     try:
                         outfile = keywords['FILENAME']
                     except KeyError:
-                        copy_bad_file(instr, fitsFile, ancDir, 'Bad Outfile', log)
+                        copy_bad_file(instr, fitsFile, 'Bad Outfile')
                         return '', False
 
         # Get the frame number of the file
@@ -308,8 +308,7 @@ class DEP:
                     try:
                         frameno = keywords['FILENUM2']
                     except KeyError:
-                        copy_bad_file(
-                                instr, fitsFile, ancDir, 'Bad Frameno', log)
+                        copy_bad_file(instr, fitsFile, 'Bad Frameno')
                         return '', False
 
         #Pad frameno and construct filename
@@ -320,6 +319,7 @@ class DEP:
 
     def copy_bad_file(self, instr, filepath, reason):
         #todo: What are we doing with bad files?
+        log.error(f"Invalid FITS.  Reason: {reason}.  File: {filepath}")
         pass
 
 
@@ -380,4 +380,80 @@ class DEP:
         if float(second) < 0 or float(second) > 60: return False
 
         return True
+
+
+    def is_progid_valid(self, progid):
+        '''
+        Check if progid is valid.
+        NOTE: We allow the old style of progid without semester thru this check.
+        '''
+        if not progid: return False
+
+        #get valid parts
+        if   progid.count('_') > 1 : return False    
+        elif progid.count('_') == 1: sem, progid = progid.split('_')
+        else                       : sem = False
+
+        #checks
+        if len(progid) <= 2:      return False
+        if len(progid) >= 6:      return False
+        if " " in progid:         return False
+        if "PROGID" in progid:    return False
+        if sem and len(sem) != 5: return False
+
+        return True
+
+
+    def get_prog_inst(self, semid, default=None, isToO=False):
+        '''Query the proposalsAPI and get the program institution'''
+        api = self.config.get('API', {}).get('PROPAPI')
+        url = api + 'ktn='+semid+'&cmd=getAllocInst&json=True'
+        data = self.get_api_data(url)
+        if not data or not data.get('success'):
+            log.error('Unable to query API: ' + url)
+            return default
+        else:
+            val = data.get('data', {}).get('AllocInst', default)
+            return val
+
+
+    def get_prog_pi(self, semid, default=None):
+        '''Query for program's PI last name'''
+        query = ( 'select pi.pi_lastname, pi.pi_firstname '
+                  ' from koa_program as p, koa_pi as pi '
+                 f' where p.semid="{semid}" and p.piID=pi.piID')
+        data = self.db.query('koa', query, getOne=True)
+        if not data or 'pi_lastname' not in data:
+            log.error(f'Unable to get PI name for semid {semid}')
+            return default
+        else:
+            val = data['pi_lastname'].replace(' ','')
+            return val
+
+
+    def get_prog_title(self, semid, default=None):
+        '''Query the DB and get the program title'''
+        query = f'select progtitl from koa_program where semid="{semid}"'
+        data = self.db.query('koa', query, getOne=True)
+        if not data or 'progtitl' not in data:
+            log.error(f'Unable to get title for semid {semid}')
+            return default
+        else:
+            return data['progtitl']
+
+
+    def get_api_data(self, url, getOne=False, isJson=True):
+        '''
+        Gets data for common calls to url API requests.
+        #todo: add some better validation checks 
+        '''
+        try:
+            data = urlopen(url)
+            data = data.read().decode('utf8')
+            if isJson: data = json.loads(data)
+            if getOne and len(data) > 0: 
+                data = data[0]
+            return data
+        except Exception as e:
+            return None
 

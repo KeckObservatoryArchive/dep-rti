@@ -22,20 +22,21 @@ class Nires(instrument.Instrument):
         self.keymap['FRAMENO']      = 'FRAMENUM'
 
 
-    def run_dqa(self, progData):
+    def run_dqa(self):
         '''
         Run all DQA checks unique to this instrument.
         '''
 
         ok = True
+        if ok: ok = super().run_dqa()
         if ok: ok = self.set_elaptime()
         if ok: ok = self.set_koaimtyp()
         if ok: ok = self.set_ut()
         if ok: ok = self.set_frameno()
         if ok: ok = self.set_ofName()
         if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info(progData)
-        if ok: ok = self.set_propint(progData)
+        if ok: ok = self.set_prog_info()
+        if ok: ok = self.set_propint()
         if ok: ok = self.set_wavelengths()
         if ok: ok = self.set_specres()
         if ok: ok = self.set_weather_keywords()
@@ -91,7 +92,7 @@ class Nires(instrument.Instrument):
         Fixes missing ELAPTIME keyword.
         '''
 
-        # self.log.info('set_elaptime: determining ELAPTIME from ITIME/COADDS')
+        # log.info('set_elaptime: determining ELAPTIME from ITIME/COADDS')
 
         #skip if it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
@@ -100,7 +101,7 @@ class Nires(instrument.Instrument):
         itime  = self.get_keyword('ITIME')
         coadds = self.get_keyword('COADDS')
         if (itime == None or coadds == None):
-            self.log.error('set_elaptime: ITIME and COADDS values needed to set ELAPTIME')
+            log.error('set_elaptime: ITIME and COADDS values needed to set ELAPTIME')
             return False
 
         #update val
@@ -116,7 +117,7 @@ class Nires(instrument.Instrument):
         # NOTE: kfilter is always on for imag
         '''
 
-        # self.log.info('set_wavelengths: setting wavelength keyword values')
+        # log.info('set_wavelengths: setting wavelength keyword values')
 
         instr = self.get_keyword('FTYPE')
 
@@ -140,7 +141,7 @@ class Nires(instrument.Instrument):
         Adds nominal spectral resolution keyword
         '''
 
-        # self.log.info('set_specres: setting SPECRES keyword values')
+        # log.info('set_specres: setting SPECRES keyword values')
 
         instr = self.get_keyword('FTYPE')
         if (instr == 'spec'):
@@ -181,7 +182,7 @@ class Nires(instrument.Instrument):
         #add keyword for 'imag' only
         instr = self.get_keyword('FTYPE')
         if (instr == 'imag'):
-            # self.log.info('set_filter: setting FILTER keyword value')
+            # log.info('set_filter: setting FILTER keyword value')
             filt = 'Kp'
             self.set_keyword('FILTER' , filt, 'KOA: Filter')
         return True
@@ -195,7 +196,7 @@ class Nires(instrument.Instrument):
         #add keywords for 'spec' only
         instr = self.get_keyword('FTYPE')
         if (instr == 'spec'):
-            # self.log.info('set_slit_dims: setting slit keyword values')
+            # log.info('set_slit_dims: setting slit keyword values')
             slitlen  = 18.1
             slitwidt = 0.5
             self.set_keyword('SLITLEN'  , slitlen,  'KOA: Slit length projected on sky')
@@ -209,7 +210,7 @@ class Nires(instrument.Instrument):
         This is derived from OBSTYPE keyword.
         '''
 
-        # self.log.info('set_koaimtyp: setting KOAIMTYP keyword value from OBSTYPE')
+        # log.info('set_koaimtyp: setting KOAIMTYP keyword value from OBSTYPE')
 
         #get obstype value
         obstype = self.get_keyword('OBSTYPE')
@@ -233,7 +234,7 @@ class Nires(instrument.Instrument):
 
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            self.log.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value of "' + str(obstype) + '"')
+            log.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value of "' + str(obstype) + '"')
 
         #update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')

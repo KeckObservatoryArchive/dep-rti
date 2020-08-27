@@ -125,7 +125,7 @@ class Nirspec(instrument.Instrument):
         Fixes missing ELAPTIME keyword
         '''
 
-        self.log.info('set_elaptime: determining ELAPTIME from TRUITIME')
+        log.info('set_elaptime: determining ELAPTIME from TRUITIME')
 
         #skip it it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
@@ -134,7 +134,7 @@ class Nirspec(instrument.Instrument):
         itime  = self.get_keyword('TRUITIME')
         coadds = self.get_keyword('COADDS')
         if (itime == None or coadds == None):
-            self.log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
+            log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
             return False
 
         #update val
@@ -152,12 +152,12 @@ class Nirspec(instrument.Instrument):
         #OFNAME was added as a native NIRSPEC keyword around 20190405
         if self.get_keyword('OFNAME', False) != None: return True
 
-        self.log.info('set_ofName: setting OFNAME keyword value')
+        log.info('set_ofName: setting OFNAME keyword value')
 
         #get value
         ofName = self.get_keyword('OFNAME')
         if (ofName == None):
-            self.log.error('set_ofName: cannot find value for OFNAME')
+            log.error('set_ofName: cannot find value for OFNAME')
             return False
 
         #add *.fits to output if it does not exist (to fix old files)
@@ -174,7 +174,7 @@ class Nirspec(instrument.Instrument):
         This is derived from OBSTYPE keyword.
         '''
 
-        self.log.info('set_koaimtyp: setting KOAIMTYP keyword value from OBSTYPE')
+        log.info('set_koaimtyp: setting KOAIMTYP keyword value from OBSTYPE')
 
         #get obstype value
         obstype = self.get_keyword('OBSTYPE')
@@ -202,7 +202,7 @@ class Nirspec(instrument.Instrument):
 
         #use algorithm
         else:
-            self.log.info('set_koaimtyp: setting KOAIMTYP keyword value from algorithm')
+            log.info('set_koaimtyp: setting KOAIMTYP keyword value from algorithm')
 
             calmpos = self.get_keyword('CALMPOS', default='').lower()
             calppos = self.get_keyword('CALPPOS', default='').lower()
@@ -246,7 +246,7 @@ class Nirspec(instrument.Instrument):
 
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            self.log.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value')
+            log.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value')
 
         #update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
@@ -260,7 +260,7 @@ class Nirspec(instrument.Instrument):
 
         if self.get_keyword('FILTER', False) != None: return True
 
-        self.log.info('set_filter: setting FILTER keyword from SCIFILT1/2')
+        log.info('set_filter: setting FILTER keyword from SCIFILT1/2')
 
         scifilt1 = self.get_keyword('SCIFILT1', default='')
         scifilt2 = self.get_keyword('SCIFILT2', default='')
@@ -281,7 +281,7 @@ class Nirspec(instrument.Instrument):
         Sets WAVEBLUE, CNTR, RED based on FILTER value
         '''
 
-        self.log.info('set_wavelengths: setting WAVE keyword values from FILTER')
+        log.info('set_wavelengths: setting WAVE keyword values from FILTER')
 
         filters = {}
         filters['UNKNOWN']   = {'blue':'null', 'cntr':'null', 'red':'null'}
@@ -329,7 +329,7 @@ class Nirspec(instrument.Instrument):
         Sets the ISAO keyword value: NIRSPEC = no, NIRSPAO = yes 
         '''
         
-        self.log.info('set_isao: setting ISAO keyword values from INSTRUME')
+        log.info('set_isao: setting ISAO keyword values from INSTRUME')
 
         isao = 'no'
         instrume = self.get_keyword('INSTRUME')
@@ -356,7 +356,7 @@ class Nirspec(instrument.Instrument):
         spatscal = pscale
 
         if 'NS' in self.get_keyword('KOAID'):
-            self.log.info('set_dispers: setting DISPERS and DISPSCAL keyword values')
+            log.info('set_dispers: setting DISPERS and DISPSCAL keyword values')
 
             slitname = self.get_keyword('SLITNAME')
             isao = self.get_keyword('ISAO')
@@ -418,7 +418,7 @@ class Nirspec(instrument.Instrument):
         highresmap['0.0538'] = 0.570
         highresmap['0.0717'] = 0.760
         if self.prefix == 'NS':
-            self.log.info('set_slit_values: setting SLITLEN and SLITWIDT keyword values from SLITNAME')
+            log.info('set_slit_values: setting SLITLEN and SLITWIDT keyword values from SLITNAME')
             slitname = self.get_keyword('SLITNAME')
             if 'x' in slitname:
                 #SLITNAME = 42x0.380 (low resolution)

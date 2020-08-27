@@ -7,6 +7,8 @@
 - Move common to processing base class and maybe get rid of common.py?
 - Remove unneeded code for RTI (dep_[step].py)
 - Analyze common.py and see which functions are DEP specific enough to go into dep.py or instrument.py vs true common funcs.
+- See if API calls are a considerable slowdown.
+- Speed test all of code to find bottlenecks.
 - Search TODOs in code
 - Improve documentation
 

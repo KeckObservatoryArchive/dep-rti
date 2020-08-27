@@ -137,7 +137,7 @@ class Kcwi(instrument.Instrument):
         
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            self.log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
         #update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
@@ -173,16 +173,16 @@ class Kcwi(instrument.Instrument):
             elaptime = self.get_keyword('ELAPTIME')
         elif self.get_keyword('EXPTIME') is not None:
             elaptime = self.get_keyword('EXPTIME')
-            self.log.info('set_elaptime: Setting ELAPTIME from EXPTIME')
+            log.info('set_elaptime: Setting ELAPTIME from EXPTIME')
         elif self.get_keyword('XPOSURE') is not None:
             elaptime = self.get_keyword('XPOSURE')
-            self.log.info('set_elaptime: Setting ELAPTIME from XPOSURE')
+            log.info('set_elaptime: Setting ELAPTIME from XPOSURE')
         elif itime != None and coadds != None:
             elaptime = round(itime*coadds,4)
-            self.log.info('set_elaptime: Setting ELAPTIME from ITIME*COADDS')
+            log.info('set_elaptime: Setting ELAPTIME from ITIME*COADDS')
         else:
             elaptime = ''
-            self.log.warning('set_elaptime: no methods possible for setting elaptime')
+            log.warning('set_elaptime: no methods possible for setting elaptime')
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
         return True
 
@@ -272,7 +272,7 @@ class Kcwi(instrument.Instrument):
         camera = self.get_keyword('CAMERA')
         #wcs values should only be set for fpc
         if camera != 'fpc':
-            self.log.info(f'set_wcs: WCS keywords not set for camera type: {camera}')
+            log.info(f'set_wcs: WCS keywords not set for camera type: {camera}')
             return True
         #get ra and dec values
         rakey = (self.get_keyword('RA')).split(':')
@@ -307,7 +307,7 @@ class Kcwi(instrument.Instrument):
         elif mode == 'stat':
             pa1 = float(pa)+float(parantel)-float(el)
         else:
-            self.log.error(f'set_wcs: indeterminate mode {mode}')
+            log.error(f'set_wcs: indeterminate mode {mode}')
             return False
 
         #get correct units and formatting

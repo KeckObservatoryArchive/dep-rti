@@ -45,7 +45,7 @@ def dep_dqa(instrObj, tpx=0):
     outFiles = []
     procFiles = []
     semids = []
-    extraMeta = {}
+    extra_meta = {}
     dqaFile = dirs['stage'] +'/dep_dqa' + instr +'.txt'
     useHdrProg = instrObj.config['MISC']['USE_HDR_PROG'] if 'USE_HDR_PROG' in instrObj.config['MISC'] else None
     splitTime = instrObj.config['MISC']['SPLIT_TIME'] if 'SPLIT_TIME' in instrObj.config['MISC'] else None
@@ -131,7 +131,7 @@ def dep_dqa(instrObj, tpx=0):
 
         #deal with extra metadata
         koaid = instrObj.fits_hdr.get('KOAID')
-        extraMeta[koaid] = instrObj.extraMeta
+        extra_meta[koaid] = instrObj.extra_meta
 
 
     # Remove the dqa.LOC files in lev0 directory
@@ -164,7 +164,7 @@ def dep_dqa(instrObj, tpx=0):
     ymd = utDate.replace('-', '')
     metaOutFile =  dirs['lev0'] + '/' + ymd + '.metadata.table'
     keywordsDefFile = tablesDir + '/keywords.format.' + instr
-    metadata.make_metadata( keywordsDefFile, metaOutFile, dirs['lev0'], extraMeta, log, 
+    metadata.make_metadata( keywordsDefFile, metaOutFile, dirs['lev0'], extra_meta, log, 
                             dev=isDev,
                             instrkeyskips=instrObj.keyskips)    
 

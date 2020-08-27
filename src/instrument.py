@@ -62,6 +62,11 @@ class Instrument(dep.DEP):
     def set_koaimtyp(self) : raise NotImplementedError("Abstract method not implemented!")
 
 
+    def run_dqa(self):
+        '''common run_dqa functions.  Call at beginning of instr subclass run_dqa'''
+        self.telnr = self.get_telnr()
+
+
     def get_keyword(self, keyword, useMap=True, default=None, ext=None):
         '''
         Gets keyword value from the FITS header as defined in keymap class variable.  
@@ -130,7 +135,7 @@ class Instrument(dep.DEP):
 
         #handle infinite value
         if value == math.inf:
-            self.log.error(f'set_keyword: ERROR: keyword {keyword} value is infinite.  Setting to null.')
+            log.error(f'set_keyword: ERROR: keyword {keyword} value is infinite.  Setting to null.')
             return None
 
         #ok now we can update
@@ -147,14 +152,14 @@ class Instrument(dep.DEP):
 
         #check no data
         if len(self.fits_hdu) == 0:
-            self.log.error('is_fits_valid: No HDUs.')
+            log.error('is_fits_valid: No HDUs.')
             return False
 
         #any corrupted HDUs?
         for hdu in self.fits_hdu:
             hdu_type = str(type(hdu))
             if 'CorruptedHDU' in hdu_type:
-                self.log.error('is_fits_valid: Corrupted HDU found.')
+                log.error('is_fits_valid: Corrupted HDU found.')
                 return False
 
         return True
@@ -171,7 +176,7 @@ class Instrument(dep.DEP):
         #make it
         koaid, result = self.make_koaid()
         if not result: 
-            self.log.error('set_koaid: Could not create KOAID.')
+            log.error('set_koaid: Could not create KOAID.')
             return False
 
         #save it
@@ -300,11 +305,11 @@ class Instrument(dep.DEP):
             #if fixed, then update 'INSTRUME' in header
             if ok:
                 self.set_keyword('INSTRUME', self.instr, 'KOA: Fixing INSTRUME keyword')
-                self.log.info('set_instr: fixing INSTRUME value')
+                log.info('set_instr: fixing INSTRUME value')
 
         #log err
         if (not ok):
-            self.log.warning('set_instr: cannot determine if file is from ' + self.instr + '.  UDF!')
+            log.warning('set_instr: cannot determine if file is from ' + self.instr + '.  UDF!')
 
         return ok
 
@@ -334,7 +339,7 @@ class Instrument(dep.DEP):
                 else:            year = '19' + year
                 dateObs = year + '-' + month + '-' + day
                 self.set_keyword('DATE-OBS', dateObs, 'KOA: Value corrected (' + orig + ')')
-                self.log.warning('set_dateObs: fixed DATE-OBS format (orig: ' + orig + ')')
+                log.warning('set_dateObs: fixed DATE-OBS format (orig: ' + orig + ')')
                 valid = True
 
         #if we couldn't match valid pattern, then build from file last mod time
@@ -345,14 +350,14 @@ class Instrument(dep.DEP):
             dateObs = dt.fromtimestamp(lastMod) + timedelta(hours=10)
             dateObs = dateObs.strftime('%Y-%m-%d')
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
-            self.log.warning('set_dateObs: set DATE-OBS value from FITS file time')
+            log.warning('set_dateObs: set DATE-OBS value from FITS file time')
 
         # If good match, just take first 10 chars (some dates have 'T' format and extra time)
         if len(dateObs) > 10:
             orig = dateObs
             dateObs = dateObs[0:10]
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Value corrected (' + orig + ')')
-            self.log.warning('set_dateObs: fixed DATE-OBS format (orig: ' + orig + ')')
+            log.warning('set_dateObs: fixed DATE-OBS format (orig: ' + orig + ')')
 
         return True
        
@@ -386,7 +391,7 @@ class Instrument(dep.DEP):
             utc = dt.fromtimestamp(lastMod) + timedelta(hours=10)
             utc = utc.strftime('%H:%M:%S.00')
             update = True
-            self.log.warning('set_utc: set UTC value from FITS file time')
+            log.warning('set_utc: set UTC value from FITS file time')
         #update/add if need be
         if update:
             self.set_keyword('UTC', utc, 'KOA: UTC keyword corrected')
@@ -402,7 +407,7 @@ class Instrument(dep.DEP):
         #get utc from header
         utc = self.get_keyword('UTC')
         if utc == None: 
-            self.log.warning('set_ut: Could not get UTC value.  UDF!')
+            log.warning('set_ut: Could not get UTC value.  UDF!')
             return False
 
         #copy to UT
@@ -450,64 +455,6 @@ class Instrument(dep.DEP):
         return fileno
 
 
-    def set_prog_info(self, progData):
-        
-        # self.log.info('set_prog_info: setting program information keywords')
-
-        #note: progData is also stored in newproginfo.txt output from getProgInfo.py
-
-        #find matching filename in array 
-        dataKey = None
-        data = None
-        for key, progFile in enumerate(progData):
-            filepath = progFile['file']
-            if filepath in self.fits_path:
-                dataKey = key
-                data = progFile
-                break
-        if data == None: 
-            self.log.error('set_prog_info: Could not get program info.  UDF!')
-            return False
-
-        #create keywords, deal with blank/undefined vals
-        assert 'progid'   in data and data['progid'],   'PROGID not found.'
-        assert 'progpi'   in data and data['progpi'],   'PROGPI not found.'
-        assert 'proginst' in data and data['proginst'], 'PROGINST not found.'
-        assert 'progtitl' in data and data['progtitl'], 'PROGTITL not found.'
-
-        if data['progid']   == 'PROGID'  : data['progid']   = 'NONE'
-        if data['progpi']   == 'PROGPI'  : data['progpi']   = 'NONE'
-        if data['proginst'] == 'PROGINST': data['proginst'] = 'NONE'
-        if data['progtitl'] in ('PROGTITL', 'NONE'): data['progtitl'] = ''
-
-        self.set_keyword('PROGID'  , data['progid']  , 'KOA: Program ID')
-        self.set_keyword('PROGPI'  , data['progpi']  , 'KOA: Program principal investigator')
-        self.set_keyword('PROGINST', data['proginst'], 'KOA: Program institution')
-
-        #extra warning for log
-        if data['progid'] == 'NONE':
-            time = self.get_keyword('DATE-OBS') + ' ' + self.get_keyword('UTC')
-            self.log.info(f"set_prog_info: PROGID is NONE for {os.path.basename(self.fits_path)} (@{time})")
-
-        #enocde unicode chars in progtitl
-        title = data['progtitl']
-        title = title.encode('ascii', errors='xmlcharrefreplace').decode('utf8')
-        #divide PROGTITL into length 50 (+20 for comments) chunks PROGTL1/2/3
-        progtl1 = title[0:50]
-        progtl2 = title[50:100]
-        progtl3 = title[100:150]
-        self.set_keyword('PROGTL1',  progtl1, 'Program title 1')
-        self.set_keyword('PROGTL2',  progtl2, 'Program title 2')
-        self.set_keyword('PROGTL3',  progtl3, 'Program title 3')
-
-
-        #NOTE: PROGTITL goes in metadata but not in header so we store in temp dict for later
-        self.extraMeta['PROGTITL'] = title
-        
-        return True
-
-
-
     def set_semester(self):
         """
         Determines the Keck observing semester from the DATE-OBS keyword in header
@@ -528,7 +475,7 @@ class Instrument(dep.DEP):
             if '_' in progname and is_progid_valid(progname):
                 semester, progid = progname.split('_')
                 self.set_keyword('SEMESTER', semester, 'Calculated SEMESTER from PROGNAME')
-                self.log.info(f"set_semester: Set SEMESTER to '{semester}' from ASSIGN_PROGNAME '{progname}'")
+                log.info(f"set_semester: Set SEMESTER to '{semester}' from ASSIGN_PROGNAME '{progname}'")
                 return True
 
         #special override assign using PROGNAME
@@ -536,7 +483,7 @@ class Instrument(dep.DEP):
         if '_' in progname and is_progid_valid(progname):
             semester, progid = progname.split('_')
             self.set_keyword('SEMESTER', semester, 'Calculated SEMESTER from PROGNAME')
-            self.log.info(f"set_semester: Set SEMESTER to '{semester}' from PROGNAME '{progname}'")
+            log.info(f"set_semester: Set SEMESTER to '{semester}' from PROGNAME '{progname}'")
             return True
 
         #normal assign using DATE-OBS and UTC
@@ -544,7 +491,7 @@ class Instrument(dep.DEP):
             dateObs = self.get_keyword('DATE-OBS')
             utc     = self.get_keyword('UTC')
             if not dateObs or not utc:
-                self.log.error('set_semester: Could not parse DATE-OBS and UTC')
+                log.error('set_semester: Could not parse DATE-OBS and UTC')
                 return False
 
             #Slightly unintuitive, but get utc datetime obj and subtract 10 hours to convert to HST
@@ -570,19 +517,77 @@ class Instrument(dep.DEP):
             return True
 
 
+    def set_prog_info(self):
+        '''Set PROG* keywords'''
 
-    def set_propint(self, progData):
+        #Get PROGNAME from header and use for PROGID
+        #If not found, then do simple assignment by time/observer/outdir(eng).
+        progid = self.get_keyword('PROGNAME')
+        if not progid:
+            #todo: (assign NONE if cannot determine)
+            self.get_missing_progid()
+
+        #valid progname?
+        #todo: Make sure we are getting the full semid with underscore
+        valid = self.is_progid_valid(progid)
+        if not valid:
+            log.error('Invalid PROGID: ' + str(progid))
+        else:
+            progid = progid.strip().upper()
+
+        #add semester?
+        if '_' in progid: 
+            sem, prog = progid.split('_')
+        else:
+            sem = self.get_keyword('SEMESTER')
+            prog = progid
+
+        #try to assign PROG* keywords from progname
+        progpi   = 'NONE'
+        proginst = 'NONE'
+        progtitl = ''
+        if valid:
+            progid = progid.strip().upper()
+            if progid == 'ENG':
+                proginst = 'KECK'
+                progpi   = self.instr.lower() + 'eng'
+                progtitl = self.instr.upper() + ' Engineering'
+            else:
+                semid = sem + '_' + prog
+                progid   = prog #NOTE: We store without semester in header
+                progpi   = get_prog_pi   (semid, 'NONE')
+                proginst = get_prog_inst (semid, 'NONE')
+                progtitl = get_prog_title(semid, '')
+
+        #update header
+        self.set_keyword('PROGID'  , progid,   'KOA: Program ID')
+        self.set_keyword('PROGPI'  , progpi,   'KOA: Program principal investigator')
+        self.set_keyword('PROGINST', proginst, 'KOA: Program institution')
+
+        #enocde unicode chars in progtitl and divide into length 50 (+20 for comments) chunks
+        progtitl = progtitl.encode('ascii', errors='xmlcharrefreplace').decode('utf8')
+        progtl1 = progtitl[0:50]
+        progtl2 = progtitl[50:100]
+        progtl3 = progtitl[100:150]
+        self.set_keyword('PROGTL1',  progtl1, 'Program title 1')
+        self.set_keyword('PROGTL2',  progtl2, 'Program title 2')
+        self.set_keyword('PROGTL3',  progtl3, 'Program title 3')
+
+        #NOTE: PROGTITL goes in metadata but not in header so we store in temp dict for later
+        self.extra_meta['PROGTITL'] = progtitl
+        
+        return True
+
+
+    def set_propint(self):
         '''
         Set proprietary period length.
-        NOTE: This must come after set_semester() is called
+        NOTE: This must come after set_prog_info and set_semester is called
         '''
-
-        # self.log.info('set_propint: determining PROPINT value')
 
         #create semid
         semid = self.get_semid()
         assert (semid != None), 'set_propint: Could not create SEMID.'
-
 
         # Default to 18 for ENG data (***verify with SAs***)
         progid = self.fits_hdr.get('PROGID').upper()
@@ -590,17 +595,16 @@ class Instrument(dep.DEP):
             propint = 18
         else:
             #create url and get data
-#todo: test this
             query = f'select propmin from koa_ppp where semid="{semid}" and utdate="{self.utDate}"'
             data = self.db.query('koa', query, getOne=True)
             if not data:
-                self.log.info('set_propint: PROPINT not found for ' + semid + ' and ' + self.utDate + ', defaulting to 18 months')
+                log.info('set_propint: PROPINT not found for ' + semid + ' and ' + self.utDate + ', defaulting to 18 months')
                 propint = 18
             else:
                 propint = int(data['propmin'])
 
         #NOTE: PROPINT goes in metadata but not in header so we store in temp dict for later
-        self.extraMeta['PROPINT'] = propint
+        self.extra_meta['PROPINT'] = propint
 
         return True
 
@@ -636,7 +640,7 @@ class Instrument(dep.DEP):
         Adds mean, median, std keywords to header
         '''
 
-        # self.log.info('set_image_stats_keywords: setting image statistics keyword values')
+        # log.info('set_image_stats_keywords: setting image statistics keyword values')
 
         image = self.fits_hdu[0].data     
         imageStd    = float("%0.2f" % np.std(image))
@@ -654,20 +658,15 @@ class Instrument(dep.DEP):
         '''
         Determines number of saturated pixels and adds NPIXSAT to header
         '''
-
-        # self.log.info('set_npixsat: setting pixel saturation keyword value')
-
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
-            
         if satVal == None:
-            self.log.warning("set_npixsat: Could not find SATURATE keyword")
+            log.warning("set_npixsat: Could not find SATURATE keyword")
         else:
             image = self.fits_hdu[ext].data     
             pixSat = image[np.where(image >= satVal)]
             nPixSat = len(image[np.where(image >= satVal)])
             self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels',ext=ext)
-
         return True
 
 
@@ -675,18 +674,22 @@ class Instrument(dep.DEP):
         '''
         Adds observing assistant name to header
         '''
-
-        # Get OA from dep_obtain file
-        obFile = self.dirs['stage'] + '/dep_obtain' + self.instr + '.txt'
-        obData = get_obtain_data(obFile)
-        oa = None
-        if len(obData) >= 1: oa = obData[0]['OA']
-
-        if oa == None:
-            self.log.warning("set_oa: Could not find OA data")
+        url = f"{self.config['API']['TELAPI']}cmd=getNightStaff&date={prevDate}&telnr={self.telnr}"
+        log.info(f'retrieving night staff info: {url}')
+        data = self.get_api_data(url)
+        oa = 'None'
+        if data:
+            if isinstance(data, dict):
+                if ('Alias' in data):
+                    oa = data['Alias']
+            else:
+                for entry in data:
+                    if entry['Type'] == 'oa' or entry['Type'] == 'oar':
+                        oa = entry['Alias']
+        if oa == 'None':
+            log.warning("set_oa: Could not find OA data")
         else:
             self.set_keyword('OA', oa, 'KOA: Observing Assistant name')
-
         return True
 
 
@@ -695,12 +698,10 @@ class Instrument(dep.DEP):
         Adds OFNAME keyword to header 
         """
 
-        # self.log.info('set_ofName: setting OFNAME keyword value')
-
         #get value
         ofName = self.get_keyword('OFNAME')
         if (ofName == None): 
-            self.log.error('set_ofName: cannot find value for OFNAME')
+            log.error('set_ofName: cannot find value for OFNAME')
             return False
 
         #add *.fits to output if it does not exist (to fix old files)
@@ -717,22 +718,19 @@ class Instrument(dep.DEP):
         NOTE: DEP should not exit if weather files are not found
         '''
 
-        # self.log.info('set_weather_keywords: setting weather keyword values')
-
         #get input vars
         dateobs = self.get_keyword('DATE-OBS')
         utc     = self.get_keyword('UTC')
-        telnr   = self.get_telnr()
 
         #get data but continue even if there were errors for certain keywords
-        data, errors, warns = envlog(telnr, dateobs, utc)
+        data, errors, warns = envlog(self.telnr, dateobs, utc)
         if type(data) is not dict: 
-            self.log.error(f"Could not get weather data for {dateobs} {utc}")
+            log.error(f"Could not get weather data for {dateobs} {utc}")
             return True
         if len(errors) > 0:
-            self.log.error(f"EPICS archiver error for {dateobs} {utc}: {str(errors)}")
+            log.error(f"EPICS archiver error for {dateobs} {utc}: {str(errors)}")
         if len(warns) > 0:
-            self.log.info(f"EPICS archiver warn {dateobs} {utc}: {str(warns)}")
+            log.info(f"EPICS archiver warn {dateobs} {utc}: {str(warns)}")
 
         #set keywords
         self.set_keyword('WXDOMHUM' , data['wx_domhum'],    'KOA: Weather dome humidity')
@@ -756,8 +754,9 @@ class Instrument(dep.DEP):
         #todo: Replace API call with hard-coded?
         '''
 
-        url = self.config['API']['TELAPI'] + 'cmd=getTelnr&instr=' + self.instr.upper()
-        data = get_api_data(url, getOne=True)
+        url = f"{self.config['API']['TELAPI']}cmd=getTelnr&instr={self.instr.upper()}"
+        print(url)
+        data = self.get_api_data(url, getOne=True)
         telNr = int(data['TelNr'])
         assert telNr in [1, 2], 'telNr "' + telNr + '"" not allowed'
         return telNr
@@ -768,7 +767,7 @@ class Instrument(dep.DEP):
         #make sure we have a koaid
         koaid = self.get_keyword('KOAID')
         if (not koaid):
-            self.log.error('write_lev0_fits_file: Could not find KOAID for output filename.')
+            log.error('write_lev0_fits_file: Could not find KOAID for output filename.')
             return False
 
         #build outfile path
@@ -782,17 +781,17 @@ class Instrument(dep.DEP):
             #already exists?
             #todo: only allow skip if not fullRun
             # if os.path.isfile(outfile):
-            #     self.log.warning('write_lev0_fits_file: file already exists. SKIPPING')
+            #     log.warning('write_lev0_fits_file: file already exists. SKIPPING')
             #     return True
             self.fits_hdu.writeto(outfile)
-            self.log.info('write_lev0_fits_file: output file is ' + outfile)
+            log.info('write_lev0_fits_file: output file is ' + outfile)
         except:
             try:
                 self.fits_hdu.writeto(outfile, output_verify='ignore')
-                self.log.info('write_lev0_fits_file: Forced to write FITS using output_verify="ignore". May want to inspect:' + outfile)                
+                log.info('write_lev0_fits_file: Forced to write FITS using output_verify="ignore". May want to inspect:' + outfile)                
             except Exception as e:
-                self.log.error('write_lev0_fits_file: Could not write out lev0 FITS file to ' + outfile)
-                self.log.info(str(e))
+                log.error('write_lev0_fits_file: Could not write out lev0 FITS file to ' + outfile)
+                log.info(str(e))
                 if os.path.isfile(outfile):
                     os.remove(outfile)
                 return False
@@ -812,17 +811,17 @@ class Instrument(dep.DEP):
             if koaid in files:
                 fits_filepath = f'{root}/{koaid}'
         if not fits_filepath:
-            self.log.error(f'make_jpg: Could not find KOAID: {koaid}')
+            log.error(f'make_jpg: Could not find KOAID: {koaid}')
             return False
         outdir = os.path.dirname(fits_filepath)
 
         #call instrument specific create_jpg function
         try:
-            self.log.info(f'make_jpg: Creating jpg from: {fits_filepath}')
+            log.info(f'make_jpg: Creating jpg from: {fits_filepath}')
             self.create_jpg_from_fits(fits_filepath, outdir)
         except Exception as e:
-            self.log.error(f'make_jpg: Could not create JPG from: {fits_filepath}')
-            self.log.error(e)
+            log.error(f'make_jpg: Could not create JPG from: {fits_filepath}')
+            log.error(e)
             return False
 
         return True
@@ -904,7 +903,7 @@ class Instrument(dep.DEP):
         Adds FRAMENO keyword to header if it doesn't exist
         """
 
-        # self.log.info('set_frameno: setting FRAMNO keyword value from FRAMENUM')
+        # log.info('set_frameno: setting FRAMNO keyword value from FRAMENUM')
 
         #skip if it exists
         if self.get_keyword('FRAMENO', False) != None: return True
@@ -916,7 +915,7 @@ class Instrument(dep.DEP):
 
             datafile = self.get_keyword('DATAFILE')
             if (datafile == None): 
-                self.log.error('set_frameno: cannot find value for FRAMENO')
+                log.error('set_frameno: cannot find value for FRAMENO')
                 return False
 
             frameno = datafile.replace('.fits', '')
@@ -947,7 +946,7 @@ class Instrument(dep.DEP):
         For those instruments without a DRP, just note that in the log.
         '''
 
-        self.log.info('run_drp: no DRP defined for {}'.format(self.instr))
+        log.info('run_drp: no DRP defined for {}'.format(self.instr))
         return True
 
     def run_psfr(self):
@@ -956,7 +955,7 @@ class Instrument(dep.DEP):
         For those instruments without PSFR, just note that in the log.
         '''
 
-        self.log.info('run_psfr: no PSFR defined for {}'.format(self.instr))
+        log.info('run_psfr: no PSFR defined for {}'.format(self.instr))
         return True
 
     def set_numccds(self):
@@ -1015,14 +1014,14 @@ class Instrument(dep.DEP):
 
         if delete == 0:
             if not os.path.isfile(dqaLoc):
-                self.log.info(f'dqa_loc: creating {dqaLoc}')
+                log.info(f'dqa_loc: creating {dqaLoc}')
                 open(dqaLoc, 'w').close()
         elif delete == 1:
             if os.path.isfile(dqaLoc):
-                self.log.info(f'dqa_loc: removing {dqaLoc}')
+                log.info(f'dqa_loc: removing {dqaLoc}')
                 os.remove(dqaLoc)
         else:
-            self.log.info('dqa_loc: invalid input parameter')
+            log.info('dqa_loc: invalid input parameter')
 
         return True
 

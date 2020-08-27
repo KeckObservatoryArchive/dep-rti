@@ -157,7 +157,7 @@ class Deimos(instrument.Instrument):
         dateobs, utc = dateVal.split('T')
         utc = f'{utc}.00'
         
-        self.log.info('set_fcs_date_time: Setting DATE-OBS and UTC from DATE')
+        log.info('set_fcs_date_time: Setting DATE-OBS and UTC from DATE')
         self.set_keyword('DATE-OBS', dateobs, 'KOA: Created from DATE keyword value')
         self.set_keyword('UTC', utc, 'KOA: Created from DATE keyword value')
         
@@ -172,13 +172,13 @@ class Deimos(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            self.log.info('set_ofName: Could not detrermine OFNAME')
+            log.info('set_ofName: Could not detrermine OFNAME')
             ofname = ''
             return False
         
         frameno = str(frameno).zfill(4)
         ofName = ''.join((outfile, frameno, '.fits'))
-        self.log.info('set_ofName: OFNAME = {}'.format(ofName))
+        log.info('set_ofName: OFNAME = {}'.format(ofName))
         self.set_keyword('OFNAME', ofName, 'KOA: Original file name')
 
         return True
@@ -197,7 +197,7 @@ class Deimos(instrument.Instrument):
 
         # Warn if undefined
         if koaimtyp == 'undefined':
-            self.log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
         # Create the keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
@@ -264,7 +264,7 @@ class Deimos(instrument.Instrument):
         
         camera = self.get_keyword('CAMERA', False)
         if camera == None:
-            self.log.info('set_camera: Adding CAMERA keyword')
+            log.info('set_camera: Adding CAMERA keyword')
             self.set_keyword('CAMERA', 'DEIMOS', 'KOA: Camera name')
 
         return True
@@ -278,9 +278,9 @@ class Deimos(instrument.Instrument):
 
         filter = self.get_keyword('DWFILNAM', False)
         if filter == None:
-            self.log.info('set_filter: Could not set filter, no DWFILNAM value')
+            log.info('set_filter: Could not set filter, no DWFILNAM value')
         else:
-            self.log.info('set_filter: Adding FILTER keyword')
+            log.info('set_filter: Adding FILTER keyword')
             self.set_keyword('FILTER', filter, 'KOA: Filter name')
         
         return True
@@ -294,9 +294,9 @@ class Deimos(instrument.Instrument):
 
         mjd = self.get_keyword('MJD-OBS', False)
         if mjd == None:
-            self.log.info('set_mjd: Could not set MJD, no MJD-OBS value')
+            log.info('set_mjd: Could not set MJD, no MJD-OBS value')
         else:
-            self.log.info('set_mjd: Adding MJD keyword')
+            log.info('set_mjd: Adding MJD keyword')
             self.set_keyword('MJD', float(mjd), 'KOA: Modified julian day')
         
         return True
@@ -321,7 +321,7 @@ class Deimos(instrument.Instrument):
                      SLMSKNAM != ["LVM*", "Long*"]
         '''
 
-        self.log.info('set_obsmode: Adding OBSMODE keyword')
+        log.info('set_obsmode: Adding OBSMODE keyword')
         
         obsmode = 'null'
         
@@ -357,7 +357,7 @@ class Deimos(instrument.Instrument):
         imaging extensions for this file.
         '''
 
-        self.log.info('set_nexten: Adding NEXTEN keyword')
+        log.info('set_nexten: Adding NEXTEN keyword')
         self.set_keyword('NEXTEN', int(len(self.fits_hdu))-1, 'KOA: Number of image extensions')
 
         return True
@@ -370,7 +370,7 @@ class Deimos(instrument.Instrument):
         headers.  ## = 01 to 16.
         '''
 
-        self.log.info('set_detsec: Adding DETSEC## keywords')
+        log.info('set_detsec: Adding DETSEC## keywords')
 
         maxExtensions = 16
         for i in range(1, maxExtensions+1):
@@ -393,13 +393,13 @@ class Deimos(instrument.Instrument):
         NPIXSAT is the sum of all image extensions.
         '''
 
-        self.log.info('set_npixsat: setting pixel saturation keyword value')
+        log.info('set_npixsat: setting pixel saturation keyword value')
 
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
 
         if satVal == None:
-            self.log.warning("set_npixsat: Could not find SATURATE keyword")
+            log.warning("set_npixsat: Could not find SATURATE keyword")
         else:
             nPixSat = 0
             for ext in range(1, len(self.fits_hdu)):

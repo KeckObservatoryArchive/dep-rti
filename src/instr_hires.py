@@ -113,7 +113,7 @@ class Hires(instrument.Instrument):
         
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            self.log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
         #update keyword
         self.set_keyword('IMAGETYP', koaimtyp, 'KOA: Image type')
@@ -195,7 +195,7 @@ class Hires(instrument.Instrument):
 #        
 #        if self.get_keyword('Blank', False) != None: return True
 #
-#        self.log.info('set_blank: Creating BLANK keyword with value -32768')
+#        log.info('set_blank: Creating BLANK keyword with value -32768')
 #
 #        #add keyword
 #        self.set_keyword('BLANK', -32768, 'KOA: ')
@@ -212,7 +212,7 @@ class Hires(instrument.Instrument):
 
         if ' ' not in binning: return True
 
-        self.log.info('fix_binning: BINNING value updated')
+        log.info('fix_binning: BINNING value updated')
         comment = ' '.join*(('KOA: Keyword value changed from', binning))
         binning = binning.replace(' ', '')
         self.set_keyword('BINNING', binning, comment)
@@ -228,13 +228,13 @@ class Hires(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            self.log.info('set_ofName: Could not detrermine OFNAME')
+            log.info('set_ofName: Could not detrermine OFNAME')
             ofname = ''
             return False
         
         frameno = str(frameno).zfill(4)
         ofName = ''.join((outfile, frameno, '.fits'))
-        self.log.info('set_ofName: OFNAME = {}'.format(ofName))
+        log.info('set_ofName: OFNAME = {}'.format(ofName))
         self.set_keyword('OFNAME', ofName, 'KOA: Original file name')
 
         return True
@@ -398,7 +398,7 @@ class Hires(instrument.Instrument):
         inststat = -1 (missing keywords)
         '''
 
-        self.log.info('set_instrument_status: Setting ...')
+        log.info('set_instrument_status: Setting ...')
 
         inststat = 1
         koaimtyp = self.get_keyword('IMAGETYP', default='')
@@ -481,7 +481,7 @@ class Hires(instrument.Instrument):
         '''
         Determine slit scales from decker name
         '''
-        self.log.info('set_slit_values: Setting slit scale keywords')
+        log.info('set_slit_values: Setting slit scale keywords')
 
         slitlen = slitwidt = spatscal = specres = 'null'
         f15PlateScale = 0.7235 # mm/arcsec
@@ -546,7 +546,7 @@ class Hires(instrument.Instrument):
             slitwidt = round(slitwidt, 3)
             specres = int(specres)
         else:
-            self.log.info('set_slit_values: Unable to set slit scale keywords')
+            log.info('set_slit_values: Unable to set slit scale keywords')
 
         self.set_keyword('SLITLEN', slitlen, 'KOA: Slit length projected on sky (arcsec)')
         self.set_keyword('SLITWIDT', slitwidt, 'KOA: Slit width projected on sky (arcsec)')
@@ -562,7 +562,7 @@ class Hires(instrument.Instrument):
         Assign values for CCD gain and read noise
         '''
 
-        self.log.info('set_gain: Setting CCDGN and CCDRN keywords')
+        log.info('set_gain: Setting CCDGN and CCDRN keywords')
 
         gain = {}
         gain['low']  = [1.20, 1.95, 1.13, 2.09, 1.26, 2.09]
@@ -613,12 +613,12 @@ class Hires(instrument.Instrument):
 
         # Skip if one or more values not found
         if irot2ang == None or parang == None or el == None:
-            self.log.info('set_skypa: Could not set skypa')
+            log.info('set_skypa: Could not set skypa')
             return True
 
         skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)
 
-        self.log.info('set_skypa: Setting skypa')
+        log.info('set_skypa: Setting skypa')
         self.set_keyword('SKYPA', round(skypa, 4), 'KOA: Position angle on sky (deg)')
 
         return True
@@ -629,7 +629,7 @@ class Hires(instrument.Instrument):
         Determine if file is part of a subexposure sequence
         '''
 
-        self.log.info('set_subexp: Setting SUBEXP')
+        log.info('set_subexp: Setting SUBEXP')
 
         subexp = 'False'
         comment = ''
@@ -793,7 +793,7 @@ class Hires(instrument.Instrument):
         Calculates S/N for middle CCD image
         '''
 
-        self.log.info('set_sig2nois: Adding SIG2NOIS')
+        log.info('set_sig2nois: Adding SIG2NOIS')
 
         numamps = self.get_numamps()
 
@@ -829,12 +829,12 @@ class Hires(instrument.Instrument):
         HIRES needs PROPINT1, 2, 3 and PROPMIN
         '''
 
-        if self.extraMeta['PROPINT']:
-            self.log.info('fix_propint: Adding PROPINT1, PROPINT2 and PROPINT3')
-            self.extraMeta['PROPINT1'] = self.extraMeta['PROPINT']
-            self.extraMeta['PROPINT2'] = self.extraMeta['PROPINT']
-            self.extraMeta['PROPINT3'] = self.extraMeta['PROPINT']
-            self.extraMeta['PROPMIN'] = self.extraMeta['PROPINT']
+        if self.extra_meta['PROPINT']:
+            log.info('fix_propint: Adding PROPINT1, PROPINT2 and PROPINT3')
+            self.extra_meta['PROPINT1'] = self.extra_meta['PROPINT']
+            self.extra_meta['PROPINT2'] = self.extra_meta['PROPINT']
+            self.extra_meta['PROPINT3'] = self.extra_meta['PROPINT']
+            self.extra_meta['PROPMIN'] = self.extra_meta['PROPINT']
 
         return True
 
@@ -857,9 +857,9 @@ class Hires(instrument.Instrument):
             if koaid in files:
                 filePath = ''.join((root, '/', koaid))
         if not filePath:
-            self.log.error('make_jpg: Could not find KOAID: ' + koaid)
+            log.error('make_jpg: Could not find KOAID: ' + koaid)
             return False
-        self.log.info('make_jpg: converting {} to jpeg format'.format(filePath))
+        log.info('make_jpg: converting {} to jpeg format'.format(filePath))
 
         koaid = filePath.replace('.fits', '')
 
@@ -891,9 +891,9 @@ class Hires(instrument.Instrument):
                     os.remove(pngFile)
                     plt.close()
                 except:
-                    self.log.error('make_jpg: Could not create JPG: ' + jpgFile)
+                    log.error('make_jpg: Could not create JPG: ' + jpgFile)
         else:
-            self.log.error('make_jpg: file does not exist {}'.format(filePath))
+            log.error('make_jpg: file does not exist {}'.format(filePath))
             return False
 
         return True
@@ -904,13 +904,13 @@ class Hires(instrument.Instrument):
         Determines number of saturated pixels and adds NPIXSAT to header
         '''
 
-        self.log.info('set_npixsat: setting pixel saturation keyword value')
+        log.info('set_npixsat: setting pixel saturation keyword value')
 
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
 
         if satVal == None:
-            self.log.warning("set_npixsat: Could not find SATURATE keyword")
+            log.warning("set_npixsat: Could not find SATURATE keyword")
         else:
             nPixSat = 0
             for ext in range(1, len(self.fits_hdu)):

@@ -120,7 +120,7 @@ class Lris(instrument.Instrument):
         if instrume in ('LRIS', 'LRISBLUE'):
             ok = True
         if (not ok):
-            self.log.error('set_instr: cannot determine if file is from ' + self.instr + '.  UDF!')
+            log.error('set_instr: cannot determine if file is from ' + self.instr + '.  UDF!')
         return ok
 
 
@@ -131,7 +131,7 @@ class Lris(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            self.log.warning('set_ofName: Could not determine OFNAME')
+            log.warning('set_ofName: Could not determine OFNAME')
             return False
     
         frameno = str(frameno).zfill(4)
@@ -147,7 +147,7 @@ class Lris(instrument.Instrument):
         '''
         koaimtyp = self.get_koaimtyp()
         if (koaimtyp == 'undefined'):
-            self.log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         return True
 
@@ -588,10 +588,10 @@ class Lris(instrument.Instrument):
 
         # Skip if one or more values not found
         if irot2ang == None or parang == None or el == None:
-            self.log.info('set_skypa: Could not set skypa')
+            log.info('set_skypa: Could not set skypa')
             return True
         skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)
-        self.log.info('set_skypa: Setting skypa')
+        log.info('set_skypa: Setting skypa')
         self.set_keyword('SKYPA', round(skypa, 4), 'KOA: Position angle on sky (deg)')
 
         return True
@@ -672,7 +672,7 @@ class Lris(instrument.Instrument):
             satVal = self.get_keyword('SATURATE')
 
         if satVal == None:
-            self.log.warning("set_npixsat: Could not find SATURATE keyword")
+            log.warning("set_npixsat: Could not find SATURATE keyword")
         else:
             nPixSat = 0
             for ext in range(1, self.nexten+1):

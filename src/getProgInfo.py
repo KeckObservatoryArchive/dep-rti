@@ -57,7 +57,7 @@ class ProgSplit:
         self.utDate = ut_date
         self.instrument = instr
         self.stageDir = stage_dir
-        self.log = log
+        log = log
 
         #consts        
         self.instrList = {  'DEIMOS'    :2, 
@@ -100,7 +100,7 @@ class ProgSplit:
 
         #log
         self.rootdir = self.stageDir.split('/stage')[0]
-        if not self.log: self.log = cl.create_log(self.rootdir, instr, ut_date)
+        if not log: log = cl.create_log(self.rootdir, instr, ut_date)
 
     def get_semester(self):
         """
@@ -196,9 +196,9 @@ class ProgSplit:
                             if '/' in progid:
                                 progid, tmp = progid.split('/') # case of /scam and /spec
                             semid = self.semester+'_'+progid
-                            row['proginst'] = get_prog_inst(semid, 'NONE', self.log, isToO=True)
-                            row['progpi']   = get_prog_pi(semid, 'NONE', self.log)
-                            row['progtitl'] = get_prog_title(semid, 'NONE', self.log)
+                            row['proginst'] = get_prog_inst(semid, 'NONE', log, isToO=True)
+                            row['progpi']   = get_prog_pi(semid, 'NONE', log)
+                            row['progtitl'] = get_prog_title(semid, 'NONE', log)
                             row['progid']   = progid
                             #todo: should default title be "ToO Program"
 
@@ -221,7 +221,7 @@ class ProgSplit:
         """
 
         prog = self.programs[progIdx]
-        self.log.info('getProgInfo: assign_to_pi: data: ' + str(prog))
+        log.info('getProgInfo: assign_to_pi: data: ' + str(prog))
 
         for i, tmpFile in enumerate(self.fileList):
 
@@ -250,7 +250,7 @@ class ProgSplit:
 
         #get prog
         prog = self.programs[num]
-        self.log.info('assigning ' + os.path.basename(self.fileList[filenum]['file']) + ' to progIndex: ' + str(num) + '('+prog['ProjCode']+').')
+        log.info('assigning ' + os.path.basename(self.fileList[filenum]['file']) + ' to progIndex: ' + str(num) + '('+prog['ProjCode']+').')
 
         #update col values to those in program
         self.fileList[filenum]['proginst'] = prog['Institution']
@@ -262,7 +262,7 @@ class ProgSplit:
             self.fileList[filenum]['progtitl'] = self.instrument +' Engineering'
         else:
             semid = self.semester+'_'+prog['ProjCode']
-            self.fileList[filenum]['progtitl'] = get_prog_title(semid, 'NONE', self.log)
+            self.fileList[filenum]['progtitl'] = get_prog_title(semid, 'NONE', log)
 
 #---------------------------- END ASSIGN SINGLE TO PI-------------------------------------------
 
@@ -283,7 +283,7 @@ class ProgSplit:
             progStartTime = datetime.strptime(self.utDate +  ' ' + prog['StartTime'],'%Y-%m-%d %H:%M')
             progEndTime   = datetime.strptime(self.utDate +  ' ' + prog['EndTime'],'%Y-%m-%d %H:%M')
             if fileTime <= progEndTime or idx == len(self.programs)-1:
-                self.log.warning('getProgInfo: Assigning ' + os.path.basename(file['file']) + ' by time ' + file['utdate'] + ' ' + file['utc'] + ' to ' + prog['ProjCode'])
+                log.warning('getProgInfo: Assigning ' + os.path.basename(file['file']) + ' by time ' + file['utdate'] + ' ' + file['utc'] + ' to ' + prog['ProjCode'])
                 self.assign_single_to_pi(filenum, idx)
                 ok = True
                 break
@@ -315,15 +315,15 @@ class ProgSplit:
         elif re.search('/\d{4}\D{3}\d{2}'  , outdir): assign = 0
 
         if assign >= len(self.programs) : 
-            self.log.warning('getProgInfo: Program assignment index ' + str(assign) + ' > number of programs.')
+            log.warning('getProgInfo: Program assignment index ' + str(assign) + ' > number of programs.')
             assign = -1
 
         if assign < 0:
-            self.log.info('getProgInfo: Could not map ' + outdir + " to a program by dir naming convention.")
+            log.info('getProgInfo: Could not map ' + outdir + " to a program by dir naming convention.")
             return False
         else:
             projcode = self.programs[assign]['ProjCode']
-            self.log.info('getProgInfo: Mapping (by name) outdir ' + outdir + " to progIndex: " + str(assign) + ' ('+projcode+').')
+            log.info('getProgInfo: Mapping (by name) outdir ' + outdir + " to progIndex: " + str(assign) + ' ('+projcode+').')
             self.assign_single_to_pi(filenum, assign)
             return True
 
@@ -369,7 +369,7 @@ class ProgSplit:
                     matchIdx = idx
 
         if matchIdx >= 0:
-            self.log.info('getProgInfo: Assigning ' + os.path.basename(file['file']) + ' by observer match.')
+            log.info('getProgInfo: Assigning ' + os.path.basename(file['file']) + ' by observer match.')
             self.assign_single_to_pi(filenum, matchIdx)
             ok = True
 
@@ -441,7 +441,7 @@ class ProgSplit:
         url = self.api + 'metrics.php?date=' + self.utDate
         self.suntimes = get_api_data(url, getOne=True)
         if not self.suntimes:
-            self.log.error('getProgInfo: Could not get sun times via API call: ', url)
+            log.error('getProgInfo: Could not get sun times via API call: ', url)
             return
 
 #------------------------------END GET SUN TIMES------------------------------------------------
@@ -464,18 +464,18 @@ class ProgSplit:
                 sunrise  = self.suntimes['sunrise']
                 prog['StartTime'] = sunset   if key == 0 else midpoint
                 prog['EndTime']   = midpoint if key == 0 else sunrise
-                self.log.info('Assigning start/end times for {} to suntimes {} - {}'.format(prog['ProjCode'], prog['StartTime'], prog['EndTime']))
+                log.info('Assigning start/end times for {} to suntimes {} - {}'.format(prog['ProjCode'], prog['StartTime'], prog['EndTime']))
 
             t1 = datetime.strptime(prog['StartTime'], '%H:%M')
             t2 = datetime.strptime(prog['EndTime']  , '%H:%M')
 
             splitTimes[key] = [t1, t2]
-        self.log.info('get_outdirs: Split times: ' + str(splitTimes))
+        log.info('get_outdirs: Split times: ' + str(splitTimes))
 
 
         #throw an error if there are 3-way or more split and we don't have Start/End times
         if len(programs) > 2 and isMissingTimes:
-            self.log.error('get_outdirs: Three or more split programs but no Start/End time info found! Program assignment may be incorrect.  Check manually.')
+            log.error('get_outdirs: Three or more split programs but no Start/End time info found! Program assignment may be incorrect.  Check manually.')
 
 
         #Get list of unique outdirs from file list and keep count of where the science files are
@@ -512,7 +512,7 @@ class ProgSplit:
 
     def assign_outdirs_to_programs(self):
 
-        self.log.info('getProgInfo: starting assign_outdirs_to_programs()')
+        log.info('getProgInfo: starting assign_outdirs_to_programs()')
 
         # Try different methods
         self.assign_outdirs_by_sci_count()
@@ -527,22 +527,22 @@ class ProgSplit:
 
         #first check that we have multiple outdirs 
         if len(self.outdirs) <= 1:
-            self.log.warning("getProgInfo: This is a split night but we do not have multiple outdirs.")
+            log.warning("getProgInfo: This is a split night but we do not have multiple outdirs.")
 
-        self.log.info('getProgInfo: ' + str(len(self.outdirs)) + ' OUTDIRs found')
+        log.info('getProgInfo: ' + str(len(self.outdirs)) + ' OUTDIRs found')
         for outdir, data in self.outdirs.items():
-            self.log.info('outdir sci counts for : ' + outdir)
+            log.info('outdir sci counts for : ' + outdir)
             for i, count in data['sciCounts'].items():
                 perc = count / data['sciTotal'] if data['sciTotal'] > 0 else 0
-                self.log.info('--- prog' + str(i) + ': ' + str(count) + ' ('+str(round(perc*100,0))+'%)')
+                log.info('--- prog' + str(i) + ': ' + str(count) + ' ('+str(round(perc*100,0))+'%)')
                 if (perc > 0.85 and count > 10) or (perc > 0.95 and count > 3): 
                     self.outdirs[outdir]['assign'] = i
                     projcode = self.programs[i]['ProjCode']
-                    self.log.info('Mapping (by sci) outdir ' + outdir + " to progIndex: " + str(i) + ' ('+projcode+').')
+                    log.info('Mapping (by sci) outdir ' + outdir + " to progIndex: " + str(i) + ' ('+projcode+').')
 
             #no assignment?
             if self.outdirs[outdir]['assign'] < 0:
-                self.log.warning("Could not map outdir by sci counts for: " + outdir)
+                log.warning("Could not map outdir by sci counts for: " + outdir)
 
 
     def split_multi(self):
@@ -560,11 +560,11 @@ class ProgSplit:
                     #if not ok: ok = self.assign_single_by_outdir_name(idx)
                     if not ok: ok = self.assign_single_by_time(idx)
             else:
-                self.log.error("getProgInfo: Could not find outdir match for: " + fileOutdir)
+                log.error("getProgInfo: Could not find outdir match for: " + fileOutdir)
 
             #final check to see if assigned
             if self.fileList[idx]['progpi'] in ('PROGPI', '', 'NONE'):
-                self.log.error("getProgInfo: Could not assign program for file: " + os.path.basename(self.fileList[idx]['file']))
+                log.error("getProgInfo: Could not assign program for file: " + os.path.basename(self.fileList[idx]['file']))
 
 #---------------------END SPLIT MULTI ----------------------------------------
 
@@ -640,16 +640,16 @@ class ProgSplit:
                     if val and val != file[kw]:
                         if file[kw] and file[kw] != 'NONE' and 'PROG' not in file[kw]:
                             if kw == 'progid':
-                                self.log.error("getProgInfo: " + kw.upper() + " value mismatch. VERIFY new value for: " + os.path.basename(file['file']))
+                                log.error("getProgInfo: " + kw.upper() + " value mismatch. VERIFY new value for: " + os.path.basename(file['file']))
                         else:
                             self.fileList[idx][kw] = val
                             if kw == 'progid':
-                                self.log.info("getProgInfo: Could not determine " + kw.upper() + " value. Assigning from old header for: " + os.path.basename(file['file']))
+                                log.info("getProgInfo: Could not determine " + kw.upper() + " value. Assigning from old header for: " + os.path.basename(file['file']))
                 elif use == 'force':
                     if val and val != file[kw]:
                         self.fileList[idx][kw] = val
                         if kw == 'progid':
-                            self.log.warning("getProgInfo: Force assigning " + kw.upper() + " from old header for: " + os.path.basename(file['file']))
+                            log.warning("getProgInfo: Force assigning " + kw.upper() + " from old header for: " + os.path.basename(file['file']))
 
 #--------------------------------------------------------------------
 
@@ -668,7 +668,7 @@ class ProgSplit:
 
         for key, count in counts.items():
             if key == 'PROGID': key = 'NONE'
-            self.log.info(f"getProgInfo: PROGID COUNT: {key}: {count}")
+            log.info(f"getProgInfo: PROGID COUNT: {key}: {count}")
 
 
 #--------------------------------------------------------------------

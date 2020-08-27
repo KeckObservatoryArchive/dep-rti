@@ -92,7 +92,7 @@ class Mosfire(instrument.Instrument):
         '''
         #todo: make this a common instrument.py function for all instruments (small differences)
 
-        # self.log.info('set_elaptime: determining ELAPTIME from ITIME/COADDS')
+        # log.info('set_elaptime: determining ELAPTIME from ITIME/COADDS')
 
         #skip if it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
@@ -101,7 +101,7 @@ class Mosfire(instrument.Instrument):
         itime  = self.get_keyword('TRUITIME')
         coadds = self.get_keyword('COADDS')
         if (itime == None or coadds == None):
-            self.log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
+            log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
             return False
 
         #update val
@@ -115,7 +115,7 @@ class Mosfire(instrument.Instrument):
         Determine image type based on instrument keyword configuration
         """
 
-        # self.log.info('set_koaimtyp: setting KOAIMTYP keyword value')
+        # log.info('set_koaimtyp: setting KOAIMTYP keyword value')
 
         # Default KOAIMTYP value
         koaimtyp = 'undefined'
@@ -189,7 +189,7 @@ class Mosfire(instrument.Instrument):
 
         # Warn if undefined
         if koaimtyp == 'undefined':
-            self.log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
         # Update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
@@ -202,7 +202,7 @@ class Mosfire(instrument.Instrument):
         # https://www2.keck.hawaii.edu/inst/mosfire/filters.html
         """
 
-        # self.log.info('set_wavelengths: setting wavelength keyword values')
+        # log.info('set_wavelengths: setting wavelength keyword values')
 
         # Filter lookup (filter: [central, fwhm])
 
