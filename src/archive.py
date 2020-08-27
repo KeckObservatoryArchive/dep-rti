@@ -133,8 +133,8 @@ class Archive():
         #todo: We may store header info in dep_status.header_json
         starttime = starttime.replace('T', '')
         endtime = endtime.replace('T', '')
-        query = (f"select * from dep_status where ",
-                 f"     datetime >= '{starttime}' ",
+        query = (f"select * from dep_status where "
+                 f"     datetime >= '{starttime}' "
                  f" and datetime <= '{endtime}' ")
         files = self.db.query(query)
 

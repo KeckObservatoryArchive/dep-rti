@@ -15,7 +15,9 @@ import yaml
 from astropy.io import fits
 import datetime as dt
 import shutil
+import glob
 
+import metadata
 from common import *
 from envlog import *
 
@@ -38,7 +40,7 @@ class DEP:
         self.tpx       = tpx
 
         #init other vars
-        self.koaid = '';
+        self.koaid = ''
         self.fits_hdu = None
         self.fits_hdr = None
         self.fits_path = None
@@ -76,9 +78,9 @@ class DEP:
     def record_stats(self):
         semid = self.get_semid()
         koaimtype = self.get_keyword('KOAIMTYP')
-        query = ("update dep_status set ",
-                f"   semid='{semid}' ",
-                f" , image_type='{koaimtype}' ",
+        query = ("update dep_status set "
+                f"   semid='{semid}' "
+                f" , image_type='{koaimtype}' "
                 f" where instr='{self.instr}' and koaid='{self.koaid}' ")
         log.info(query)
         result = self.db.query('koa', query)
@@ -177,7 +179,7 @@ class DEP:
 
         # See if entry exists
         query = f'select count(*) as num from dep_status where instr="{self.instr}" and koaid="{self.koaid}"'
-        check = db.query('koa', query, getOne=True)
+        check = self.db.query('koa', query, getOne=True)
         if check is False:
             if log: log.error(f'Could not query dep_status for: {self.instr}, {self.koaid}, {column}, {value}')
             return False
@@ -190,17 +192,17 @@ class DEP:
         #if entry exists and reprocessing, delete record
         if int(check['num']) > 0 and self.reprocess:
             log.info(f"Reprocessing {self.instr} {self.koaid}")
-            self.delete_status_record(self.instr, self.koaid)
+            self.delete_status(self.instr, self.koaid)
             self.delete_local_files(self.instr, self.koaid)
 
         #We always insert a new dep_status record
-        query = ("insert into dep_status set ",
-                f" instr='{self.instr}' ",
-                f" koaid='{self.koaid}' ",
-                f" filepath='{self.filepath}' ",
-                f" dep_step='{__name__}' ",
-                f" dep_status='PROGRESS' ",
-                f" creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
+        query = ("insert into dep_status set "
+                f"   instr='{self.instr}' "
+                f" , koaid='{self.koaid}' "
+                f" , filepath='{self.filepath}' "
+                f" , dep_step='{__name__}' "
+                f" , arch_stat='PROGRESS' "
+                f" , creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
         log.info(query)
         result = self.db.query('koa', query)
         if result is False: 
@@ -219,10 +221,59 @@ class DEP:
         return True
 
 
+    def copy_raw_fits(self):
+        '''Make a permanent read-only copy of the FITS file on Keck storageserver'''
+
+        #If we are not updating DB or reprocessing, just return 
+        if not self.tpx:
+            log.info("TPX is off.  Not copying raw fits to storageserver.") 
+            return True
+        if self.reprocess:
+            log.info("Reprocessing.  Not copying raw fits to storageserver.") 
+            return True
+
+        #form filepath and copy
+        #todo: set to readonly
+        outfile = self.get_raw_filepath
+        outdir = os.path.dirname(outfile)
+        log.info(f'Copying raw fits to {outfile}')
+        try:
+            os.makedirs(outdir, exist_ok=True)
+            shutil.copy(self.filepath, outfile)  
+        except Exception as e:
+            log.error(f"Could not copy raw fits to: {outfile}")
+      
+        #update dep_status.savepath
+        self.update_dep_status('raw_savepath', outdir)
+        return True
+
+    def get_raw_filepath(self):
+        filename = os.path.filename(self.filename)
+        outdir = self.dirs['output']
+        outdir = outdir.replace(self.rootdir, '')
+        outfile = f"{self.config['DIRS']['RAWDIR']}{outdir}/{filename}"
+        return outfile
+
+
     def delete_local_files(self, instr, koaid):
         '''Delete local archived output files.  This is important if we are reprocessing data.'''
-        #todo: finish this
-        pass
+
+        if not self.koaid or len(self.koaid) < 17:
+            log.error(f"Cannot delete local files.  KOAID is invalid: {self.koaid}")
+            return False
+
+        #delete it
+        #todo: other files/anc?
+        try:
+            match = f"{self.dirs['output']}/lev0/{self.koaid}*"
+            print('test: ', match)
+            for f in glob.glob(match):                
+                log.info(f"removing file: {f}")
+                os.remove(f)
+        except Exception as e:
+            log.error(f"Could not delete local files for: {match}")
+            return False
+        return True
 
 
     def update_dep_status(self, column, value):
@@ -234,7 +285,7 @@ class DEP:
         #todo: test failure case if record does not exist.
         query = f'update dep_status set {column}="{value}" where instr="{self.instr}" and koaid="{self.koaid}"'
         log.info(query)
-        if db.query('koa', query) is False:
+        if self.db.query('koa', query) is False:
             if log: log.error(f'update_dep_status failed for: {self.instr}, {self.koaid}, {column}, {value}')
             return False
         return True
@@ -346,40 +397,18 @@ class DEP:
 
     def create_meta(self):
         log.info('Creating metadata')
-        keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + instr
+        keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + self.instr
         ymd = self.utdate.replace('-', '')
-        outfile =  dirs['lev0'] + '/' + ymd + '.metadata.table'
-        metadata.make_metadata( keydefs, outfile, dirs['lev0'], self.extra_meta, 
-                                instrkeyskips=self.keyskips)    
+        outfile =  self.dirs['lev0'] + '/' + ymd + '.metadata.table'
+        ok = metadata.make_metadata( keydefs, outfile, self.dirs['lev0'], self.extra_meta, 
+                                     keyskips=self.keyskips)   
+        return ok
 
 
     def copy_bad_file(self, instr, filepath, reason):
         #todo: What are we doing with bad files?
         log.error(f"Invalid FITS.  Reason: {reason}.  File: {filepath}")
         pass
-
-
-    def copy_raw_fits(self):
-        '''Make a permanent read-only copy of the FITS file on Keck storageserver'''
-
-        #If we are not updating DB, just return 
-        if not self.tpx:
-            log.info("TPX is off.  Not copying raw fits to storageserver.") 
-            return True
-
-        if self.reprocess:
-            log.info("Reprocessing.  Not copying raw fits to storageserver.") 
-            return True
-
-        outdir = self.dirs['output']
-        outdir = outdir.replace(self.rootdir, '')
-        outdir = self.config['DIRS']['RAWDIR'] + outdir
-        self.log(f'Copying raw fits to {outdir}')
-        os.makedirs(os.path.dirname(outdir), exist_ok=True)
-        shutil.copy(self.filepath, outdir)  
-      
-        #update dep_status.savepath
-        self.update_dep_status('savepath', outdir)
 
 
     def verify_date(self, date=''):

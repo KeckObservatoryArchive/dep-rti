@@ -104,6 +104,9 @@ def make_metadata(keywordsDefFile, metaOutFile, lev0Dir, extraData=None, keyskip
     if (warns['truncate'] > 0):
         log.warning('metadata.py: Found {} data truncations (search "metadata check" in log).'.format(warns['truncate']))
 
+    #todo: what conditions should return False?
+    return True
+
 
 
 def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, log, dev, keyskips):

@@ -182,7 +182,9 @@ class Instrument(dep.DEP):
             return False
 
         #save it
-        self.set_keyword('KOAID', koaid, 'KOA: Data file name')
+        koaid_meta = koaid + '.fits'
+        self.set_keyword('KOAID', koaid_meta, 'KOA: Data file name')
+        self.koaid = koaid
         return True
 
 
@@ -227,7 +229,7 @@ class Instrument(dep.DEP):
         dateobs = dateobs.replace('/','')
 
         # Create the KOAID from the parts
-        koaid = self.prefix + '.' + dateobs + '.' + totalSeconds.zfill(5) + '.fits'
+        koaid = self.prefix + '.' + dateobs + '.' + totalSeconds.zfill(5)
         return koaid, True
 
 
