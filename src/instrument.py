@@ -64,7 +64,9 @@ class Instrument(dep.DEP):
 
     def run_dqa(self):
         '''common run_dqa functions.  Call at beginning of instr subclass run_dqa'''
-        self.telnr = self.get_telnr()
+        ok = True
+        if ok: ok = self.set_telnr()
+        return True
 
 
     def get_keyword(self, keyword, useMap=True, default=None, ext=None):
@@ -555,9 +557,9 @@ class Instrument(dep.DEP):
             else:
                 semid = sem + '_' + prog
                 progid   = prog #NOTE: We store without semester in header
-                progpi   = get_prog_pi   (semid, 'NONE')
-                proginst = get_prog_inst (semid, 'NONE')
-                progtitl = get_prog_title(semid, '')
+                progpi   = self.get_prog_pi   (semid, 'NONE')
+                proginst = self.get_prog_inst (semid, 'NONE')
+                progtitl = self.get_prog_title(semid, '')
 
         #update header
         self.set_keyword('PROGID'  , progid,   'KOA: Program ID')
@@ -595,10 +597,10 @@ class Instrument(dep.DEP):
             propint = 18
         else:
             #create url and get data
-            query = f'select propmin from koa_ppp where semid="{semid}" and utdate="{self.utDate}"'
+            query = f'select propmin from koa_ppp where semid="{semid}" and utdate="{self.utdate}"'
             data = self.db.query('koa', query, getOne=True)
             if not data:
-                log.info('set_propint: PROPINT not found for ' + semid + ' and ' + self.utDate + ', defaulting to 18 months')
+                log.info('set_propint: PROPINT not found for ' + semid + ' and ' + self.utdate + ', defaulting to 18 months')
                 propint = 18
             else:
                 propint = int(data['propmin'])
@@ -674,7 +676,7 @@ class Instrument(dep.DEP):
         '''
         Adds observing assistant name to header
         '''
-        url = f"{self.config['API']['TELAPI']}cmd=getNightStaff&date={prevDate}&telnr={self.telnr}"
+        url = f"{self.config['API']['TELAPI']}cmd=getNightStaff&date={self.hstdate}&telnr={self.telnr}"
         log.info(f'retrieving night staff info: {url}')
         data = self.get_api_data(url)
         oa = 'None'
@@ -747,19 +749,19 @@ class Instrument(dep.DEP):
         return True
 
 
-    def get_telnr(self):
+    def set_telnr(self):
         '''
         Gets telescope number for instrument via API
-        #todo: store this and skip api call if exists?  Would need to clear var on fits reload.
         #todo: Replace API call with hard-coded?
         '''
-
         url = f"{self.config['API']['TELAPI']}cmd=getTelnr&instr={self.instr.upper()}"
         print(url)
         data = self.get_api_data(url, getOne=True)
-        telNr = int(data['TelNr'])
-        assert telNr in [1, 2], 'telNr "' + telNr + '"" not allowed'
-        return telNr
+        self.telnr = int(data['TelNr'])
+        if self.telnr not in [1, 2]:
+            log.error(f'telNr "{telNr}" not allowed')
+            return False
+        return True
 
 
     def write_lev0_fits_file(self):
@@ -874,7 +876,7 @@ class Instrument(dep.DEP):
         #todo: test this
         #todo: is this needed?
 
-        datefile = ''.join(('/home/koaadmin/fixdatetime/', self.utDateDir, '.txt'))
+        datefile = ''.join(('/home/koaadmin/fixdatetime/', self.utdatedir, '.txt'))
         datefile = '/home/koaadmin/fixdatetime/20101128.txt'
         if os.path.isfile(datefile) is False:
             return

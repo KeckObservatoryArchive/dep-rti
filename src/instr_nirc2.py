@@ -544,7 +544,7 @@ class Nirc2(instrument.Instrument):
         for word in psfr.split(' '):
             cmd.append(word)
         cmd.append(self.instr)
-        cmd.append(self.utDate)
+        cmd.append(self.utdate)
         host = gethostname()
         cmd.append(f"/net/{host}{self.dirs['lev0']}")
 

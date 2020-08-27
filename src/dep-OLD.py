@@ -42,7 +42,7 @@ class Dep:
         Create instrument object.
         """
         self.instr = instr.upper()
-        self.utDate = utDate
+        self.utdate = utDate
         self.tpx = tpx
         if self.tpx != 1: self.tpx = 0
 
@@ -58,7 +58,7 @@ class Dep:
         className = self.instr.capitalize()
         module = importlib.import_module('instr_' + self.instr.lower())
         instrClass = getattr(module, className)
-        self.instrObj = instrClass(self.instr, self.utDate, self.config)
+        self.instrObj = instrClass(self.instr, self.utdate, self.config)
         
         # Open database connection if in config
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
@@ -164,7 +164,7 @@ class Dep:
         """
 
         self.instrObj.log.info('dep: verifying if can proceed')
-        query = f'select utdate as num from koatpx where instr="{self.instr}" and utdate="{self.utDate}"'
+        query = f'select utdate as num from koatpx where instr="{self.instr}" and utdate="{self.utdate}"'
         data = self.db.query('koa', query)
 #todo: test this
         if data is False:

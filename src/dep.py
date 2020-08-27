@@ -57,7 +57,7 @@ class DEP:
         if ok: ok = self.validate_fits()
         if ok: ok = self.copy_raw_fits()  
         if ok: ok = self.run_dqa()
-        if ok: ok = self.write_fits() 
+        if ok: ok = self.write_lev0_fits_file() 
         if ok:      self.make_jpg()
         if ok: ok = self.create_meta()
         if ok: ok = self.xfr_ipac()
@@ -69,8 +69,10 @@ class DEP:
         '''
 
         #define utDate here after loading fits
-        self.utDate = self.get_keyword('DATE-OBS')
-        self.utDateDir = self.utDate.replace('/', '-').replace('-', '')
+        self.utdate = self.get_keyword('DATE-OBS')
+        self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
+        hstdate = dt.strptime(self.utdate, '%Y-%m-%d') - timedelta(days=1)
+        self.hstdate = hstdate.strftime('%Y-%m-%d')
 
         #check and create dirs
         self.init_dirs()
@@ -115,7 +117,7 @@ class DEP:
 
         rootdir = self.rootdir
         instr = self.instr.upper()
-        ymd = self.utDateDir
+        ymd = self.utdatedir
 
         dirs = {}
         dirs['process'] = ''.join((rootdir, '/', instr))

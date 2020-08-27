@@ -472,7 +472,7 @@ class Osiris(instrument.Instrument):
         cmd = []
         for word in self.config[self.instr]['DRP'].split(' '):
             cmd.append(word)
-        cmd.append(self.utDate)
+        cmd.append(self.utdate)
 
         log.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
         p = subprocess.Popen(cmd)

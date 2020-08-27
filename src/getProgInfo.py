@@ -54,7 +54,7 @@ class ProgSplit:
         """
 
         #save inputs
-        self.utDate = ut_date
+        self.utdate = ut_date
         self.instrument = instr
         self.stageDir = stage_dir
         log = log
@@ -111,7 +111,7 @@ class ProgSplit:
         #todo: move this to common (and change so that it subtracts a day and then does simple semester calc)
 
         # Split the date into its components
-        yr, mo, dy = self.utDate.split('-')
+        yr, mo, dy = self.utdate.split('-')
 
         # convert the strings to ints
         iyr = int(yr)
@@ -280,8 +280,8 @@ class ProgSplit:
             prog = self.programs[idx]
             if not prog['StartTime'] or not prog['EndTime']:
                 continue
-            progStartTime = datetime.strptime(self.utDate +  ' ' + prog['StartTime'],'%Y-%m-%d %H:%M')
-            progEndTime   = datetime.strptime(self.utDate +  ' ' + prog['EndTime'],'%Y-%m-%d %H:%M')
+            progStartTime = datetime.strptime(self.utdate +  ' ' + prog['StartTime'],'%Y-%m-%d %H:%M')
+            progEndTime   = datetime.strptime(self.utdate +  ' ' + prog['EndTime'],'%Y-%m-%d %H:%M')
             if fileTime <= progEndTime or idx == len(self.programs)-1:
                 log.warning('getProgInfo: Assigning ' + os.path.basename(file['file']) + ' by time ' + file['utdate'] + ' ' + file['utc'] + ' to ' + prog['ProjCode'])
                 self.assign_single_to_pi(filenum, idx)
@@ -438,7 +438,7 @@ class ProgSplit:
         split because we couldn't predict if it was a 1/3,1/3,1/3 or a 1/2,1/4,1/4 etc.
         '''
 
-        url = self.api + 'metrics.php?date=' + self.utDate
+        url = self.api + 'metrics.php?date=' + self.utdate
         self.suntimes = get_api_data(url, getOne=True)
         if not self.suntimes:
             log.error('getProgInfo: Could not get sun times via API call: ', url)
