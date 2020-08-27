@@ -1,4 +1,7 @@
-#import datetime as dt
+'''
+Data Evaluation and Processing
+'''
+
 import os
 import sys
 import importlib
@@ -10,7 +13,7 @@ import math
 import db_conn
 import yaml
 from astropy.io import fits
-from datetime import timedelta, datetime as dt
+import datetime as dt
 import shutil
 
 from common import *
@@ -60,7 +63,29 @@ class DEP:
         if ok: ok = self.write_lev0_fits_file() 
         if ok:      self.make_jpg()
         if ok: ok = self.create_meta()
-        if ok: ok = self.xfr_ipac()
+        if ok: ok = self.record_stats()
+#        if ok: ok = self.xfr_ipac()
+
+        #If any of these steps return false then copy to udf
+        if not ok: 
+            self.copy_bad_file(self.instr, self.filepath, 'Failed DQA')
+
+        return ok
+
+
+    def record_stats(self):
+        semid = self.get_semid()
+        koaimtype = self.get_keyword('KOAIMTYP')
+        query = ("update dep_status set ",
+                f"   semid='{semid}' ",
+                f" , image_type='{koaimtype}' ",
+                f" where instr='{self.instr}' and koaid='{self.koaid}' ")
+        log.info(query)
+        result = self.db.query('koa', query)
+        if result is False: 
+            log.error(f'{__name__} failed')
+            return False
+        return True
 
 
     def processing_init(self):
@@ -71,7 +96,7 @@ class DEP:
         #define utDate here after loading fits
         self.utdate = self.get_keyword('DATE-OBS')
         self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
-        hstdate = dt.strptime(self.utdate, '%Y-%m-%d') - timedelta(days=1)
+        hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
         self.hstdate = hstdate.strftime('%Y-%m-%d')
 
         #check and create dirs
@@ -200,7 +225,7 @@ class DEP:
         pass
 
 
-    def update_koatpx(self, column, value):
+    def update_dep_status(self, column, value):
         """Sends command to update KOA dep_status."""
 
         #If we are not updating DB, just return 
@@ -210,7 +235,7 @@ class DEP:
         query = f'update dep_status set {column}="{value}" where instr="{self.instr}" and koaid="{self.koaid}"'
         log.info(query)
         if db.query('koa', query) is False:
-            if log: log.error(f'update_koatpx failed for: {self.instr}, {self.koaid}, {column}, {value}')
+            if log: log.error(f'update_dep_status failed for: {self.instr}, {self.koaid}, {column}, {value}')
             return False
         return True
 
@@ -319,6 +344,15 @@ class DEP:
         return filename, True
 
 
+    def create_meta(self):
+        log.info('Creating metadata')
+        keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + instr
+        ymd = self.utdate.replace('-', '')
+        outfile =  dirs['lev0'] + '/' + ymd + '.metadata.table'
+        metadata.make_metadata( keydefs, outfile, dirs['lev0'], self.extra_meta, 
+                                instrkeyskips=self.keyskips)    
+
+
     def copy_bad_file(self, instr, filepath, reason):
         #todo: What are we doing with bad files?
         log.error(f"Invalid FITS.  Reason: {reason}.  File: {filepath}")
@@ -337,9 +371,15 @@ class DEP:
             log.info("Reprocessing.  Not copying raw fits to storageserver.") 
             return True
 
-
-        #todo: finish this
-        #todo: update savepath
+        outdir = self.dirs['output']
+        outdir = outdir.replace(self.rootdir, '')
+        outdir = self.config['DIRS']['RAWDIR'] + outdir
+        self.log(f'Copying raw fits to {outdir}')
+        os.makedirs(os.path.dirname(outdir), exist_ok=True)
+        shutil.copy(self.filepath, outdir)  
+      
+        #update dep_status.savepath
+        self.update_dep_status('savepath', outdir)
 
 
     def verify_date(self, date=''):

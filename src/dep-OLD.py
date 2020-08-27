@@ -120,7 +120,7 @@ class Dep:
         #write to tpx at dep start
         if fullRun and self.tpx:
             utcTimestamp = dt.datetime.utcnow().strftime("%Y%m%d %H:%M")
-            update_koatpx(self.instrObj.instr, self.instrObj.utDate, 'start_time', utcTimestamp, self.instrObj.log)
+            update_dep_status(self.instrObj.instr, self.instrObj.utDate, 'start_time', utcTimestamp, self.instrObj.log)
 
 
         #run each step in order
@@ -348,8 +348,8 @@ class Dep:
         if self.tpx:
             self.instrObj.log.info('Updating KOA database with error status.')
             utcTimestamp = dt.datetime.utcnow().strftime("%Y%m%d %H:%M")
-            update_koatpx(instr, utDate, 'arch_stat', "ERROR", log)
-            update_koatpx(instr, utDate, 'arch_time', utcTimestamp, log)
+            update_dep_status(instr, utDate, 'arch_stat', "ERROR", log)
+            update_dep_status(instr, utDate, 'arch_time', utcTimestamp, log)
 
         #exit program
         self.instrObj.log.info('EXITING DEP!')

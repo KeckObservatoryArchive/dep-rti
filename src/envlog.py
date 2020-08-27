@@ -1,5 +1,6 @@
 import pandas as pd
 from datetime import timedelta, datetime as dt, timezone
+import datetime as dt
 import time
 from urllib.request import urlopen
 import json
@@ -17,11 +18,11 @@ def envlog(telnr, dateObs, utc):
     url = f'http://{hostname}:{port}/retrieval/data/getData.json?'
 
     #calc start and end period using +/- interval
-    utDatetime = dt.strptime(dateObs + ' ' + utc, '%Y-%m-%d %H:%M:%S.%f')
+    utDatetime = dt.datetime.strptime(dateObs + ' ' + utc, '%Y-%m-%d %H:%M:%S.%f')
     interval = 30
-    dt1 = utDatetime + timedelta(seconds=-interval)
+    dt1 = utDatetime + dt.timedelta(seconds=-interval)
     dt1 = dt1.strftime('%Y-%m-%dT%H:%M:%SZ')
-    dt2 = utDatetime + timedelta(seconds=interval)
+    dt2 = utDatetime + dt.timedelta(seconds=interval)
     dt2 = dt2.strftime('%Y-%m-%dT%H:%M:%SZ')
 
     #map keywords for KOA to archiver channels
@@ -59,7 +60,7 @@ def envlog(telnr, dateObs, utc):
                 continue
 
             #find closest entry in time
-            ts_utc = utDatetime.replace(tzinfo=timezone.utc).timestamp()
+            ts_utc = utDatetime.replace(tzinfo=dt.timezone.utc).timestamp()
             entry = find_closest_entry(d[0]['data'], ts_utc)
             data[kw] = entry['val']
 

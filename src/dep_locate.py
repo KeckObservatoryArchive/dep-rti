@@ -16,7 +16,7 @@
 import calendar as cal               ## Used to convert a time object into a number of seconds
 import time as t                     ## Used to convert a string date into a time object
 from astropy.io import fits          ## Used for everything with fits
-from common import update_koatpx 
+from common import update_dep_status 
 import os
 import shutil
 from sys import argv
@@ -127,9 +127,9 @@ def dep_locate(instrObj, tpx=0):
     #update koatpx
     if tpx:
         utcTimestamp = dt.utcnow().strftime("%Y%m%d %H:%M")
-        update_koatpx(instr, utDate, 'files', str(num), log)
-        update_koatpx(instr, utDate, 'ondisk_stat', 'DONE', log)
-        update_koatpx(instr, utDate, 'ondisk_time', utcTimestamp, log)
+        update_dep_status(instr, utDate, 'files', str(num), log)
+        update_dep_status(instr, utDate, 'ondisk_stat', 'DONE', log)
+        update_dep_status(instr, utDate, 'ondisk_time', utcTimestamp, log)
 
 
 #-----------------------END DEP LOCATE----------------------------------

@@ -195,10 +195,10 @@ def dep_dqa(instrObj, tpx=0):
     if tpx:
         log.info('dep_dqa.py: updating tpx DB records')
         utcTimestamp = dt.utcnow().strftime("%Y%m%d %H:%M")
-        update_koatpx(instr, utDate, 'files_arch', str(len(procFiles)), log)
-        update_koatpx(instr, utDate, 'pi', piList, log)
-        update_koatpx(instr, utDate, 'sdata', sdataList, log)
-        update_koatpx(instr, utDate, 'sci_files', str(sciFiles), log)
+        update_dep_status(instr, utDate, 'files_arch', str(len(procFiles)), log)
+        update_dep_status(instr, utDate, 'pi', piList, log)
+        update_dep_status(instr, utDate, 'sdata', sdataList, log)
+        update_dep_status(instr, utDate, 'sci_files', str(sciFiles), log)
 
 
     #update koapi_send for all unique semids
@@ -377,8 +377,8 @@ def notify_zero_files(instrObj, dqaFile, tpx, log):
     if tpx:
         log.info('dep_dqa.py: updating tpx DB records')
         utcTimestamp = dt.utcnow().strftime("%Y%m%d %H:%M")
-        update_koatpx(instrObj.instr, instrObj.utDate, 'arch_stat', 'DONE', log)
-        update_koatpx(instrObj.instr, instrObj.utDate, 'arch_time', utcTimestamp, log)
+        update_dep_status(instrObj.instr, instrObj.utDate, 'arch_stat', 'DONE', log)
+        update_dep_status(instrObj.instr, instrObj.utDate, 'arch_time', utcTimestamp, log)
 
 
 

@@ -83,9 +83,9 @@ def dep_tar(instrObj, tpx):
     if tpx:
         log.info('dep_dqa.py: updating tpx DB records')
         utcTimestamp = dt.utcnow().strftime("%Y%m%d %H:%M")
-        update_koatpx(instr, utDate, 'arch_stat', 'DONE', log)
-        update_koatpx(instr, utDate, 'arch_time', utcTimestamp, log)       
-        update_koatpx(instr, utDate, 'size', get_directory_size(dirs['output']), log)
+        update_dep_status(instr, utDate, 'arch_stat', 'DONE', log)
+        update_dep_status(instr, utDate, 'arch_time', utcTimestamp, log)       
+        update_dep_status(instr, utDate, 'size', get_directory_size(dirs['output']), log)
 
 
     log.info('dep_tar.py complete.')

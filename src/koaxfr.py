@@ -1,6 +1,6 @@
 from send_email import *
-from common import update_koatpx
-from datetime import datetime as dt
+from common import update_dep_status
+import datetime as dt
 import os
 import yaml
 
@@ -51,15 +51,15 @@ def koaxfr(instrObj, tpx=0):
         send_email(emailTo, emailFrom, subject, message)
 
         if tpx:
-            update_koatpx(instr, utDate, 'files_arch', '0', log)
-            update_koatpx(instr, utDate, 'sci_files', '0', log)
-            update_koatpx(instr, utDate, 'ondisk_stat', 'N/A', log)
-            update_koatpx(instr, utDate, 'arch_stat', 'N/A', log)
-            update_koatpx(instr, utDate, 'metadata_stat', 'N/A', log)
-            update_koatpx(instr, utDate, 'dvdwrit_stat', 'N/A', log)
-            update_koatpx(instr, utDate, 'dvdsent_stat', 'N/A', log)
-            update_koatpx(instr, utDate, 'dvdstor_stat', 'N/A', log)
-            #update_koatpx(instr, utDate, 'tpx_stat', 'N/A', log)
+            update_dep_status(instr, utDate, 'files_arch', '0', log)
+            update_dep_status(instr, utDate, 'sci_files', '0', log)
+            update_dep_status(instr, utDate, 'ondisk_stat', 'N/A', log)
+            update_dep_status(instr, utDate, 'arch_stat', 'N/A', log)
+            update_dep_status(instr, utDate, 'metadata_stat', 'N/A', log)
+            update_dep_status(instr, utDate, 'dvdwrit_stat', 'N/A', log)
+            update_dep_status(instr, utDate, 'dvdsent_stat', 'N/A', log)
+            update_dep_status(instr, utDate, 'dvdstor_stat', 'N/A', log)
+            #update_dep_status(instr, utDate, 'tpx_stat', 'N/A', log)
 
         return True
 
@@ -85,9 +85,9 @@ def koaxfr(instrObj, tpx=0):
         message = 'lev0 data successfully transferred to koaxfr'
         send_email(emailTo, emailFrom, subject, message)
         if tpx:
-            utcTimestamp = dt.utcnow().strftime("%Y%m%d %H:%M")
-            update_koatpx(instr, utDate, 'dvdsent_stat', 'DONE', log)
-            update_koatpx(instr, utDate, 'dvdsent_time', utcTimestamp, log)
+            utcTimestamp = dt.datetime.utcnow().strftime("%Y%m%d %H:%M")
+            update_dep_status(instr, utDate, 'dvdsent_stat', 'DONE', log)
+            update_dep_status(instr, utDate, 'dvdsent_time', utcTimestamp, log)
         return True
     else:
         # Send email notifying of error

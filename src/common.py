@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime as dt
 import os
 import hashlib
 from urllib.request import urlopen
@@ -72,7 +72,7 @@ def do_fatal_error(msg, instr=None, utDate=None, failStage=None, log=None):
 
 
 
-def update_koatpx(instr, utDate, column, value, log=''):
+def update_dep_status(instr, utDate, column, value, log=''):
     """
     Sends command to update KOA data
 
@@ -88,14 +88,14 @@ def update_koatpx(instr, utDate, column, value, log=''):
     query = f'select count(*) as num from koatpx where instr="{instr}" and utdate="{utDate}"'
     check = db.query('koa', query, getOne=True)
     if check is False:
-        if log: log.error(f'update_koatpx failed for: {instr}, {utDate}, {column}, {value}')
+        if log: log.error(f'update_dep_status failed for: {instr}, {utDate}, {column}, {value}')
         return False
     if int(check['num']) == 0:
         query = f'insert into koatpx set instr="{instr}", utdate="{utDate}"'
         if log: log.info(query)
         check = db.query('koa', query)
         if check is False or int(check) == 0:
-            if log: log.error(f'update_koatpx failed for: {instr}, {utDate}, {column}, {value}')
+            if log: log.error(f'update_dep_status failed for: {instr}, {utDate}, {column}, {value}')
             return False
 
     # Now update it
@@ -103,7 +103,7 @@ def update_koatpx(instr, utDate, column, value, log=''):
     if log: log.info(query)
     check = db.query('koa', query)
     if check is False:
-        if log: log.error(f'update_koatpx failed for: {instr}, {utDate}, {column}, {value}')
+        if log: log.error(f'update_dep_status failed for: {instr}, {utDate}, {column}, {value}')
         return False
 
     return True
@@ -144,11 +144,11 @@ def get_progid_assign(assigns, utc):
     assert len(parts) % 2 == 1, "ERROR: Incorrect use of ASSIGN_PROGNAME"
     if len(parts) == 1: return parts[0]
 
-    fitsTime = datetime.strptime(utc, '%H:%M:%S.%f')
+    fitsTime = dt.datetime.strptime(utc, '%H:%M:%S.%f')
     for i in range(1, len(parts), 2):
         progid = parts[i-1]
         t = parts[i]
-        splitTime = datetime.strptime(t, '%H:%M:%S')
+        splitTime = dt.datetime.strptime(t, '%H:%M:%S')
         if fitsTime <= splitTime:
             return progid
     return parts[-1]

@@ -8,7 +8,7 @@ Children will contain the instrument specific values
 import os
 from common import *
 from astropy.io import fits
-from datetime import timedelta, datetime as dt
+import datetime as dt
 from envlog import *
 import shutil
 import json
@@ -210,7 +210,7 @@ class Instrument(dep.DEP):
 
         # Create a timedate object using the string from the header
         try:
-            utc = dt.strptime(utc, '%H:%M:%S.%f')
+            utc = dt.datetime.strptime(utc, '%H:%M:%S.%f')
         except:
             return '', False
 
@@ -349,7 +349,7 @@ class Instrument(dep.DEP):
         if not valid:
             filename = self.fits_path
             lastMod = os.stat(filename).st_mtime
-            dateObs = dt.fromtimestamp(lastMod) + timedelta(hours=10)
+            dateObs = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             dateObs = dateObs.strftime('%Y-%m-%d')
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
             log.warning('set_dateObs: set DATE-OBS value from FITS file time')
@@ -390,7 +390,7 @@ class Instrument(dep.DEP):
         if not valid:
             filename = self.fits_path
             lastMod = os.stat(filename).st_mtime
-            utc = dt.fromtimestamp(lastMod) + timedelta(hours=10)
+            utc = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             utc = utc.strftime('%H:%M:%S.00')
             update = True
             log.warning('set_utc: set UTC value from FITS file time')
@@ -498,14 +498,14 @@ class Instrument(dep.DEP):
 
             #Slightly unintuitive, but get utc datetime obj and subtract 10 hours to convert to HST
             #and another 10 for 10 am cutoff as considered next days observing.
-            d = dt.strptime(dateObs+' '+utc, "%Y-%m-%d %H:%M:%S.%f")
-            d = d - timedelta(hours=20)
+            d = dt.datetime.strptime(dateObs+' '+utc, "%Y-%m-%d %H:%M:%S.%f")
+            d = d - dt.timedelta(hours=20)
 
             #define cutoffs and see where it lands
             #NOTE: d.year is wrong when date is Jan 1 and < 20:00:00, 
             #but it doesn't matter since we assume 'B' which is correct for Jan1 
-            semA = dt.strptime(f'{d.year}-02-01 00:00:00.00', "%Y-%m-%d %H:%M:%S.%f")
-            semB = dt.strptime(f'{d.year}-08-01 00:00:00.00', "%Y-%m-%d %H:%M:%S.%f")
+            semA = dt.datetime.strptime(f'{d.year}-02-01 00:00:00.00', "%Y-%m-%d %H:%M:%S.%f")
+            semB = dt.datetime.strptime(f'{d.year}-08-01 00:00:00.00', "%Y-%m-%d %H:%M:%S.%f")
             sem = 'B'
             if d >= semA and d < semB: sem = 'A'
 
@@ -623,7 +623,7 @@ class Instrument(dep.DEP):
         """
         Adds date timestamp for when the DQA module was run
         """
-        dqa_date = dt.strftime(dt.now(), '%Y-%m-%dT%H:%M:%S')
+        dqa_date = dt.datetime.strftime(dt.datetime.now(), '%Y-%m-%dT%H:%M:%S')
         self.set_keyword('DQA_DATE', dqa_date, 'KOA: Data quality assess time')
         return True
 
