@@ -397,10 +397,15 @@ class DEP:
 
     def create_meta(self):
         log.info('Creating metadata')
+
+        extra_meta = {}
+        koaid = self.get_keyword('KOAID')
+        extra_meta[koaid] = self.extra_meta
+
         keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + self.instr
         ymd = self.utdate.replace('-', '')
         outfile =  self.dirs['lev0'] + '/' + ymd + '.metadata.table'
-        ok = metadata.make_metadata( keydefs, outfile, self.dirs['lev0'], self.extra_meta, 
+        ok = metadata.make_metadata( keydefs, outfile, self.dirs['lev0'], extra_meta, 
                                      keyskips=self.keyskips)   
         return ok
 
