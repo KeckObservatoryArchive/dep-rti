@@ -3,7 +3,7 @@
 
 
 ## HIGH PRIORITY
-- Have instrument.py inherit from another base processing class.  Then you just create the obj and call .process()
+- Log filepath as called right away so we have a record of it.
 - Move common to processing base class and maybe get rid of common.py?
 - Remove unneeded code for RTI (dep_[step].py)
 - Analyze common.py and see which functions are DEP specific enough to go into dep.py or instrument.py vs true common funcs.
