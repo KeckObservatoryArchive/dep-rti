@@ -3,18 +3,22 @@
 
 
 ## HIGH PRIORITY
-- Log filepath as called right away so we have a record of it.
+- More try/except to ensure processing finishes without crashing (ie set_koaimtyp)
+- What is the minimal processing required to get file archived?
+- Speed test caching importlib
+- How will we handle if koa daemon is down and filepaths go uncalled?  Query KTL option in archive.py?
+- Is there a fast gzip option?  Do a speed test vs internet speed.
 - Move common to processing base class and maybe get rid of common.py?
 - Remove unneeded code for RTI (dep_[step].py)
-- Analyze common.py and see which functions are DEP specific enough to go into dep.py or instrument.py vs true common funcs.
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.
+- Finish conversion of other instr_[instr].py classes (only did NIRES)
 - Search TODOs in code
 - Improve documentation
 
 
 ## LOW PRIORITY
-- Review usage of keywordMap and see if it needs improvement.
+- Review usage of instrument.keymap and see if it needs improvement.
 - Add "duplicate metadata keyword" check.  What to do? (ok if same val, otherwise ?)
 - Improve logging, email reporting and error handling.
 - Change keyword metadata defs to database tables?  Coordinate with IPAC.

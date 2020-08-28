@@ -21,8 +21,6 @@ import metadata
 from common import *
 from envlog import *
 
-#todo
-#import create_log as cl
 import logging
 log = logging.getLogger('koadep')
 

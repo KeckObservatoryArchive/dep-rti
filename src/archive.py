@@ -45,9 +45,10 @@ class Archive():
             self.config = yaml.safe_load(f)
 
         #create logger first
+        #todo: not critical (try/except)
         global log
         log = self.create_logger('koadep', self.config[instr]['ROOTDIR'], instr)
-        log.info("Starting DEP")
+        log.info("Starting DEP: " + ' '.join(sys.argv[0:]))
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
@@ -66,7 +67,6 @@ class Archive():
 
 
     def __del__(self):
-        """Destructor"""
 
         #Close the database connection
         if self.db:
@@ -89,9 +89,8 @@ class Archive():
         try:
             Path(processDir).mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            print(str(e))
-            print(f"ERROR: Unable to create logger at {logFile}")
-            sys.exit(1)
+            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
+            return False
 
         # Create a file handler
         handle = logging.FileHandler(logFile)
