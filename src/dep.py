@@ -49,8 +49,13 @@ class DEP:
         if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
 
 
+    #abstract methods that must be implemented by inheriting classes
+    def run_dqa(self) : raise NotImplementedError("Abstract method not implemented!")
+
+
     def process(self):
 
+        #Perform each processing step
         #todo: tpx confirm or any other confirm checks still needed? 
         ok = True
         if ok: ok = self.load_fits(self.filepath)
@@ -64,12 +69,11 @@ class DEP:
         if ok:      self.make_jpg()
         if ok: ok = self.create_meta()
         if ok: ok = self.record_stats()
-#        if ok: ok = self.xfr_ipac()
+        # if ok: ok = self.xfr_ipac()
 
         #If any of these steps return false then copy to udf
         if not ok: 
             self.copy_bad_file(self.instr, self.filepath, 'Failed DQA')
-
         return ok
 
 
@@ -264,7 +268,6 @@ class DEP:
         #todo: other files/anc?
         try:
             match = f"{self.dirs['output']}/lev0/{self.koaid}*"
-            print('test: ', match)
             for f in glob.glob(match):                
                 log.info(f"removing file: {f}")
                 os.remove(f)
@@ -401,10 +404,9 @@ class DEP:
         extra_meta[koaid] = self.extra_meta
 
         keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + self.instr
-        ymd = self.utdate.replace('-', '')
-        outfile =  self.dirs['lev0'] + '/' + ymd + '.metadata.table'
-        ok = metadata.make_metadata( keydefs, outfile, self.dirs['lev0'], extra_meta, 
-                                     keyskips=self.keyskips)   
+        metaoutfile =  self.dirs['lev0'] + '/' + self.koaid + '.metadata.table'
+        ok = metadata.make_metadata( keydefs, metaoutfile, filepath=self.outfile, 
+                                     extraData=extra_meta, keyskips=self.keyskips)   
         return ok
 
 

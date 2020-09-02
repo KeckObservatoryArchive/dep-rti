@@ -12,6 +12,10 @@ import db_conn
 
 
 def make_dir_md5_table(readDir, endswith, outfile, fileList=None, regex=None):
+    '''
+    Create md5sum file for all files matching endswith pattern in readDir.
+    Multiple files will be put into one file in table format.
+    '''
 
     #ensure path ends in slash since we rely on that later here
     if not readDir.endswith('/'): readDir += '/'
@@ -31,7 +35,7 @@ def make_dir_md5_table(readDir, endswith, outfile, fileList=None, regex=None):
                     files.append(dirpath + f)
         files.sort()
         
-    #write out table
+    #create md5sum for each file and write out to single file in table format
     with open(outfile, 'w') as fp:
         for file in files:
             md5 = hashlib.md5(open(file, 'rb').read()).hexdigest()

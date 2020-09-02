@@ -1,14 +1,13 @@
-"""
-  This script creates the archiving metadata file as part of the DQA process.
+'''
+This script creates the archiving metadata file as part of the DQA process.
 
-  Original scripts written in IDL by Jeff Mader
-  Ported to python by Josh Riley
+Original scripts written in IDL by Jeff Mader
+Ported to python by Josh Riley
 
 #TODO: add more code documentation
 #TODO: add more asserts/logging
-#TODO: change this to a class?
-
-"""
+#TODO: change this to a class?]
+'''
 
 #imports
 import sys
@@ -24,20 +23,17 @@ import logging
 log = logging.getLogger('koadep')
 
 
-def make_metadata(keywordsDefFile, metaOutFile, lev0Dir, extraData=None, keyskips=[], dev=False):
-    """
+def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, extraData=None, keyskips=[], dev=False):
+    '''
     Creates the archiving metadata file as part of the DQA process.
 
-    @param keywordsDefFile: keywords format definition input file path
-    @type keywordsDefFile: string
-    @param metaOutFile: metadata output file path
-    @type metaOutFile: string
-    @param lev0Dir: directory for finding FITS files and writing output files
-    @type lev0Dir: string
-    @param extraData: dictionary of any extra key val pairs not in header
-    @type extraData: dictionary
-    """
-
+    :param str keywordsDefFile: keywords format definition input file path
+    :param str metaOutFile: metadata output file path
+    :param str searchdir: directory for finding FITS files and writing output files
+    :param str filepath: specific file to process
+    :param dict extraData: dictionary of any extra key val pairs not in header
+    :returns: bool: success
+    '''
 
     #open keywords format file and read data
     #NOTE: changed this file to tab-delimited
@@ -78,24 +74,34 @@ def make_metadata(keywordsDefFile, metaOutFile, lev0Dir, extraData=None, keyskip
     warns = {'type': 0, 'truncate': 0}
 
 
-    #walk lev0Dir to find all final fits files
-    log.info('metadata.py searching fits files in dir: {}'.format(lev0Dir))
-    for root, directories, files in os.walk(lev0Dir):
-        for filename in sorted(files):
-            if filename.endswith('.fits'):
-                fitsFile = os.path.join(root, filename)
+    #Process particular file?
+    if filepath:
+        filename = os.path.basename(filepath)
+        filedir = os.path.dirname(filepath)
+        extra = extraData.get(filename, {})
+        log.info("Creating metadata record for: " + filepath)
+        add_fits_metadata_line(filepath, metaOutFile, keyDefs, extra, warns, log, dev, keyskips)
 
-                extra = {}
-                if filename in extraData: extra = extraData[filename]
+        #create md5 sum
+        md5Outfile = metaOutFile.replace('.table', '.md5sum')
+        log.info('Creating md5sum file {}'.format(md5Outfile))
+        make_dir_md5_table(filedir, ".metadata.table", md5Outfile, fileList=[metaOutFile])
 
-                log.info("Creating metadata record for: " + fitsFile)
-                add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, log, dev, keyskips)
+    #or walk searchdir to find all final fits files
+    elif searchdir:        
+        log.info('metadata.py searching fits files in dir: {}'.format(searchdir))
+        for root, directories, files in os.walk(searchdir):
+            for filename in sorted(files):
+                if filename.endswith('.fits'):
+                    fitsFile = os.path.join(root, filename)
+                    extra = extraData.get(filename, {})
+                    log.info("Creating metadata record for: " + fitsFile)
+                    add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, log, dev, keyskips)
 
-
-    #create md5 sum
-    md5Outfile = metaOutFile.replace('.table', '.md5sum')
-    log.info('metadata.py creating {}'.format(md5Outfile))
-    make_dir_md5_table(lev0Dir, ".metadata.table", md5Outfile)
+        #create md5 sum
+        md5Outfile = metaOutFile.replace('.table', '.md5sum')
+        log.info('Creating md5sum file {}'.format(md5Outfile))
+        make_dir_md5_table(searchdir, ".metadata.table", md5Outfile)
 
 
     #warn only if counts
