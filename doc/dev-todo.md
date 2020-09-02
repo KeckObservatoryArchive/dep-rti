@@ -7,6 +7,7 @@
 - What is the minimal processing required to get file archived?
 - Speed test caching importlib
 - How will we handle if koa daemon is down and filepaths go uncalled?  Query KTL option in archive.py?
+- Design such that koa daemon can recieve code updates in realtime without restart.
 - Is there a fast gzip option?  Do a speed test vs internet speed.
 - Move common to processing base class and maybe get rid of common.py?
 - Remove unneeded code for RTI (dep_[step].py)

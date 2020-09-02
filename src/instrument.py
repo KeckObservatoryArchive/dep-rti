@@ -35,10 +35,9 @@ class Instrument(dep.DEP):
 
     def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
-        # Call the parent init to get all the shared variables
         super().__init__(instr, filepath, config, db, reprocess, tpx)
 
-         # Keyword values to be used with a FITS file during runtime
+        # Keyword values to be used with a FITS file during runtime
         # NOTE: array may be used to denote an ordered list of possible keywords to look for.
         # NOTE: these may be overwritten by instr_*.py
         self.keymap = {}
@@ -609,6 +608,7 @@ class Instrument(dep.DEP):
 
         #NOTE: PROPINT goes in metadata but not in header so we store in temp dict for later
         self.extra_meta['PROPINT'] = propint
+        print('test: ', self.extra_meta)
 
         return True
 
@@ -774,30 +774,30 @@ class Instrument(dep.DEP):
             log.error('write_lev0_fits_file: Could not find KOAID for output filename.')
             return False
 
-        #build outfile path
-        outfile = self.dirs['lev0']
-        if   (koaid.startswith('NC')): outfile += '/scam'
-        elif (koaid.startswith('NS')): outfile += '/spec'
-        outfile += '/' + koaid
+        #build outfile path and save as class var for reference later
+        self.outfile = self.dirs['lev0']
+        if   (koaid.startswith('NC')): self.outfile += '/scam'
+        elif (koaid.startswith('NS')): self.outfile += '/spec'
+        self.outfile += '/' + koaid
 
         #write out new fits file with altered header
         try:
             #already exists?
             #todo: only allow skip if not fullRun
-            # if os.path.isfile(outfile):
+            # if os.path.isfile(self.outfile):
             #     log.warning('write_lev0_fits_file: file already exists. SKIPPING')
             #     return True
-            self.fits_hdu.writeto(outfile)
-            log.info('write_lev0_fits_file: output file is ' + outfile)
+            self.fits_hdu.writeto(self.outfile)
+            log.info('write_lev0_fits_file: output file is ' + self.outfile)
         except:
             try:
-                self.fits_hdu.writeto(outfile, output_verify='ignore')
-                log.info('write_lev0_fits_file: Forced to write FITS using output_verify="ignore". May want to inspect:' + outfile)                
+                self.fits_hdu.writeto(self.outfile, output_verify='ignore')
+                log.info('write_lev0_fits_file: Forced to write FITS using output_verify="ignore". May want to inspect:' + self.outfile)                
             except Exception as e:
-                log.error('write_lev0_fits_file: Could not write out lev0 FITS file to ' + outfile)
+                log.error('write_lev0_fits_file: Could not write out lev0 FITS file to ' + self.outfile)
                 log.info(str(e))
-                if os.path.isfile(outfile):
-                    os.remove(outfile)
+                if os.path.isfile(self.outfile):
+                    os.remove(self.outfile)
                 return False
 
         return True

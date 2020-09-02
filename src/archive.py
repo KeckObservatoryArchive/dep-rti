@@ -1,5 +1,5 @@
 '''
-Class to handle the various command line parameters and call DEP appropriately.
+Handle the various archiveing command line parameters and call DEP appropriately.
 '''
 import sys
 import argparse
@@ -20,6 +20,32 @@ import instrument
 
 import logging
 log = logging.getLogger('koadep')
+
+
+def main():
+
+    # Define inputs
+    parser = argparse.ArgumentParser(description='DEP input parameters')
+    parser.add_argument('instr', help='Keck Instrument')
+    parser.add_argument('--filepath' , type=str, default=None, help='Filepath to FITS file for archiving.')
+    parser.add_argument('--tpx' , type=int, default=1, help='Update DB tables and transfer to IPAC.  Else, create files only and no transfer.')
+    parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
+    parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
+    parser.add_argument('--endtime' , type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
+    parser.add_argument('--status' , type=str, default=None, help='Status to query for reprocessing.')
+    parser.add_argument('--outdir' , type=str, default=None, help='Outdir match to query for reprocessing.')
+    args = parser.parse_args()    
+
+    #todo: if options require reprocessing or query, always prompt with confirmation 
+    # and tell them how many files are affected and what the datetime range is
+
+    #run it and catch any unhandled error for email to admin
+    try:
+        archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, reprocess=args.reprocess,
+                  starttime=args.starttime, endtime=args.endtime,
+                  status=args.status, outdir=args.outdir)
+    except Exception as error:
+        handle_fatal_error()
 
 
 class Archive():
@@ -54,6 +80,7 @@ class Archive():
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
 
         #routing
+        #todo: Add remaining options
         if filepath:
             self.process_file(instr, filepath, reprocess, tpx)
         elif starttime and endtime:
@@ -64,6 +91,8 @@ class Archive():
             self.reprocess_by_outdir(instr, outdir, tpx)
         else:
             log.error("Cannot run DEP.  Unable to decipher inputs.")
+
+        log.info("DEP COMPLETE")
 
 
     def __del__(self):
@@ -107,7 +136,7 @@ class Archive():
         log.addHandler(sh)
         
         #init message and return
-        log.info('logger created')
+        log.info(f'logger created for {name} at {logFile}')
         return log
 
 
@@ -146,10 +175,10 @@ class Archive():
         #todo:
 
 
-def handle_fatal_error(args):
+def handle_fatal_error():
 
     #form subject and msg (and log as well)
-    subject = f'DEP ERROR: {args}'
+    subject = f'DEP ERROR: {sys.argv}'
     msg = traceback.format_exc()
     log.error(subject + ' ' + msg)
 
@@ -168,54 +197,5 @@ def handle_fatal_error(args):
     s.quit()
 
 
-def create_logger(name, logdir):
-    try:
-        #Create logger object
-        logger = logging.getLogger(name)
-        logger.setLevel(logging.DEBUG)
-
-        #file handler (full debug logging)
-        logfile = f'{logdir}/{name}.log'
-        handler = logging.FileHandler(logfile)
-        handler.setLevel(logging.DEBUG)
-        handler.suffix = "%Y%m%d"
-        logger.addHandler(handler)
-
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-        #stream/console handler (info+ only)
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter(' %(levelname)8s: %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-    except Exception as error:
-        print (f"ERROR: Unable to create logger '{name}' in dir {logfile}.\nReason: {str(error)}")
-
-
 if __name__ == "__main__":
-
-    # Define Input parameters
-    parser = argparse.ArgumentParser(description='DEP input parameters')
-    parser.add_argument('instr', help='Keck Instrument')
-    parser.add_argument('--tpx' , type=int, default=1, help='Update DB tables and transfer to IPAC.  Else, create files only and no transfer.')
-    parser.add_argument('--filepath' , type=str, default=None, help='Filepath to FITS file for archiving.')
-    parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
-    parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
-    parser.add_argument('--endtime' , type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
-    parser.add_argument('--status' , type=str, default=None, help='Status to query for reprocessing.')
-    parser.add_argument('--outdir' , type=str, default=None, help='Outdir match to query for reprocessing.')
-    args = parser.parse_args()    
-
-    #todo: if options require reprocessing or query, always prompt with confirmation 
-    # and tell them how many files are affected and what the datetime range is
-
-    try:
-        archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, reprocess=args.reprocess,
-                  starttime=args.starttime, endtime=args.endtime,
-                  status=args.status, outdir=args.outdir)
-    except Exception as error:
-        handle_fatal_error(sys.argv)
+    main()

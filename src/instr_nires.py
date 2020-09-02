@@ -14,7 +14,6 @@ class Nires(instrument.Instrument):
 
     def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
-        # Call the parent init to get all the shared variables
         super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         # Set any unique keyword index values here
@@ -23,9 +22,7 @@ class Nires(instrument.Instrument):
 
 
     def run_dqa(self):
-        '''
-        Run all DQA checks unique to this instrument.
-        '''
+        '''Run all DQA checks unique to this instrument.'''
 
         ok = True
         if ok: ok = super().run_dqa()
@@ -51,7 +48,6 @@ class Nires(instrument.Instrument):
         if ok: ok = self.set_dqa_date()
         if ok: ok = self.set_dqa_vers()
         return ok
-
 
 
     @staticmethod
