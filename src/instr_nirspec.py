@@ -1,8 +1,5 @@
 '''
 This is the class to handle all the NIRSPEC specific attributes
-NIRSPEC specific DR techniques can be added to it in the future
-
-12/14/2017 M. Brown - Created initial file
 '''
 
 import instrument
@@ -10,30 +7,26 @@ import datetime as dt
 from common import *
 from math import ceil
 
+import logging
+log = logging.getLogger('koadep')
+
+
 class Nirspec(instrument.Instrument):
 
-    def __init__(self, instr, utDate, rootdir, log=None):
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
-        #call the parent init to get all the shared variables
-        super().__init__(instr, utDate, rootdir, log)
+        super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         #set any unique keyword index values here
         self.keymap['OFNAME'] = 'DATAFILE'
         self.keymap['FRAMENO'] = 'FRAMENUM'
 
-        #other vars that subclass can overwrite
-        self.endTime = '19:00:00'   # 24 hour period start/end time (UT)
 
-        #generate the paths to the NIRSPEC datadisk accounts
-        self.sdataList = self.get_dir_list()
-
-
-    def run_dqa(self, progData):
-        '''
-        Run all DQA checks unique to this instrument
-        '''
+    def run_dqa(self):
+        '''Run all DQA checks unique to this instrument.'''
 
         ok = True
+        if ok: ok = super().run_dqa()
         if ok: ok = self.set_dqa_date()
         if ok: ok = self.set_dqa_vers()
         if ok: ok = self.set_datlevel(0)
@@ -52,8 +45,8 @@ class Nirspec(instrument.Instrument):
         if ok: ok = self.set_gain_and_readnoise()
         if ok: ok = self.set_npixsat(self.get_keyword('COADDS') * 25000)
         if ok: ok = self.set_oa()
-        if ok: ok = self.set_prog_info(progData)
-        if ok: ok = self.set_propint(progData)
+        if ok: ok = self.set_prog_info()
+        if ok: ok = self.set_propint()
 
         return ok
 

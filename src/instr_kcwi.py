@@ -1,9 +1,5 @@
 '''
 This is the class to handle all the KCWI specific attributes
-KCWI specific DR techniques can be added to it in the future
-
-01/31/2020 E. Lucas - Updated functions
-12/14/2017 M. Brown - Created initial file
 '''
 
 import instrument
@@ -17,15 +13,44 @@ import matplotlib.pyplot as plt
 import math
 from skimage import exposure
 
-class Kcwi(instrument.Instrument):
-    def __init__(self, instr, utDate, rootdir, log=None):
-        # Call the parent init to get all the shared variables
-        super().__init__(instr, utDate, rootdir, log)
+import logging
+log = logging.getLogger('koadep')
 
-        # Other vars that subclass can overwrite
-        self.endTime = '20:00:00'   # 24 hour period start/end time (UT)
-        self.sdataList = self.get_dir_list()
+
+class Kcwi(instrument.Instrument):
+
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+
+        super().__init__(instr, filepath, config, db, reprocess, tpx)
+
+        # Set any unique keyword index values here
         self.keymap['UTC'] = 'UT'
+
+
+    def run_dqa(self):
+        '''Run all DQA checks unique to this instrument.'''
+
+        ok = True
+        if ok: ok = super().run_dqa()
+        if ok: ok = self.set_telescope()
+        if ok: ok = self.set_filename()
+        if ok: ok = self.set_elaptime()
+        if ok: ok = self.set_koaimtyp()
+        if ok: ok = self.set_frameno()
+        if ok: ok = self.set_semester()
+        if ok: ok = self.set_prog_info()
+        if ok: ok = self.set_propint()
+        if ok: ok = self.set_datlevel(0)
+        if ok: ok = self.set_image_stats_keywords()
+        if ok: ok = self.set_weather_keywords()
+        if ok: ok = self.set_oa()
+        if ok: ok = self.set_npixsat(satVal=65535)
+        if ok: ok = self.set_slitdims_wavelengths()
+        if ok: ok = self.set_wcs()
+        if ok: ok = self.set_dqa_vers()
+        if ok: ok = self.set_dqa_date()
+        return ok
+
 
     def get_dir_list(self):
         '''
@@ -42,6 +67,7 @@ class Kcwi(instrument.Instrument):
         path2 = ''.join(joinSeq)
         dirs.append(path2)
         return dirs
+
 
     def get_prefix(self):
         instr = self.get_instr()
@@ -62,29 +88,6 @@ class Kcwi(instrument.Instrument):
             prefix = ''
         return prefix
 
-    def run_dqa(self, progData):
-        '''
-        Run all DQA checks unique to this instrument.
-        '''
-        ok = True
-        if ok: ok = self.set_telescope()
-        if ok: ok = self.set_filename()
-        if ok: ok = self.set_elaptime()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_frameno()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info(progData)
-        if ok: ok = self.set_propint(progData)
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_image_stats_keywords()
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_npixsat(satVal=65535)
-        if ok: ok = self.set_slitdims_wavelengths()
-        if ok: ok = self.set_wcs()
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_dqa_date()
-        return ok
     
     def set_filename(self):
         '''

@@ -1,5 +1,5 @@
 '''
-This is the class to handle all the NIRES specific attributes
+This is the class to handle all the NIRES specific attributes.
 '''
 
 import instrument

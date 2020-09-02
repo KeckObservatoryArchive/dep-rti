@@ -1,8 +1,5 @@
 '''
 This is the class to handle all the MOSFIRE specific attributes
-MOSFIRE specific DR techniques can be added to it in the future
-
-12/14/2017 M. Brown - Created initial file
 '''
 
 import instrument
@@ -10,45 +7,37 @@ import datetime as dt
 from common import *
 import numpy as np
 
+import logging
+log = logging.getLogger('koadep')
+
 
 class Mosfire(instrument.Instrument):
 
-    def __init__(self, instr, utDate, rootdir, log=None):
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
-        # Call the parent init to get all the shared variables
-        super().__init__(instr, utDate, rootdir, log)
-
+        super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'        
         self.keymap['FRAMENO']      = 'FRAMENUM'
 
-
         # Other vars that subclass can overwrite
-        self.endTime = '19:00:00'   # 24 hour period start/end time (UT)
         self.keyskips   = ['B\d+STAT', 'B\d+POS']
 
 
-        # Generate the paths to the NIRES datadisk accounts
-        self.sdataList = self.get_dir_list()
+    def run_dqa(self):
+        '''Run all DQA checks unique to this instrument.'''
 
-
-
-    def run_dqa(self, progData):
-        '''
-        Run all DQA checks unique to this instrument.
-        '''
-
-        #todo: check that all of these do not need a subclass version if base class func was used.
         ok = True
+        if ok: ok = super().run_dqa()
         if ok: ok = self.set_elaptime()
         if ok: ok = self.set_koaimtyp()
         if ok: ok = self.set_ut()
         if ok: ok = self.set_frameno()
         if ok: ok = self.set_ofName()
         if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info(progData)
-        if ok: ok = self.set_propint(progData)
+        if ok: ok = self.set_prog_info()
+        if ok: ok = self.set_propint()
         if ok: ok = self.set_wavelengths()
         if ok: ok = self.set_weather_keywords()
         if ok: ok = self.set_datlevel(0)

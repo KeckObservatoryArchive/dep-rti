@@ -2,8 +2,6 @@
 This is the class to handle all the LRIS specific attributes
 
 https://www2.keck.hawaii.edu/inst/lris/instrument_key_list.html
-
-12/14/2017 M. Brown - Created initial file
 '''
 
 import instrument
@@ -27,40 +25,33 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 
 import hist_equal2d
 
+import logging
+log = logging.getLogger('koadep')
+
 
 class Lris(instrument.Instrument):
 
-    def __init__(self, instr, utDate, rootdir, log=None):
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
-        # Call the parent init to get all the shared variables
-        super().__init__(instr, utDate, rootdir, log)
-
-        # Set any unique keyword index values here with self.keymap
+        super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         # Other vars that subclass can overwrite
-        self.endTime = '19:00:00'   # 24 hour period start/end time (UT)
         self.keyskips   = ['CCDGN00', 'CCDRN00']
         #self.keyskips = ['IM01MN00', 'IM01SD00', 'IM01MD00', 'PT01MN00', 'PT01SD00', 'PT01MD00', 'IM01MN01', 'IM01SD01', 'IM01MD01', 'PT01MN01', 'PT01SD01', 'PT01MD01', 'IM02MN02', 'IM02SD02', 'IM02MD02', 'PT02MN02', 'PT02SD02', 'PT02MD02', 'IM02MN03', 'IM02SD03', 'IM02MD03', 'PT02MN03', 'PT02SD03', 'PT02MD03']
 
 
-        # Generate the paths to the LRIS datadisk accounts
-        self.sdataList = self.get_dir_list()
+    def run_dqa(self):
+        '''Run all DQA checks unique to this instrument.'''
 
-
-    def run_dqa(self, progData):
-        '''
-        Run all DQA checks unique to this instrument.
-        '''
-
-        #todo: check that all of these do not need a subclass version if base class func was used.
         ok = True
+        if ok: ok = super().run_dqa()
         if ok: ok = self.set_koaimtyp()
         if ok: ok = self.set_ut()
         if ok: ok = self.set_ofname()
         if ok: ok = self.set_frameno()
         if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info(progData)
-        if ok: ok = self.set_propint(progData)
+        if ok: ok = self.set_prog_info()
+        if ok: ok = self.set_propint()
         if ok: ok = self.set_datlevel(0)
         if ok: ok = self.get_nexten()
         if ok: ok = self.set_image_stats_keywords()

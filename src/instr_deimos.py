@@ -1,8 +1,5 @@
 """
 This is the class to handle all the DEIMOS specific attributes
-DEIMOS specific DR techniques can be added to it in the future
-
-12/14/2017 M. Brown - Created initial file
 """
 
 import instrument
@@ -20,31 +17,27 @@ from astropy.visualization import ZScaleInterval, AsinhStretch, SinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 from mpl_toolkits.axes_grid1 import ImageGrid
 
+import logging
+log = logging.getLogger('koadep')
+
+
 class Deimos(instrument.Instrument):
 
-    def __init__(self, instr, utDate, rootdir, log=None):
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
-        # Call the parent init to get all the shared variables
-        super().__init__(instr, utDate, rootdir, log)
-
+        super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'        
         self.keymap['FRAMENO']      = ''
 
-
         # Other vars that subclass can overwrite
-        self.endTime = '20:00:00'   # 24 hour period start/end time (UT)
-        
         # Skip warnings for these FCS-only keywords
         self.keyskips   = ['EXPOSURE', 'MPPMODE', 'NAXIS1', 'NAXIS2']
         self.keyskips.extend(['NUMAMPS', 'OBSNUM', 'PREPIX', 'SFRAMENO'])
         self.keyskips.extend(['SHUTSTAT', 'SOBJECT', 'SOBSTYPE', 'SOUTDIR'])
         self.keyskips.extend(['SOUTFILE', 'STTIME', 'SYNOPFMT', 'SYNOPSIS'])
         self.keyskips.extend(['TODISK', 'VOFFSET0', 'VOFFSET1', 'WINDOW', 'YFLIP'])
-
-        # Generate the paths to the DEIMOS datadisk accounts
-        self.sdataList = self.get_dir_list()
 
 
         # """
@@ -73,20 +66,19 @@ class Deimos(instrument.Instrument):
         self.filterList['NG8580'] = {'blue':8550, 'cntr':8600, 'red':8650}
 
 
-    def run_dqa(self, progData):
-        '''
-        Run all DQA check unique to this instrument
-        '''
+    def run_dqa(self):
+        '''Run all DQA check unique to this instrument'''
 
         ok = True
+        if ok: ok = super().run_dqa()
         if ok: ok = self.set_fcs_date_time()
         if ok: ok = self.set_ut()
         if ok: ok = self.set_koaimtyp()
         if ok: ok = self.set_fcskoaid()
         if ok: ok = self.set_ofName()
         if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info(progData)
-        if ok: ok = self.set_propint(progData)
+        if ok: ok = self.set_prog_info()
+        if ok: ok = self.set_propint()
         if ok: ok = self.set_datlevel(0)
         if ok: ok = self.set_weather_keywords()
         if ok: ok = self.set_oa()

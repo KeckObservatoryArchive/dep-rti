@@ -1,8 +1,5 @@
 '''
 This is the class to handle all the HIRES specific attributes
-HIRES specific DR techniques can be added to it in the future
-
-12/14/2017 M. Brown - Created initial file
 '''
 
 import instrument
@@ -18,28 +15,26 @@ from astropy.visualization import ZScaleInterval, AsinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 import scipy
 
-class Hires(instrument.Instrument):
-    def __init__(self, instr, utDate, rootdir, log=None):
+import logging
+log = logging.getLogger('koadep')
 
-        # Call the parent init to get all the shared variables
-        super().__init__(instr, utDate, rootdir, log)
+
+class Hires(instrument.Instrument):
+
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+
+        super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME'] = ''
         self.keymap['FRAMENO'] = ''
 
-        # Other vars that subclass can overwrite
-        self.endTime = '20:00:00'  # 24 hour period start/end time (UT)
 
-        # Generate the paths to the HIRES datadisk accounts
-        self.paths = self.get_dir_list()
+    def run_dqa(self):
+        '''Run all DQA checks unique to this instrument.'''
 
-
-    def run_dqa(self, progData):
-        '''
-        Run all DQA checks unique to this instrument
-        '''
         ok = True
+        if ok: ok = super().run_dqa()
         if ok: ok = self.set_dqa_date()
         if ok: ok = self.set_dqa_vers()
         if ok: ok = self.set_datlevel(0)
@@ -64,8 +59,8 @@ class Hires(instrument.Instrument):
         if ok: ok = self.set_subexp()
         if ok: ok = self.set_roqual()
         if ok: ok = self.set_oa()
-        if ok: ok = self.set_prog_info(progData)
-        if ok: ok = self.set_propint(progData)
+        if ok: ok = self.set_prog_info()
+        if ok: ok = self.set_propint()
         if ok: ok = self.fix_propint()
 
         return ok

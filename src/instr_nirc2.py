@@ -1,9 +1,5 @@
 '''
 This is the class to handle all the NIRC2 specific attributes
-NIRC2 specific DR techniques can be added to it in the future
-
-12/14/2017 M. Brown - Created initial file
-08/07/2019 E. Lucas - updated to conform to new class standards
 '''
 
 import instrument
@@ -14,23 +10,26 @@ import os
 import subprocess
 from socket import gethostname
 
+import logging
+log = logging.getLogger('koadep')
+
+
 class Nirc2(instrument.Instrument):
-    def __init__(self, instr, utDate, rootdir, log=None):
 
-        # Call parent init to get all the shared variables
-        super().__init__(instr, utDate, rootdir, log)
+    def __init__(self, instr, filepath, config, db, reprocess, tpx):
 
+        super().__init__(instr, filepath, config, db, reprocess, tpx)
+
+        # Set any unique keyword index values here
         # NIRC2 uses ROOTNAME instead of OUTDIR
         self.ofName = 'FILENAME'
 
-        # set endtime to 9AM
-        self.endTime = '19:00:00' #UT
 
-    def run_dqa(self, progData):
-        '''
-        Run all DQA checks unique to this instrument
-        '''
+    def run_dqa(self):
+        '''Run all DQA checks unique to this instrument.'''
+
         ok=True
+        if ok: ok = super().run_dqa()
         if ok: ok = self.set_dqa_date()
         if ok: ok = self.set_dqa_vers()
         if ok: ok = self.set_datlevel(0)
@@ -50,8 +49,8 @@ class Nirc2(instrument.Instrument):
         if ok: ok = self.set_sig2nois()
         if ok: ok = self.set_isao()
         if ok: ok = self.set_oa()
-        if ok: ok = self.set_prog_info(progData)
-        if ok: ok = self.set_propint(progData)
+        if ok: ok = self.set_prog_info()
+        if ok: ok = self.set_propint()
         return ok
 
 

@@ -520,6 +520,11 @@ class Instrument(dep.DEP):
             return True
 
 
+    def get_missing_progid(self):
+        #todo: do simple progid assigment
+        return "NONE"
+
+
     def set_prog_info(self):
         '''Set PROG* keywords'''
 
@@ -528,7 +533,7 @@ class Instrument(dep.DEP):
         progid = self.get_keyword('PROGNAME')
         if not progid:
             #todo: (assign NONE if cannot determine)
-            self.get_missing_progid()
+            progid = self.get_missing_progid()
 
         #valid progname?
         #todo: Make sure we are getting the full semid with underscore
