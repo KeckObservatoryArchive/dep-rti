@@ -92,21 +92,21 @@ class Monitor():
         self.process_monitor()
 
         #add test files to queue every N seconds
-        testfiles = ['/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0001.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0002.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0003.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0004.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0005.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0006.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0007.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0008.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0009.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0010.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0011.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0012.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0013.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0014.fits',
-                 '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/v200815_0001.fits']
+        testfiles = ['/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0001.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0002.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0003.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0004.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0005.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0006.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0007.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0008.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0009.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0010.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0011.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0012.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0013.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0014.fits',
+                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/v200815_0001.fits']
         for f in testfiles:
             self.add_to_queue(f)
             time.sleep(0.5)
@@ -191,7 +191,7 @@ class Monitor():
 
         #add stdout to output so we don't need both log and print statements(>= warning only)
         sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.WARNING)
+        sh.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
         sh.setFormatter(formatter)
         log.addHandler(sh)

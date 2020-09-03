@@ -137,6 +137,7 @@ class Archive():
         
         #init message and return
         log.info(f'logger created for {name} at {logFile}')
+        print(f'Logging to {logFile}')
         return log
 
 

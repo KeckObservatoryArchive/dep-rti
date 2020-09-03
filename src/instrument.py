@@ -593,7 +593,6 @@ class Instrument(dep.DEP):
 
         #NOTE: PROPINT goes in metadata but not in header so we store in temp dict for later
         self.extra_meta['PROPINT'] = propint
-        print('test: ', self.extra_meta)
 
         return True
 
@@ -742,7 +741,6 @@ class Instrument(dep.DEP):
         #todo: Replace API call with hard-coded?
         '''
         url = f"{self.config['API']['TELAPI']}cmd=getTelnr&instr={self.instr.upper()}"
-        print(url)
         data = self.get_api_data(url, getOne=True)
         self.telnr = int(data['TelNr'])
         if self.telnr not in [1, 2]:

@@ -10,7 +10,7 @@ def update_koapi_send(utdate, semid, instr=None):
     Returns True/False
     """
 
-    print(f"updateKoapiSend: {utdate}, {semid}, {instr}")
+    #print(f"updateKoapiSend: {utdate}, {semid}, {instr}")
 
     # db connect
     db = db_conn.db_conn('config.live.ini', configKey='DATABASE')
