@@ -91,7 +91,6 @@ class Monitor():
         #start internal time interval monitor of process list
         self.process_monitor()
 
-
         #add test files to queue every N seconds
         testfiles = ['/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0001.fits',
                  '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0002.fits',
@@ -116,7 +115,7 @@ class Monitor():
     def process_monitor(self):
         '''Remove any processes from list that are complete.'''
 
-        #Loop procs and c
+        #Loop procs and remove from list if complete
         #NOTE: looping in reverse so we can delete without messing up looping
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
@@ -207,7 +206,8 @@ def handle_fatal_error():
     #form subject and msg (and log as well)
     subject = f'KOA ERROR: {sys.argv}'
     msg = traceback.format_exc()
-    log.error(subject + ' ' + msg)
+    if log: log.error(subject + ' ' + msg)
+    else: print(msg)
 
     #get admin email.  Return if none.
     with open('config.live.ini') as f: config = yaml.safe_load(f)

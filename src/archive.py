@@ -180,7 +180,8 @@ def handle_fatal_error():
     #form subject and msg (and log as well)
     subject = f'DEP ERROR: {sys.argv}'
     msg = traceback.format_exc()
-    log.error(subject + ' ' + msg)
+    if log: log.error(subject + ' ' + msg)
+    else: print(msg)
 
     #get admin email.  Return if none.
     with open('config.live.ini') as f: config = yaml.safe_load(f)
