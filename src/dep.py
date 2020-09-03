@@ -55,9 +55,8 @@ class DEP:
 
 
     def process(self):
+        '''Run all prcessing steps required for archiving end to end'''
 
-        #Perform each processing step
-        #todo: tpx confirm or any other confirm checks still needed? 
         ok = True
         if ok: ok = self.load_fits(self.filepath)
         if ok: ok = self.set_koaid()
@@ -65,11 +64,13 @@ class DEP:
         if ok: ok = self.check_koa_db_entry()
         if ok: ok = self.validate_fits()
         if ok: ok = self.copy_raw_fits()  
+        if ok: ok = self.run_psfr()
         if ok: ok = self.run_dqa()
         if ok: ok = self.write_lev0_fits_file() 
         if ok:      self.make_jpg()
         if ok: ok = self.create_meta()
         if ok:      self.create_ext_meta()
+        if ok: ok = self.run_drp()
         if ok: ok = self.record_stats()
         if ok: ok = self.check_koapi_send()
         # if ok: ok = self.xfr_ipac()

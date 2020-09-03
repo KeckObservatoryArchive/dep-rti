@@ -62,7 +62,7 @@ class Instrument(dep.DEP):
 
 
     def run_dqa(self):
-        '''common run_dqa functions.  Call at beginning of instr subclass run_dqa'''
+        '''Common run_dqa functions.  Call at beginning of instr subclass run_dqa'''
         ok = True
         if ok: ok = self.set_telnr()
         return True

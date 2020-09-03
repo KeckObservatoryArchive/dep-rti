@@ -3,6 +3,9 @@
 
 
 ## HIGH PRIORITY
+- Refactor koaxfr.py.  Do we want this to be part of dep.py or standalone?
+- Test PSFR (NIRC2)
+- Test DRP (NIRC2, OSIRIS)
 - More try/except to ensure processing finishes without crashing (ie set_koaimtyp)
 - What is the minimal processing required to get file archived?
 - Speed test caching importlib
@@ -14,7 +17,6 @@
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.
 - Implement basic missing program assignment
-- Finish conversion of other instr_[instr].py classes (only did NIRES)
 - What are we doing with rejected files?
 - Search TODOs in code
 - Improve documentation
