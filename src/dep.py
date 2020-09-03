@@ -18,6 +18,7 @@ import shutil
 import glob
 
 import metadata
+import update_koapi_send
 from common import *
 from envlog import *
 
@@ -499,15 +500,16 @@ class DEP:
         '''
 
         #check if we should update koapi_send
-        semester, progid = self.progid.upper().split('_')
-        if progid == 'NONE' or progid == 'null' or progid == 'ENG' or progid == '':
-            continue
-        if progid == None or semester == None:
-            continue
+        semid = self.get_semid()
+        sem, prog = semid.upper().split('_')
+        if not semid or not prog or not sem:
+            return True
+        if prog == 'NONE' or prog == 'NULL' or prog == 'ENG':
+            return True
 
         #process it
-        log.info(f'check_koapi_send: {self.utDate}, {semid}, {self.instr}')
-        ok = update_koapi_send.update_koapi_send(self.utDate, self.progid, self.instr)
+        log.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
+        ok = update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
         if not ok:
             log.error('check_koapi_send failed')
 

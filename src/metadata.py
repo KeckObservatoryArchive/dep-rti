@@ -13,7 +13,7 @@ Ported to python by Josh Riley
 import sys
 import os
 from astropy.io import fits
-from common import make_dir_md5_table
+from common import make_dir_md5_table, make_file_md5
 import datetime
 import re
 import pandas as pd
