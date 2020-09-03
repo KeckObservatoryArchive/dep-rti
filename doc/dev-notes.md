@@ -1,14 +1,3 @@
-## Basic flow
-- archive.py is called from cmd line with args (with RTI, typically a filepath to one file).
-- An object is created for the appropriate instrument subclass, defined in each instr_[instr].py file.
-- Instrument processing class relationships:
-    - dep.py: Base processing class (processing init, core proc funcs, flow, config, db conn)
-    - instrument.py: Instrument processing class inheriting from DEP (processing funcs common to all instruments)
-    - instr_[instr].py: Instrument specific processing subclass inheriting from Instrument (processing funcs specific to instrument)
-- DEP.process() function is called which drives archiving of file from end to end.  
-- Instrument specific processing contained in run_dqa() functions.
-
-
 
 ## Tag and Release Process
 
