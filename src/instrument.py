@@ -68,27 +68,18 @@ class Instrument(dep.DEP):
         return True
 
 
-    def get_keyword(self, keyword, useMap=True, default=None, ext=None):
+    def get_keyword(self, keyword, useMap=True, default=None, ext=0):
         '''
         Gets keyword value from the FITS header as defined in keymap class variable.  
-        NOTE: FITS file must be loaded first with self.set_fits_file
-
-        @param keyword: keyword value or ordered list of keyword values to search for
-        @type instr: string or list
         '''
-        # check for loaded fits_hdr
-        if ext == None:
-            if not self.fits_hdr:
-                 raise Exception('get_keyword: ERROR: no FITS header loaded')
-                 return default
-        else:
-             if not self.fits_hdu[ext].header:
-                 raise Exception('get_keyword: ERROR: no FITS header loaded')
-                 return default
-        #use keyword mapping?
-        if useMap:
-    
-            #if keyword is mapped, then use mapped value(s)        
+        
+        # check header ext exists
+        if not self.fits_hdu[ext].header:
+             raise Exception('get_keyword: ERROR: no FITS header loaded')
+             return default
+
+        #if keyword is mapped, then use mapped value(s)        
+        if useMap:    
             if isinstance(keyword, str) and keyword in self.keymap:
                 keyword = self.keymap[keyword]
 
@@ -98,35 +89,27 @@ class Instrument(dep.DEP):
             mappedKeys = [mappedKeys]
 
         #loop
-        if ext == None:
-            for mappedKey in mappedKeys:
-                val = self.fits_hdr.get(mappedKey)
-                if val != None and not isinstance(val, fits.Undefined): return val
-        else:
-            for mappedKey in mappedKeys:
-                val = self.fits_hdu[ext].header.get(mappedKey)
-                if val != None and not isinstance(val, fits.Undefined): return val
+        for mappedKey in mappedKeys:
+            val = self.fits_hdu[ext].header.get(mappedKey)
+            if val != None and not isinstance(val, fits.Undefined): return val
 
         #return None if we didn't find it
         return default
 
 
-
-    def set_keyword(self, keyword, value, comment='', useMap=False, ext=None):
+    def set_keyword(self, keyword, value, comment='', useMap=False, ext=0):
         '''
         Sets keyword value in FITS header.
         NOTE: Mapped values are only used if "useMap" is set to True, otherwise keyword name is as provided.
-        NOTE: FITS file must be loaded first with self.set_fits_file
         '''
 
         # check for loaded fits_hdr
-        if not self.fits_hdr:
+        if not self.fits_hdu[ext].header:
              raise Exception('get_keyword: ERROR: no FITS header loaded')
-             return None
+             return default
 
-        #use keyword mapping?
+        # We allow an array of mapped keys, so if keyword is array, then use first value
         if useMap:
-            #NOTE: We allow an array of mapped keys, so if keyword is array, then use first value
             if keyword in self.keymap:
                 keyword = self.keymap[keyword]
 
@@ -140,10 +123,7 @@ class Instrument(dep.DEP):
             return None
 
         #ok now we can update
-        if ext == None:
-            self.fits_hdr.update({keyword : (value, comment)})
-        else:
-            (self.fits_hdu[ext].header).update({keyword : (value, comment)})
+        (self.fits_hdu[ext].header).update({keyword : (value, comment)})
 
 
     def is_fits_valid(self):
