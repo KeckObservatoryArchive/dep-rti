@@ -62,11 +62,11 @@ class db_conn(object):
                 conn.ping(reconnect=True)
                 return conn
 
-
         #get db connect data
         assert database in self.config, f"ERROR: database '{database}' not defined in config file.  Exiting."
         config = self.config[database]
         server       = config['server']
+        db           = config.get('db', database)
         user         = config['user']
         pwd          = config['pwd']
         port         = int(config['port']) if 'port' in config else 0
@@ -80,10 +80,10 @@ class db_conn(object):
             if  type == 'mysql': 
                 conv=pymysql.converters.conversions.copy()
                 conv[10]=str       # convert dates to strings        
-                conn = pymysql.connect(user=user, password=pwd, host=server, database=database, autocommit=True, conv=conv)
+                conn = pymysql.connect(user=user, password=pwd, host=server, database=db, autocommit=True, conv=conv)
             elif type == 'postgresql': 
                 #todo: figure out conv for psycopg2
-                conn = psycopg2.connect(user=user, password=pwd, host=server, port=port, database=database)
+                conn = psycopg2.connect(user=user, password=pwd, host=server, port=port, database=db)
         except Exception as e:
             conn = None
             print ("ERROR: Could not connect to database.")
