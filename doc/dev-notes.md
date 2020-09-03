@@ -9,18 +9,6 @@
 - Instrument specific processing contained in run_dqa() functions.
 
 
-## Processing Notes
-
-How to run DEP on test data:
-- Copy fits data to a test directory (use -p option to preserve timestamps)
-- Clone DEP from git
-- Create config.live.ini from config.ini
-  - Edit ROOTDIR to point to your output directory for these test runs.
-  - Edit SEARCH_DIR to point to the test directory to search for FITS files
-  - Edit ADMIN_EMAIL to go to you.
-  - Comment out all the KOAXFR section so you don't accidentally send stuff to IPAC
-- Run DEP with "--tpx 0" and "--koaxfr 0"
-
 
 ## Tag and Release Process
 
