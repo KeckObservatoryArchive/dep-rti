@@ -85,7 +85,7 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, e
         #create md5 sum
         md5Outfile = metaOutFile.replace('.table', '.md5sum')
         log.info('Creating md5sum file {}'.format(md5Outfile))
-        make_dir_md5_table(filedir, ".metadata.table", md5Outfile, fileList=[metaOutFile])
+        make_file_md5(metaOutFile, md5Outfile)
 
     #or walk searchdir to find all final fits files
     elif searchdir:        

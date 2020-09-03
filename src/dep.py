@@ -68,7 +68,9 @@ class DEP:
         if ok: ok = self.write_lev0_fits_file() 
         if ok:      self.make_jpg()
         if ok: ok = self.create_meta()
+        if ok:      self.create_ext_meta()
         if ok: ok = self.record_stats()
+        if ok: ok = self.check_koapi_send()
         # if ok: ok = self.xfr_ipac()
 
         #If any of these steps return false then copy to udf
@@ -78,6 +80,7 @@ class DEP:
 
 
     def record_stats(self):
+        #todo: add other column data like size, etc
         semid = self.get_semid()
         koaimtype = self.get_keyword('KOAIMTYP')
         query = ("update dep_status set "
@@ -408,6 +411,108 @@ class DEP:
         ok = metadata.make_metadata( keydefs, metaoutfile, filepath=self.outfile, 
                                      extraData=extra_meta, keyskips=self.keyskips)   
         return ok
+
+
+    def create_ext_meta(self):
+#TODO: TEST THIS!
+        '''
+        Creates IPAC ASCII formatted data files for any extended header data found.
+        '''
+        #todo: put in warnings for empty ext headers
+
+        if self.instr.upper() in ('KCWI'):
+            return True
+        log.info(f'Making FITS extension metadata files for: {self.koaid}')
+
+        #read extensions and write to file
+        #todo: do we need to fits.open here again?
+        filename = os.path.basename(self.filepath)
+        hdus = fits.open(self.filepath)
+        for i in range(0, len(hdus)):
+            #wrap in try since some ext headers have been found to be corrupted
+            try:
+                hdu = hdus[i]
+                if 'TableHDU' not in str(type(hdu)): continue
+
+                #calc col widths
+                dataStr = ''
+                colWidths = []
+                for idx, colName in enumerate(hdu.data.columns.names):
+                    try:
+                        fmtWidth = int(hdu.data.formats[idx][1:])
+                    except:
+                        fmtWidth = int(hdu.data.formats[idx][:-1])
+                        if fmtWidth < 16: fmtWidth = 16
+                    colWidth = max(fmtWidth, len(colName))
+                    colWidths.append(colWidth)
+
+                #add hdu name as comment
+                dataStr += '\ Extended Header Name: ' + hdu.name + "\n"
+
+                #add header
+                #TODO: NOTE: Found that all ext data is stored as strings regardless of type it seems to hardcoding to 'char' for now.
+                for idx, cw in enumerate(colWidths):
+                    dataStr += '|' + hdu.data.columns.names[idx].ljust(cw)
+                dataStr += "|\n"
+                for idx, cw in enumerate(colWidths):
+                    dataStr += '|' + 'char'.ljust(cw)
+                dataStr += "|\n"
+                for idx, cw in enumerate(colWidths):
+                    dataStr += '|' + ''.ljust(cw)
+                dataStr += "|\n"
+                for idx, cw in enumerate(colWidths):
+                    dataStr += '|' + ''.ljust(cw)
+                dataStr += "|\n"
+
+                #add data rows
+                for j in range(0, len(hdu.data)):
+                    row = hdu.data[j]
+                    for idx, cw in enumerate(colWidths):
+                        valStr = row[idx]
+                        dataStr += ' ' + str(valStr).ljust(cw)
+                    dataStr += "\n"
+
+                #write to outfile
+                outDir = os.path.dirname(self.filepath)
+                outFile = filename.replace(endsWith, '.ext' + str(i) + '.' + hdu.name + '.tbl')
+                outFilepath = outDir + outFile
+                with open(outFilepath, 'w') as f:
+                    f.write(dataStr)
+
+                #Create ext.md5sum.table
+                md5Prepend = self.utdatedir+'.'
+                md5Outfile = f'{outDir}/{self.koaid}.ext.md5sum.table'
+                log.info('Creating {}'.format(md5Outfile))
+                make_dir_md5_table(outDir, None, md5Outfile, regex=f"{self.koaid}.ext\d")
+
+            except:
+                log.error(f'Could not create extended header table for ext header index {i} for file {filename}!')
+
+        #NOTE: This should not hold up archiving
+        return True
+
+
+    def check_koapi_send(self):
+        '''
+        For each unique semids processed in DQA, call function that determines
+        whether to flag semids for needing an email sent to PI that there data is archived
+        '''
+
+        #check if we should update koapi_send
+        semester, progid = self.progid.upper().split('_')
+        if progid == 'NONE' or progid == 'null' or progid == 'ENG' or progid == '':
+            continue
+        if progid == None or semester == None:
+            continue
+
+        #process it
+        log.info(f'check_koapi_send: {self.utDate}, {semid}, {self.instr}')
+        ok = update_koapi_send.update_koapi_send(self.utDate, self.progid, self.instr)
+        if not ok:
+            log.error('check_koapi_send failed')
+
+        #NOTE: This should not hold up archiving
+        return True
 
 
     def copy_bad_file(self, instr, filepath, reason):

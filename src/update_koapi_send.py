@@ -20,7 +20,7 @@ def update_koapi_send(utdate, semid, instr=None):
     if instr: query += f" and instr='{instr}' " 
     query += " order by utdate_beg desc limit 1"
     rows = db.query('koa', query)
-    print(query, rows)
+    #print(query, rows)
 
     #If no entry, then create one
     if (len(rows) == 0):

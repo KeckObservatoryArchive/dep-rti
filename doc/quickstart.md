@@ -1,47 +1,43 @@
-# Quickstart guide
-
-pyDEP is a software written specifically for Keck's archiving process.  A typical user of this software will need to be moderately familiar with this process and KOA in general.  Certain parts of this software were written to address particularly thorny issues arising from differences in data and keywords between the Keck instruments and lack of clear data concerning data program assignment.
-
-pyDEP is a port from a much older version written mostly in IDL and shell scripts.  Many of the concepts, names, processing stages, intermediate output, and architecture were carried over.  Improvements were made in certain areas as time permitted and are still ongoing.  
+# Quickstart development guide
 
 
-## Concepts
+## About DEP
+DEP is a software written specifically for Keck's archiving process.  A typical user of this software will need to be moderately familiar with this process and KOA in general.  
 
-(todo: Explain stages and intermediary output files.)
-
-(todo: Explain program assignment issue.)
+This DEP is a significant reimplementation of a prior version that was designed for full night ingestion of data files.  This version is leaner and redesigned to work as "realtime" ingestion and archive of data files.
 
 
-## Configure pyDEP
+## Configure and Setup DEP (for development mode)
 **(NOTE: You must currently be on the Keck internal network to run this correctly.)**
 
-- Copy config.ini to config.live.ini 
-- Edit config.live.ini
-    - Set RUNTIME->DEV = 1
-    - Define TELAPI url
-    - Define ROOTDIR to point to your own test output dir
-    - Set ADMIN_EMAIL to your email
-    - Comment out all vars in KOAXFR section
-
-
-## Create test directories and test data
-- Create the ROOTDIR you defined in your config file.
+- Copy config.ini to config.live.ini and edit necessary configurations
+    - Define RAWDIR and instrument ROOTDIR directories locally for test output files.
+    - Point your database configs to the test database server (to ensure we don't update real tables)
 - Create a test dir that contains sample fits files.
 
 
-## Run pyDEP
-- **IMPORTANT: If testing, be sure to set the command line tpx flag to 0 so you do not insert/update the koatpx table!**
-- NOTE: pyDEP normally looks for fits files in specific server directories and that were created or modified in the past 24 hours defined by the date you are archiving.  To override this for testing, we use the --modtimeOverride and --searchDir options below.  Your test fits files header data should match the instrument and date you are running (check DATE-OBS keyword).
+## Run DEP
 
-
-- Example run commands:
+Example run commands:
 ```
-python dep_go.py [instr] [utDate] [tpx] [procStart] [procStop]  --modtimeOverride=1  --searchDir=[fits dir]
+python archive.py [instr] --filepath [filepath]
 
-python dep_go.py ESI 2019-08-29 0 obtain dqa --modtimeOverride=1 --searchDir=/Users/jriley/test/sdata/ESI/ 
+python archive.py ESI --filepath /user/testdata/sdata707/esieng/2019aug30/e190830_0019.fits --tpx 0 --koaxfr 0
 ```
 
-## Caveats to not running on a koa server:
-    - You will not have access to the MET files used in the 'add' step.  Weather keywords will be set to 'none'.
-    - The email report feature will only work if you are running a mail server.
-    - You will not be able to run the koaxfr step.
+**IMPORTANT: "--tpx 0" will ensure no DB inserts or updates occur**
+**IMPORTANT: "--koaxfr 0" will ensure no transfer to IPAC occurs**
+
+
+## Caveats to not running on the correct KOA server:
+- You will not have access to the MET files and EPICS archiver, so some keywords such as weather keywords will be set to 'none'.
+- The email report feature will only work if you are running a mail server.
+- You will not be able to run the koaxfr step.
+
+
+## Explanation of files and classes
+- archive.py: Handle command line arguments and calling DEP processing object.
+- dep.py: Base processing class (processing init, common proc funcs, proc flow, config, db conn).
+- instrument.py: Base instrument class, common funcs for instrument processing.
+- instr_[instr].py: Instrument specific subclass.
+- monitor.py: Realtime monitoring daemon that looks at KTL keywords to find new files to archive.

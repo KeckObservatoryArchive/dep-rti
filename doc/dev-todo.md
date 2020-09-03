@@ -15,6 +15,7 @@
 - Speed test all of code to find bottlenecks.
 - Implement basic missing program assignment
 - Finish conversion of other instr_[instr].py classes (only did NIRES)
+- What are we doing with rejected files?
 - Search TODOs in code
 - Improve documentation
 
