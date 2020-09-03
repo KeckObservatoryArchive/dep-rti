@@ -177,7 +177,7 @@ class DEP:
         return True
 
 
-    def check_koa_db_entry(self, ):
+    def check_koa_db_entry(self):
 
         #If we are not updating DB, just return 
         if not self.tpx:
@@ -188,7 +188,7 @@ class DEP:
         query = f'select count(*) as num from dep_status where instr="{self.instr}" and koaid="{self.koaid}"'
         check = self.db.query('koa', query, getOne=True)
         if check is False:
-            if log: log.error(f'Could not query dep_status for: {self.instr}, {self.koaid}, {column}, {value}')
+            if log: log.error(f'Could not query dep_status for: {self.instr}, {self.koaid}')
             return False
 
         #if entry exists and not reprocessing, fail
