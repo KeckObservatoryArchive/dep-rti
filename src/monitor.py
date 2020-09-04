@@ -29,8 +29,9 @@ import importlib
 from pathlib import Path
 import subprocess
 import threading
+import multiprocessing
 
-import dep
+from archive import Archive
 
 import logging
 log = logging.getLogger('koamonitor')
@@ -92,24 +93,24 @@ class Monitor():
         self.process_monitor()
 
         #add test files to queue every N seconds
-        testfiles = ['/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0001.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0002.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0003.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0004.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0005.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0006.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0007.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0008.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0009.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0010.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0011.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0012.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0013.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/s200815_0014.fits',
-                     '/home/jriley/dev/demo/temp/sdata/sdata1500/nires4/2020aug15/v200815_0001.fits']
+        testfiles = ['/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0001.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0002.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0003.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0004.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0005.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0006.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0007.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0008.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0009.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0010.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0011.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0012.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0013.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0014.fits',
+                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/v200815_0001.fits']
         for f in testfiles:
             self.add_to_queue(f)
-            time.sleep(0.5)
+            time.sleep(0.1)
 
 
     def process_monitor(self):
@@ -117,9 +118,10 @@ class Monitor():
 
         #Loop procs and remove from list if complete
         #NOTE: looping in reverse so we can delete without messing up looping
+        log.debug(f"Checking processes. Size is {len(self.procs)}")
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
-            if p.poll() is not None:
+            if p.exitcode is not None:
                 log.debug(f'---Removing completed process PID: {p.pid}')
                 del self.procs[i]
 
@@ -127,6 +129,7 @@ class Monitor():
         self.check_queue()
 
         #call this function every N seconds
+        #todo: we could do this faster
         threading.Timer(1.0, self.process_monitor).start()
 
 
@@ -139,6 +142,7 @@ class Monitor():
 
     def check_queue(self):
         '''Check queue for jobs that need to be spawned.'''
+        log.debug(f"Checking queue. Size is {len(self.queue)}")
         while len(self.queue) > 0:
 
             #check that we have not exceeded max num procs
@@ -152,16 +156,18 @@ class Monitor():
 
 
     def process_file(self, filepath):
-        '''Call archive for a single file.'''
-
-        #create external command
-        #TODO: Temp adding --reprocess flag for testing
-        cmd = ('python', 'archive.py', self.instr, '--filepath', filepath, '--reprocess')
-        log.info(f"Processing file with command: {' '.join(cmd)}")
-        null = subprocess.DEVNULL
-        proc = subprocess.Popen(cmd, stdin=null, stdout=null, stderr=null)
+        '''Spawn archiving for a single file.'''
+        #NOTE: Using multiprocessing instead of subprocess so we can spawn loaded functions
+        #as a separate process which saves us the ~0.5 second overhead of launching python.
+        proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, filepath))
+        proc.start()
         self.procs.append(proc)
         log.debug(f'Started as process ID: {proc.pid}')
+
+
+    def spawn_processing(self, instr, filepath):
+        '''Call archiving for a single file.'''
+        obj = Archive(self.instr, filepath=filepath, reprocess=True)
 
 
     def create_logger(self, name, rootdir, instr):
