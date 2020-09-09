@@ -630,12 +630,12 @@ class Hires(instrument.Instrument):
         comment = ''
 
         # PEXPTIME and PEXPELAP == 0 for a regular exposure
-        pexptime = self.get_keyword('PEXPTIME', default=-1)
-        pexpelap = self.get_keyword('PEXPELAP', default=-1)
+        pexptime = self.get_keyword('PEXPTIME', default=0)
+        pexpelap = self.get_keyword('PEXPELAP', default=0)
         if pexptime != 0 or pexpelap != 0:
             eramode = self.get_keyword('ERAMODE', default='')
             mosmode = self.get_keyword('MOSMODE', default='')
-            if eramode != mosmode or reamode != 'B,G,R':
+            if eramode != mosmode or eramode.replace(" ", "").strip() != 'B,G,R':
                 # Stage directory listing
                 outdir = self.get_keyword('OUTDIR')
                 ofname = self.get_keyword('OFNAME')
