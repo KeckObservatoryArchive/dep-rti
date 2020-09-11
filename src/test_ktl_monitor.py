@@ -3,6 +3,8 @@
 Monitor KTL keywords for new data to archive.
 '''
 
+#TODO: Test recovering from instrument server reboots and keyword servers being down.
+
 #modules
 import os
 import sys
@@ -17,6 +19,7 @@ from pathlib import Path
 import traceback
 import smtplib
 from email.mime.text import MIMEText
+import threading
 
 #Init a global log ojbect so we can just type 'log' in all code below
 import logging
@@ -25,6 +28,7 @@ log = logging.getLogger('koamonitor')
 
 #Map needed keywords per instrument to standard key names
 #todo: This json layout may need to be tweaked after we look at all the instruments.
+#todo: This could be put in each of the instr subclasses.
 instr_keys = {
     'KCWI': [
         {
@@ -47,9 +51,6 @@ instr_keys = {
 
 def main():
 
-    #TODO: If we wanted to manage all instruments in one service, we can loop all instr keys.
-    #But, maybe it is better to be able to start/stop independently if need be.
-
     # define arg parser 
     parser = argparse.ArgumentParser()
     parser.add_argument("instr", type=str, help="Instrument to monitor.")
@@ -70,7 +71,7 @@ def main():
     log = create_logger('koaktlmonitor', config[instr]['ROOTDIR'], instr)
     log.info("Starting KOA KTL Monitor: " + ' '.join(sys.argv[0:]))
 
-    #run monitor for each defined for instr
+    #run monitor for each group defined for instr
     for keys in instr_keys[instr]:
         monitor = KtlMonitor(instr, keys)
         monitor.start()
@@ -149,17 +150,25 @@ class KtlMonitor():
     def start(self):
         '''Start monitoring lastfile keyword for new files.'''
 
-        #create keyword objects for easy reads later
-        keys = self.keys
-        self.service = ktl.cache(keys['service'])
-        self.kw_outdir   = self.service[keys['outdir']]
-        self.kw_outfile  = self.service[keys['outfile']]
-        self.kw_sequence = self.service[keys['sequence']]
+        #These cache calls can throw exceptions (if instr server is down for example)
+        #So, we should catch and retry until successful.  Be careful not to multi-register the callback
+        try:
+            #create keyword objects for easy reads later
+            keys = self.keys
+            self.service = ktl.cache(keys['service'])
+            self.kw_outdir   = self.service[keys['outdir']]
+            self.kw_outfile  = self.service[keys['outfile']]
+            self.kw_sequence = self.service[keys['sequence']]
 
-        #monitor keyword that indicates new file
-        kw = ktl.cache(keys['service'], keys['lastfile'])
-        kw.callback(self.on_new_file)
-        kw.monitor()
+            #monitor keyword that indicates new file
+            kw = ktl.cache(keys['service'], keys['lastfile'])
+            kw.callback(self.on_new_file)
+            kw.monitor()
+
+        except Exception as e:
+            log.error("Could not start KTL monitoring.  Retrying in 60 seconds.")
+            threading.Timer(60.0, self.start).start()
+            return
 
 
     def on_new_file(self, keyword):
@@ -167,6 +176,10 @@ class KtlMonitor():
 
         #todo: What is the best way to handle error/crashes in the callback?  Do we want the monitor to continue?
         try:
+            if kw['populated'] == False:
+                log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
+                return
+
             #todo: form full file path
             outdir = self.kw_outdir.read()
             outfile = self.kw_outfile.read()
