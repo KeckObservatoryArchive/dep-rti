@@ -167,6 +167,7 @@ class KtlMonitor():
 
         except Exception as e:
             log.error("Could not start KTL monitoring.  Retrying in 60 seconds.")
+            log.error(str(e))
             threading.Timer(60.0, self.start).start()
             return
 
@@ -176,7 +177,7 @@ class KtlMonitor():
 
         #todo: What is the best way to handle error/crashes in the callback?  Do we want the monitor to continue?
         try:
-            if kw['populated'] == False:
+            if keyword['populated'] == False:
                 log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
 
