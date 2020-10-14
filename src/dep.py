@@ -207,7 +207,6 @@ class DEP:
                 f"   instr='{self.instr}' "
                 f" , koaid='{self.koaid}' "
                 f" , filepath='{self.filepath}' "
-                f" , dep_step='{__name__}' "
                 f" , arch_stat='PROGRESS' "
                 f" , creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
         log.info(query)

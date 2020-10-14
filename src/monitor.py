@@ -1,3 +1,4 @@
+#!/kroot/rel/default/bin/kpython3
 '''
 Desc: Daemon to monitor for new FITS files to archive and and call DEP appropriately.
 Run this per instrument for archiving new FITS files.  Will monitor KTL keywords
@@ -30,6 +31,7 @@ from pathlib import Path
 import subprocess
 import threading
 import multiprocessing
+import ktl
 
 from archive import Archive
 
@@ -37,16 +39,51 @@ import logging
 log = logging.getLogger('koamonitor')
 
 
+#Map needed keywords per instrument to standard key names
+#todo: This json layout may need to be tweaked after we look at all the instruments.
+#todo: This could be put in each of the instr subclasses.
+instr_keys = {
+    'KCWI': [
+        {
+            'service':   'kfcs',
+            'lastfile':  'lastfile',
+            'outdir':    'outdir',
+            'outfile':   'outfile',
+            'sequence':  'sequence'
+        },
+        {
+            'service':   'kbds',
+            'lastfile':  'loutfile',
+            'outdir':    'outdir',
+            'outfile':   'outfile',
+            'sequence':  'frameno'
+        }
+    ],
+    'NIRES': [
+        {
+            'service':   '???',
+            'lastfile':  '???',
+            'outdir':    '???',
+            'outfile':   '???',
+            'sequence':  '???'
+        },
+    ]
+}
+
+
 def main():
 
-    # Define inputs
+    # Define arg parser
     parser = argparse.ArgumentParser()
     parser.add_argument('instr', help='Keck Instrument')
+
+    #parse args
     args = parser.parse_args()    
+    instr = args.instr.upper()
 
     #run it and catch any unhandled error for email to admin
     try:
-        monitor = Monitor(args.instr)
+        monitor = Monitor(instr)
     except Exception as error:
         handle_fatal_error()
 
@@ -75,16 +112,19 @@ class Monitor():
         log = self.create_logger('koamonitor', self.config[instr]['ROOTDIR'], instr)
         log.info("Starting KOA Monitor: " + ' '.join(sys.argv[0:]))
 
-        #self.monitor()
-        self.monitor_test()
+        self.monitor()
+        #self.monitor_test()
 
 
-    def monitor():
+    def monitor(self):
 
-        #start internal time interval monitor of process list
+        #run KTL monitor for each group defined for instr
+        for keys in instr_keys[self.instr]:
+            ktlmon = KtlMonitor(self.instr, keys, self)
+            ktlmon.start()
+
+        #start interval to monitor DEP processes for completion
         self.process_monitor()
-
-        #todo: monitor KTL keywords for new images and call DEP
 
 
     def monitor_test(self):
@@ -135,6 +175,12 @@ class Monitor():
 
     def add_to_queue(self, filepath):
         '''Add a file to queue for processing'''
+
+        #todo: test: change to test file for now
+        filepath = '/usr/local/home/koarti/test/sdata/sdata1400/kcwi1/2020oct07/kf201007_000001.fits'
+
+        #todo: change this to do database insert (check for duplicate).  
+        #todo: The database will act as the queue and we will requery it to get next
         log.info(f'Adding to queue: {filepath}')
         self.queue.append(filepath)
         self.check_queue()
@@ -207,6 +253,69 @@ class Monitor():
         return log
 
 
+class KtlMonitor():
+    '''
+    Class to handle monitoring a distinct set of keywords for an instrument to 
+    determine when a new image has been written.
+    '''
+
+    def __init__(self, instr, keys, queue_mgr):
+        log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}")
+        self.instr = instr
+        self.keys = keys
+        self.queue_mgr = queue_mgr
+
+    def start(self):
+        '''Start monitoring 'lastfile' keyword for new files.'''
+
+        #These cache calls can throw exceptions (if instr server is down for example)
+        #So, we should catch and retry until successful.  Be careful not to multi-register the callback
+        try:
+            #create service object for easy reads later
+            keys = self.keys
+            self.service = ktl.cache(keys['service'])
+
+            #monitor keyword that indicates new file
+            kw = ktl.cache(keys['service'], keys['lastfile'])
+            kw.callback(self.on_new_file)
+            kw.monitor()
+
+        except Exception as e:
+            log.error("Could not start KTL monitoring.  Retrying in 60 seconds.")
+            log.error(str(e))
+            threading.Timer(60.0, self.start).start()
+            return
+
+    def on_new_file(self, keyword):
+        '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
+
+        #todo: What is the best way to handle error/crashes in the callback?  Do we want the monitor to continue?
+        #todo: Do we need to skip the initial read since that should be old? Can we check keyword time is old?
+        try:
+            if keyword['populated'] == False:
+                log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
+                return
+
+            #get full file path
+            #todo: For some instruments, we may need to form full path if lastfile is not defined.
+            keys = self.keys
+            outdir   = self.service[keys['outdir']]
+            outfile  = self.service[keys['outfile']]
+            sequence = self.service[keys['sequence']]
+            lastfile = keyword.ascii
+
+            #check for blank lastfile
+            if not lastfile or not lastfile.strip():
+                log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
+                return
+
+            #send back to queue manager
+            self.queue_mgr.add_to_queue(lastfile)
+
+        except Exception as e:
+            handle_fatal_error()
+
+
 def handle_fatal_error():
 
     #form subject and msg (and log as well)
@@ -230,5 +339,8 @@ def handle_fatal_error():
     s.quit()
 
 
+#--------------------------------------------------------------------------------
+# main command line entry
+#--------------------------------------------------------------------------------
 if __name__ == "__main__":
     main()
