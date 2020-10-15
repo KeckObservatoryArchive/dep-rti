@@ -195,20 +195,16 @@ class Instrument(dep.DEP):
         except:
             return '', False
 
-        # Extract the hour, minute, and seconds from the UTC time
-        hour   = utc.hour
-        minute = utc.minute
-        second = utc.second
-
-        # Calculate the total number of seconds since Midnight
-        totalSeconds = str((hour * 3600) + (minute * 60) + second)
+        # Get total seconds and hundredths
+        totalSeconds = str((uts.hour * 3600) + (utc.minute * 60) + utc.second)
+        hundredths = str(utc.microsecond)[0:2]
 
         # Remove any date separators from the date
         dateobs = dateobs.replace('-','')
         dateobs = dateobs.replace('/','')
 
         # Create the KOAID from the parts
-        koaid = self.prefix + '.' + dateobs + '.' + totalSeconds.zfill(5)
+        koaid = f'{self.prefix}.{dateobs}.{totalSeconds.zfill(5)}.{hundredths}'
         return koaid, True
 
 
