@@ -3,6 +3,7 @@
 
 
 ## HIGH PRIORITY
+- Change queue to use database so queue is not in memory.
 - Refactor koaxfr.py.  Do we want this to be part of dep.py or standalone?
 - Test PSFR (NIRC2)
 - Test DRP (NIRC2, OSIRIS)
@@ -13,7 +14,7 @@
 - Design such that koa daemon can recieve code updates in realtime without restart.
 - Is there a fast gzip option?  Do a speed test vs internet speed.
 - Move common to processing base class and maybe get rid of common.py?
-- Remove unneeded code for RTI (dep_[step].py)
+- Throttle max processes based on server resources?
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.
 - Implement basic missing program assignment

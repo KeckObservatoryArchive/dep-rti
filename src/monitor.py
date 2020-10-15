@@ -158,7 +158,7 @@ class Monitor():
 
         #Loop procs and remove from list if complete
         #NOTE: looping in reverse so we can delete without messing up looping
-        log.debug(f"Checking processes. Size is {len(self.procs)}")
+        #log.debug(f"Checking processes. Size is {len(self.procs)}")
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
             if p.exitcode is not None:
@@ -177,7 +177,7 @@ class Monitor():
         '''Add a file to queue for processing'''
 
         #todo: test: change to test file for now
-        filepath = '/usr/local/home/koarti/test/sdata/sdata1400/kcwi1/2020oct07/kf201007_000001.fits'
+        #filepath = '/usr/local/home/koarti/test/sdata/sdata1400/kcwi1/2020oct07/kf201007_000001.fits'
 
         #todo: change this to do database insert (check for duplicate).  
         #todo: The database will act as the queue and we will requery it to get next
@@ -188,7 +188,7 @@ class Monitor():
 
     def check_queue(self):
         '''Check queue for jobs that need to be spawned.'''
-        log.debug(f"Checking queue. Size is {len(self.queue)}")
+        #log.debug(f"Checking queue. Size is {len(self.queue)}")
         while len(self.queue) > 0:
 
             #check that we have not exceeded max num procs
