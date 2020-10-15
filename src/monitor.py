@@ -1,18 +1,14 @@
 #!/kroot/rel/default/bin/kpython3
 '''
-Desc: Daemon to monitor for new FITS files to archive and and call DEP appropriately.
+Desc: Daemon to monitor for new FITS files to archive and call DEP appropriately.
 Run this per instrument for archiving new FITS files.  Will monitor KTL keywords
-to find new files for archiving.  Keeps a queue for incoming filepaths and keeps
-a list of spawned processes in order to manage how many concurrent processes can
-run at once.
+to find new files for archiving.  Uses the database as its queue so the queue is not
+in memory.  Keeps a list of spawned processes so as to manage how many concurrent 
+processes can run at once.
 
 Usage: 
     python monitor.py [instr]
 
-TODO:
-- Add KTL monitoring
-- Is log good enough to recover unprocessed files in event of monitor crash or
-do we need something else?  Should we dump queue and procs lists to separate log?
 '''
 import sys
 import argparse
@@ -39,35 +35,34 @@ import logging
 log = logging.getLogger('koamonitor')
 
 
-#Map needed keywords per instrument to standard key names
-#todo: This json layout may need to be tweaked after we look at all the instruments.
+#Define instrument keywords that indicate new datafile was written.
+#todo: Finish mapping all instrs
 #todo: This could be put in each of the instr subclasses.
 instr_keys = {
     'KCWI': [
         {
             'service':   'kfcs',
             'lastfile':  'lastfile',
-            'outdir':    'outdir',
-            'outfile':   'outfile',
-            'sequence':  'sequence'
         },
         {
             'service':   'kbds',
             'lastfile':  'loutfile',
-            'outdir':    'outdir',
-            'outfile':   'outfile',
-            'sequence':  'frameno'
         }
     ],
     'NIRES': [
         {
             'service':   '???',
             'lastfile':  '???',
-            'outdir':    '???',
-            'outfile':   '???',
-            'sequence':  '???'
         },
     ]
+    'DEIMOS': [],
+    'ESI': [],
+    'HIRES': [],
+    'LRIS': [],
+    'MOSFIRE': [],
+    'NIRC2': [],
+    'NIRSPEC': [],
+    'OSIRIS': [],
 }
 
 
@@ -81,7 +76,7 @@ def main():
     args = parser.parse_args()    
     instr = args.instr.upper()
 
-    #run it and catch any unhandled error for email to admin
+    #run monitor and catch any unhandled error for email to admin
     try:
         monitor = Monitor(instr)
     except Exception as error:
