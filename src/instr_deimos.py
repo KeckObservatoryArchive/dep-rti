@@ -667,8 +667,8 @@ class Deimos(instrument.Instrument):
                 self.set_fits_file(file)
                 self.set_utc()
                 self.set_dateObs()
-                koaid, result = self.make_koaid()
-                if koaid.startswith('DF'):
+                koaid = self.make_koaid()
+                if koaid and koaid.startswith('DF'):
                     self.fcsFiles[file.split('/')[-1]] = koaid
 
 

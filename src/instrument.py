@@ -155,8 +155,8 @@ class Instrument(dep.DEP):
         if self.get_keyword('KOAID', False) != None: return True
 
         #make it
-        koaid, result = self.make_koaid()
-        if not result: 
+        koaid = self.make_koaid()
+        if not koaid: 
             log.error('set_koaid: Could not create KOAID.')
             return False
 
@@ -177,23 +177,20 @@ class Instrument(dep.DEP):
         # Get the prefix for the correct instrument and configuration
         self.set_instr()
         self.prefix = self.get_prefix()
-        if self.prefix == '':
-            return '', False
+        if self.prefix == '': return False
 
         # Extract the UTC time and date observed from the header
         self.set_utc()
         utc = self.get_keyword('UTC')
-        if utc == None: return '', False
+        if utc == None: return False
 
         self.set_dateObs()
         dateobs = self.get_keyword('DATE-OBS')
-        if dateobs == None: return '', False
+        if dateobs == None: return False
 
         # Create a timedate object using the string from the header
-        try:
-            utc = dt.datetime.strptime(utc, '%H:%M:%S.%f')
-        except:
-            return '', False
+        try:    utc = dt.datetime.strptime(utc, '%H:%M:%S.%f')
+        except: return False
 
         # Get total seconds and hundredths
         totalSeconds = str((uts.hour * 3600) + (utc.minute * 60) + utc.second)
@@ -205,7 +202,7 @@ class Instrument(dep.DEP):
 
         # Create the KOAID from the parts
         koaid = f'{self.prefix}.{dateobs}.{totalSeconds.zfill(5)}.{hundredths}'
-        return koaid, True
+        return koaid
 
 
     def get_instr(self):
