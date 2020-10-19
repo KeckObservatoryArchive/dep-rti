@@ -3,7 +3,8 @@
 
 
 ## HIGH PRIORITY
-- Change queue to use database so queue is not in memory.
+- log errors to db?
+- define/enumerate arch_stat allowed values (QUEUED, PROCESSING, DONE, ERROR ?)
 - Refactor koaxfr.py.  Do we want this to be part of dep.py or standalone?
 - Test PSFR (NIRC2)
 - Test DRP (NIRC2, OSIRIS)
@@ -19,7 +20,10 @@
 - Speed test all of code to find bottlenecks.
 - Implement basic missing program assignment
 - What are we doing with rejected files?
+- Insert header json
+- How about a monitor log/db entry every hour just so we know it is alive and kicking?
 - Search TODOs in code
+- Look at old DEP on github and ensure we got all hotfixes and changes since mid Sept
 - Improve documentation
 
 

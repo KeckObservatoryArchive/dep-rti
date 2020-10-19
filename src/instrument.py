@@ -33,9 +33,9 @@ log = logging.getLogger('koadep')
 
 class Instrument(dep.DEP):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, config, db, reprocess, tpx, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx)
+        super().__init__(instr, filepath, config, db, reprocess, tpx, dbid)
 
         # Keyword values to be used with a FITS file during runtime
         # NOTE: array may be used to denote an ordered list of possible keywords to look for.
@@ -193,7 +193,7 @@ class Instrument(dep.DEP):
         except: return False
 
         # Get total seconds and hundredths
-        totalSeconds = str((uts.hour * 3600) + (utc.minute * 60) + utc.second)
+        totalSeconds = str((utc.hour * 3600) + (utc.minute * 60) + utc.second)
         hundredths = str(utc.microsecond)[0:2]
 
         # Remove any date separators from the date

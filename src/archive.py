@@ -27,7 +27,8 @@ def main():
     # Define inputs
     parser = argparse.ArgumentParser(description='DEP input parameters')
     parser.add_argument('instr', help='Keck Instrument')
-    parser.add_argument('--filepath' , type=str, default=None, help='Filepath to FITS file for archiving.')
+    parser.add_argument('--filepath' , type=str, default=None, help='Filepath to FITS file to archive.')
+    parser.add_argument('--dbid' , type=str, default=None, help='Database ID record to archive.')
     parser.add_argument('--tpx' , type=int, default=1, help='Update DB tables and transfer to IPAC.  Else, create files only and no transfer.')
     parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
     parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
@@ -41,7 +42,7 @@ def main():
 
     #run it and catch any unhandled error for email to admin
     try:
-        archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, reprocess=args.reprocess,
+        archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, dbid=dbid, reprocess=args.reprocess,
                   starttime=args.starttime, endtime=args.endtime,
                   status=args.status, outdir=args.outdir)
     except Exception as error:
@@ -50,12 +51,13 @@ def main():
 
 class Archive():
 
-    def __init__(self, instr, tpx=1, filepath=None, reprocess=False, 
+    def __init__(self, instr, tpx=1, filepath=None, dbid=None, reprocess=False, 
                  starttime=None, endtime=None, status=None, outdir=None):
 
         self.instr = instr
         self.tpx = tpx
         self.filepath = filepath
+        self.dbid = dbid
         self.reprocess = reprocess
         self.starttime = starttime
         self.endtime = endtime
@@ -83,6 +85,8 @@ class Archive():
         #todo: Add remaining options
         if filepath:
             self.process_file(instr, filepath, reprocess, tpx)
+        elif dbid:
+            self.process_id(instr, dbid, reprocess, tpx)
         elif starttime and endtime:
             self.reprocess_time_range(instr, starttime, endtime, tpx)
         elif status:
@@ -141,12 +145,12 @@ class Archive():
         return log
 
 
-    def process_file(self, instr, filepath, reprocess, tpx):
+    def process_file(self, instr, filepath, reprocess, tpx, dbid=None):
 
         #TODO: Test that if an invalid instrument is used, this will throw an error and admin will be emailed.
         module = importlib.import_module('instr_' + instr.lower())
         instr_class = getattr(module, instr.capitalize())
-        instr_obj = instr_class(instr, self.filepath, self.config, self.db, self.reprocess, self.tpx)
+        instr_obj = instr_class(instr, filepath, self.config, self.db, reprocess, tpx, dbid=dbid)
 
         ok = instr_obj.process()
         if not ok:
@@ -155,7 +159,19 @@ class Archive():
             log.info("DEP finished successfully!")
 
 
-    def reprocess_time_range(instr, starttime, endtime, tpx):
+    def process_id(self, instr, dbid, reprocess, tpx):
+        '''Archive a record by DB ID.'''
+
+        query = f"select * from dep_status where id={dbid}"
+        row = self.db.query('koa', query, getOne=True)
+        if not row:
+            log.error(f"Unable to find DB record with ID={dbid}")
+            return
+
+        self.process_file(instr, row['filepath'], reprocess, tpx, dbid)
+
+
+    def reprocess_time_range(self, instr, starttime, endtime, tpx):
         '''Look for fits files that have a UTC time within the range given and reprocess.'''
 
         #todo: this is pseudo code and untested
@@ -165,7 +181,7 @@ class Archive():
         query = (f"select * from dep_status where "
                  f"     datetime >= '{starttime}' "
                  f" and datetime <= '{endtime}' ")
-        files = self.db.query(query)
+        files = self.db.query('koa', query)
 
         for f in files:
             self.process_file(instr, f['savepath'], True, tpx)

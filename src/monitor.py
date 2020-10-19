@@ -28,11 +28,14 @@ import subprocess
 import threading
 import multiprocessing
 import ktl
+import logging
 
 from archive import Archive
 
-import logging
+
+#globals
 log = logging.getLogger('koamonitor')
+last_email_times = None
 
 
 #Define instrument keywords that indicate new datafile was written.
@@ -54,7 +57,7 @@ instr_keys = {
             'service':   '???',
             'lastfile':  '???',
         },
-    ]
+    ],
     'DEIMOS': [],
     'ESI': [],
     'HIRES': [],
@@ -80,7 +83,7 @@ def main():
     try:
         monitor = Monitor(instr)
     except Exception as error:
-        handle_fatal_error()
+        email_error('MONITOR_ERROR', traceback.format_exc())
 
 
 class Monitor():
@@ -107,8 +110,18 @@ class Monitor():
         log = self.create_logger('koamonitor', self.config[instr]['ROOTDIR'], instr)
         log.info("Starting KOA Monitor: " + ' '.join(sys.argv[0:]))
 
+        # Establish database connection 
+        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+
         self.monitor()
         #self.monitor_test()
+
+
+    def __del__(self):
+
+        #Close the database connection
+        if self.db:
+            self.db.close()
 
 
     def monitor(self):
@@ -151,21 +164,37 @@ class Monitor():
     def process_monitor(self):
         '''Remove any processes from list that are complete.'''
 
+        self.log_periodic_hello()
+
         #Loop procs and remove from list if complete
         #NOTE: looping in reverse so we can delete without messing up looping
         #log.debug(f"Checking processes. Size is {len(self.procs)}")
+        removed = 0
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
             if p.exitcode is not None:
                 log.debug(f'---Removing completed process PID: {p.pid}')
                 del self.procs[i]
+                removed += 1
 
-        #check queue as well so we can add any jobs that were held up in the queue prior
-        self.check_queue()
+        #If we removed any jobs, check queue 
+        if removed: self.check_queue()
 
         #call this function every N seconds
         #todo: we could do this faster
         threading.Timer(1.0, self.process_monitor).start()
+
+
+    def log_periodic_hello(self):
+        '''Log a hello message every hour so we know we are running ok.'''
+        
+        now = dt.datetime.now()
+        if not hasattr(self, 'last_hello'):
+            self.last_hello = now
+        diff = now - self.last_hello
+        if diff.seconds > 3600:
+            log.debug('Monitor here, just saying hi every hour.')
+            self.last_hello = now
 
 
     def add_to_queue(self, filepath):
@@ -174,41 +203,85 @@ class Monitor():
         #todo: test: change to test file for now
         #filepath = '/usr/local/home/koarti/test/sdata/sdata1400/kcwi1/2020oct07/kf201007_000001.fits'
 
-        #todo: change this to do database insert (check for duplicate).  
-        #todo: The database will act as the queue and we will requery it to get next
+        ok = self.check_koa_db_entry(filepath)
+        if not ok:
+            email_error('DUPLICATE_FILEPATH', filepath)
+            return
+
+        #Do insert record
         log.info(f'Adding to queue: {filepath}')
-        self.queue.append(filepath)
+        query = ("insert into dep_status set "
+                f"   instr='{self.instr}' "
+                f" , filepath='{filepath}' "
+                f" , arch_stat='QUEUED' "
+                f" , creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
+        log.info(query)
+        result = self.db.query('koa', query)
+        if result is False: 
+            self.email_error(f'{__name__} failed: {query}')
+            return
+
+        #check queue
         self.check_queue()
+
+
+    def check_koa_db_entry(self, filepath):
+
+        # See if entry exists
+        query = (f"select count(*) as num from dep_status where "
+                f" instr='{self.instr}' "
+                f" and filepath='{filepath}' ")
+        check = self.db.query('koa', query, getOne=True)
+        if check is False:
+            email_error('DATABASE_ERROR', f'{__name__}: Could not query {query}')
+            return False
+        if int(check['num']) > 0:
+            return False
+        return True
 
 
     def check_queue(self):
         '''Check queue for jobs that need to be spawned.'''
-        #log.debug(f"Checking queue. Size is {len(self.queue)}")
-        while len(self.queue) > 0:
+        query = (f"select * from dep_status where "
+                f" arch_stat='QUEUED' "
+                f" and instr='{self.instr}' "
+                f" order by creation_time desc limit 1")
+        row = self.db.query('koa', query, getOne=True)
+        if row is False:
+            email_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
+            return False
+        if len(row) == 0:
+            return 
 
-            #check that we have not exceeded max num procs
-            if len(self.procs) >= self.max_procs:
-                log.warning(f'MAX {self.max_procs} concurrent processes exceeded. Queue size is {len(self.queue)}')
-                break
+        #check that we have not exceeded max num procs
+        if len(self.procs) >= self.max_procs:
+            log.warning(f'MAX {self.max_procs} concurrent processes exceeded.')
+            return
 
-            #pop from queue and process it
-            filepath = self.queue.pop(0)
-            self.process_file(filepath)
+        #set status to PROCESSING
+        query = f"update dep_status set arch_stat='PROCESSING' where id={row['id']}"
+        res = self.db.query('koa', query)
+        if row is False:
+            email_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
+            return False
+
+        #pop from queue and process it
+        self.process_file(row['id'])
 
 
-    def process_file(self, filepath):
-        '''Spawn archiving for a single file.'''
+    def process_file(self, id):
+        '''Spawn archiving for a single file by database ID.'''
         #NOTE: Using multiprocessing instead of subprocess so we can spawn loaded functions
         #as a separate process which saves us the ~0.5 second overhead of launching python.
-        proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, filepath))
+        proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, id))
         proc.start()
         self.procs.append(proc)
         log.debug(f'Started as process ID: {proc.pid}')
 
 
-    def spawn_processing(self, instr, filepath):
-        '''Call archiving for a single file.'''
-        obj = Archive(self.instr, filepath=filepath, reprocess=True)
+    def spawn_processing(self, instr, dbid):
+        '''Call archiving for a single file by DB ID.'''
+        obj = Archive(self.instr, dbid=dbid, reprocess=True)
 
 
     def create_logger(self, name, rootdir, instr):
@@ -276,7 +349,7 @@ class KtlMonitor():
             kw.monitor()
 
         except Exception as e:
-            log.error("Could not start KTL monitoring.  Retrying in 60 seconds.")
+            email_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
             log.error(str(e))
             threading.Timer(60.0, self.start).start()
             return
@@ -293,10 +366,6 @@ class KtlMonitor():
 
             #get full file path
             #todo: For some instruments, we may need to form full path if lastfile is not defined.
-            keys = self.keys
-            outdir   = self.service[keys['outdir']]
-            outfile  = self.service[keys['outfile']]
-            sequence = self.service[keys['sequence']]
             lastfile = keyword.ascii
 
             #check for blank lastfile
@@ -304,20 +373,30 @@ class KtlMonitor():
                 log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
                 return
 
-            #send back to queue manager
-            self.queue_mgr.add_to_queue(lastfile)
-
         except Exception as e:
-            handle_fatal_error()
+            email_error('KTL_READ_ERROR', traceback.format_exc())
+            return
+
+        #send back to queue manager
+        self.queue_mgr.add_to_queue(lastfile)
 
 
-def handle_fatal_error():
+def email_error(errcode, text, check_time=True):
+    '''Email admins the error but only if we haven't sent one recently.'''
 
-    #form subject and msg (and log as well)
-    subject = f'KOA ERROR: {sys.argv}'
-    msg = traceback.format_exc()
-    if log: log.error(subject + ' ' + msg)
-    else: print(msg)
+    #always log/print
+    if log: log.error(f'{errcode}: {text}')
+    else: print(text)
+
+    #Only send if we haven't sent one recently
+    if check_time:
+        global last_email_times
+        if not last_email_times: last_email_times = {}
+        last_time = last_email_times.get(errcode)
+        now = dt.datetime.now()
+        if last_time and last_time + dt.timedelta(hours=1) > now:
+            return
+        last_email_times[errcode] = now
 
     #get admin email.  Return if none.
     with open('config.live.ini') as f: config = yaml.safe_load(f)
@@ -325,8 +404,10 @@ def handle_fatal_error():
     if not adminEmail: return
     
     # Construct email message
-    msg = MIMEText(msg)
-    msg['Subject'] = subject
+    body = f'{errcode}\n{text}'
+    subj = f'KOA ERROR: ({os.path.basename(__file__)}) {errcode}'
+    msg = MIMEText(body)
+    msg['Subject'] = subj
     msg['To']      = adminEmail
     msg['From']    = adminEmail
     s = smtplib.SMTP('localhost')

@@ -28,7 +28,7 @@ log = logging.getLogger('koadep')
 
 class DEP:
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, config, db, reprocess, tpx, dbid=None):
 
         #class inputs
         self.instr     = instr
@@ -37,6 +37,7 @@ class DEP:
         self.db        = db
         self.reprocess = reprocess
         self.tpx       = tpx
+        self.dbid      = dbid
 
         #init other vars
         self.koaid = ''
@@ -184,11 +185,16 @@ class DEP:
             log.info("TPX is off.  Not creating DB entry.") 
             return True
 
+        #If we are processing an existing record, just return
+        if self.dbid:
+            log.info(f"Processing record with ID {self.dbid}")
+            return True
+
         # See if entry exists
         query = f'select count(*) as num from dep_status where instr="{self.instr}" and koaid="{self.koaid}"'
         check = self.db.query('koa', query, getOne=True)
         if check is False:
-            if log: log.error(f'Could not query dep_status for: {self.instr}, {self.koaid}')
+            log.error(f'Could not query dep_status for: {self.instr}, {self.koaid}')
             return False
 
         #if entry exists and not reprocessing, fail
@@ -207,7 +213,7 @@ class DEP:
                 f"   instr='{self.instr}' "
                 f" , koaid='{self.koaid}' "
                 f" , filepath='{self.filepath}' "
-                f" , arch_stat='PROGRESS' "
+                f" , arch_stat='PROCESSING' "
                 f" , creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
         log.info(query)
         result = self.db.query('koa', query)

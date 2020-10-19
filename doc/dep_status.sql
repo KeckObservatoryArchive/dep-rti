@@ -20,3 +20,15 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `header_json`   json          DEFAULT NULL                    COMMENT 'Store all FITS header info as json',    
   `last_mod`      timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
+
+CREATE TABLE IF NOT EXISTS `dep_error` (
+  `id`            int(11)       NOT NULL        AUTO_INCREMENT PRIMARY KEY,      
+  `instr`         varchar(16)   DEFAULT NULL                    COMMENT 'Instrument name',      
+  `code`          varchar(32)   DEFAULT NULL                    COMMENT 'Error code string',   
+  `info`          text          DEFAULT NULL                    COMMENT 'Text description of error',      
+  `script`        varchar(256)  DEFAULT NULL                    COMMENT 'Script reporting the error',  
+  `status`        varchar(10)   DEFAULT NULL                    COMMENT '[RESOLVED, DELETED]',   
+  `creation_time` datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,      
+  `last_mod`      timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
