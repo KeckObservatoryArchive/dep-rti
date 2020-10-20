@@ -64,7 +64,6 @@ class DEP:
         if ok: ok = self.processing_init()
         if ok: ok = self.check_koa_db_entry()
         if ok: ok = self.validate_fits()
-        if ok: ok = self.copy_raw_fits()  
         if ok: ok = self.run_psfr()
         if ok: ok = self.run_dqa()
         if ok: ok = self.write_lev0_fits_file() 
@@ -72,8 +71,9 @@ class DEP:
         if ok: ok = self.create_meta()
         if ok:      self.create_ext_meta()
         if ok: ok = self.run_drp()
-        if ok: ok = self.record_stats()
         if ok: ok = self.check_koapi_send()
+        if ok: ok = self.copy_raw_fits()  
+        if ok: ok = self.record_stats()
         # if ok: ok = self.xfr_ipac()
 
         #If any of these steps return false then copy to udf
@@ -83,12 +83,14 @@ class DEP:
 
 
     def record_stats(self):
-        #todo: add other column data like size, etc
+        '''Record all stats before we xfr to ipac.'''
+        #todo: add other column data like size, sdata_dir, etc
         semid = self.get_semid()
         koaimtype = self.get_keyword('KOAIMTYP')
         query = ("update dep_status set "
                 f"   semid='{semid}' "
                 f" , image_type='{koaimtype}' "
+                f" , arch_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' "
                 f" where instr='{self.instr}' and koaid='{self.koaid}' ")
         log.info(query)
         result = self.db.query('koa', query)
@@ -208,11 +210,17 @@ class DEP:
             self.delete_status(self.instr, self.koaid)
             self.delete_local_files(self.instr, self.koaid)
 
+        #other record vars
+        utc = self.get_keyword('UTC')
+        dateobs = self.get_keyword('DATE-OBS')
+        utc_datetime = f"{dateobs} {utc[0:8]}" 
+
         #We always insert a new dep_status record
         query = ("insert into dep_status set "
                 f"   instr='{self.instr}' "
                 f" , koaid='{self.koaid}' "
                 f" , filepath='{self.filepath}' "
+                f" , utc_datetime='{utc_datetime}' "
                 f" , arch_stat='PROCESSING' "
                 f" , creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
         log.info(query)
@@ -236,17 +244,15 @@ class DEP:
     def copy_raw_fits(self):
         '''Make a permanent read-only copy of the FITS file on Keck storageserver'''
 
-        #If we are not updating DB or reprocessing, just return 
+        #If we are not updating DB, just return 
+        #todo: is this correct logic for copy?
         if not self.tpx:
             log.info("TPX is off.  Not copying raw fits to storageserver.") 
-            return True
-        if self.reprocess:
-            log.info("Reprocessing.  Not copying raw fits to storageserver.") 
             return True
 
         #form filepath and copy
         #todo: set to readonly
-        outfile = self.get_raw_filepath
+        outfile = self.get_raw_filepath()
         outdir = os.path.dirname(outfile)
         log.info(f'Copying raw fits to {outfile}')
         try:
@@ -256,14 +262,15 @@ class DEP:
             log.error(f"Could not copy raw fits to: {outfile}")
       
         #update dep_status.savepath
-        self.update_dep_status('raw_savepath', outdir)
+        self.update_dep_status('raw_savepath', outfile)
         return True
 
+
     def get_raw_filepath(self):
-        filename = os.path.filename(self.filename)
+        filename = os.path.basename(self.filepath)
         outdir = self.dirs['output']
         outdir = outdir.replace(self.rootdir, '')
-        outfile = f"{self.config['DIRS']['RAWDIR']}{outdir}/{filename}"
+        outfile = f"{self.config['DIRS']['STORAGEDIR']}{outdir}/{filename}"
         return outfile
 
 
