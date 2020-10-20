@@ -33,7 +33,7 @@ import logging
 from archive import Archive
 
 
-#globals
+#module globals
 log = logging.getLogger('koamonitor')
 last_email_times = None
 
@@ -187,7 +187,7 @@ class Monitor():
 
     def log_periodic_hello(self):
         '''Log a hello message every hour so we know we are running ok.'''
-        
+
         now = dt.datetime.now()
         if not hasattr(self, 'last_hello'):
             self.last_hello = now
@@ -281,7 +281,7 @@ class Monitor():
 
     def spawn_processing(self, instr, dbid):
         '''Call archiving for a single file by DB ID.'''
-        obj = Archive(self.instr, dbid=dbid, reprocess=True)
+        obj = Archive(self.instr, dbid=dbid)
 
 
     def create_logger(self, name, rootdir, instr):
@@ -350,7 +350,6 @@ class KtlMonitor():
 
         except Exception as e:
             email_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
-            log.error(str(e))
             threading.Timer(60.0, self.start).start()
             return
 
@@ -388,7 +387,7 @@ def email_error(errcode, text, check_time=True):
     if log: log.error(f'{errcode}: {text}')
     else: print(text)
 
-    #Only send if we haven't sent one recently
+    #Only send if we haven't sent one of same errcode recently
     if check_time:
         global last_email_times
         if not last_email_times: last_email_times = {}
