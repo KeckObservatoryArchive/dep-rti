@@ -135,32 +135,6 @@ class Monitor():
         self.process_monitor()
 
 
-    def monitor_test(self):
-
-        #start internal time interval monitor of process list
-        self.process_monitor()
-
-        #add test files to queue every N seconds
-        testfiles = ['/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0001.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0002.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0003.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0004.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0005.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0006.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0007.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0008.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0009.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0010.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0011.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0012.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0013.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/s200815_0014.fits',
-                     '/Users/jriley/test/sdata/sdata1500/nires4/2020aug15/v200815_0001.fits']
-        for f in testfiles:
-            self.add_to_queue(f)
-            time.sleep(0.1)
-
-
     def process_monitor(self):
         '''Remove any processes from list that are complete.'''
 
