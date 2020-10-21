@@ -1,8 +1,9 @@
 
 CREATE TABLE IF NOT EXISTS `dep_status` (
-  `koaid`               varchar(30)   PRIMARY KEY   COMMENT 'Unique KOA ID',
+  `id`                  int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
+  `koaid`               varchar(30)   UNIQUE        COMMENT 'Unique KOA ID',
   `instrument`          varchar(15)   NOT NULL      COMMENT 'Instrument name',
-  `utdatetime`          datetime      NOT NULL      COMMENT 'DATE-OBS UTC',
+  `utdatetime`          datetime                    COMMENT 'DATE-OBS UTC',
   `status`              varchar(15)                 COMMENT 'Current status of archive process [QUEUED, PROCESSING, COMPLETE, INVALID, ERROR]',
   `status_code`         varchar(25)                 COMMENT 'Status code of archive process [NULL, DUPLICATE, EMPTY, UNREADABLE, etc]',
   `ofname`              varchar(255)                COMMENT 'Full path to original file (sdata location)',
@@ -25,9 +26,7 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
 
 
 CREATE TABLE `dep_status_history` like `dep_status`;
-alter table dep_status_history modify column `koaid` varchar(30) COMMENT 'KOA ID';
-alter table dep_status_history drop primary key;
-alter table dep_status_history add column `id`  int(11)  NOT NULL  AUTO_INCREMENT PRIMARY KEY FIRST;
+ALTER TABLE  `dep_status_history` drop index `koaid`;
 
 
 CREATE TABLE IF NOT EXISTS `headers` (
