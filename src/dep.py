@@ -135,9 +135,8 @@ class DEP:
         # Create the output directories, if they don't already exist.
         # Unless this is a full pyDEP run, in which case we exit with warning
         for key, dir in self.dirs.items():
-            if os.path.isdir(dir):
-                log.info(f'Output directory exists: {dir}')
-            else:
+            if not os.path.isdir(dir):
+                log.info(f'Creating output directory: {dir}')
                 try:
                     os.makedirs(dir)
                 except:
