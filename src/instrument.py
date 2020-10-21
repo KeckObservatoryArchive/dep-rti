@@ -201,7 +201,7 @@ class Instrument(dep.DEP):
         dateobs = dateobs.replace('/','')
 
         # Create the KOAID from the parts
-        koaid = f'{self.prefix}.{dateobs}.{totalSeconds.zfill(5)}.{hundredths}'
+        koaid = f'{self.prefix}.{dateobs}.{totalSeconds.zfill(5)}.{hundredths.zfill(2)}'
         return koaid
 
 
