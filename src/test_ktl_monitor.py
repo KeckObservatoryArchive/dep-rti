@@ -20,30 +20,35 @@ import traceback
 import smtplib
 from email.mime.text import MIMEText
 import threading
+import time
 
 #Init a global log ojbect so we can just type 'log' in all code below
 import logging
-log = logging.getLogger('koaktlmonitor')
+log = logging.getLogger('testktlmonitor')
 
 
 #Map needed keywords per instrument to standard key names
 #todo: This json layout may need to be tweaked after we look at all the instruments.
 #todo: This could be put in each of the instr subclasses.
 instr_keys = {
+    # 'KCWI': [
+    #     {
+    #         'service':   'kfcs',
+    #         'lastfile':  'uptime',
+    #     },
+    #     {
+    #         'service':   'kfcs',
+    #         'lastfile':  'iteration',
+    #     }
+    # ],
     'KCWI': [
         {
             'service':   'kfcs',
             'lastfile':  'lastfile',
-            'outdir':    'outdir',
-            'outfile':   'outfile',
-            'sequence':  'sequence'
         },
         {
             'service':   'kbds',
             'lastfile':  'loutfile',
-            'outdir':    'outdir',
-            'outfile':   'outfile',
-            'sequence':  'frameno'
         }
     ],
     'NIRES': [
@@ -77,17 +82,27 @@ def main():
 
     #create logger
     global log
-    log = create_logger('koaktlmonitor', config[instr]['ROOTDIR'], instr)
+    print(config)
+    log = create_logger('testktlmonitor', config[instr]['ROOTDIR'], instr)
     log.info("Starting KOA KTL Monitor: " + ' '.join(sys.argv[0:]))
 
     #run monitor for each group defined for instr
+    monitors = []
     for keys in instr_keys[instr]:
-        monitor = KtlMonitor(instr, keys)
-        monitor.start()
+        mon = KtlMonitor(instr, keys)
+        mon.start()
+        monitors.append(mon)
 
-    #stay alive forever (control-C to exit)
+    #stay alive until control-C to exit
     while True:
-        pass
+        try:
+            time.sleep(300)
+            log.debug('Monitor here just saying hi every 5 minutes')
+        except:
+            handle_error('WTF', traceback.format_exc())
+            break
+    log.info(f'Exiting {__file__}')
+
 
 
 class KtlMonitor():
@@ -96,32 +111,35 @@ class KtlMonitor():
     determine when a new image has been written.
     '''
 
-    def __init__(self, instr, keys):
+    def __init__(self, instr, keys, queue_mgr=None):
         log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}")
         self.instr = instr
         self.keys = keys
+        self.queue_mgr = queue_mgr
 
     def start(self):
-        '''Start monitoring lastfile keyword for new files.'''
+        '''Start monitoring 'lastfile' keyword for new files.'''
 
         #These cache calls can throw exceptions (if instr server is down for example)
         #So, we should catch and retry until successful.  Be careful not to multi-register the callback
         try:
-            #create keyword objects for easy reads later
+            #create service object for easy reads later
             keys = self.keys
             self.service = ktl.cache(keys['service'])
-            self.kw_outdir   = self.service[keys['outdir']]
-            self.kw_outfile  = self.service[keys['outfile']]
-            self.kw_sequence = self.service[keys['sequence']]
 
             #monitor keyword that indicates new file
             kw = ktl.cache(keys['service'], keys['lastfile'])
             kw.callback(self.on_new_file)
-            kw.monitor()
 
+            # Prime callback to ensure it gets called at least once with current val
+            if kw['monitored'] == True:
+                print('primed')
+                self.on_new_file(kw)
+            else:
+                kw.monitor()
+            
         except Exception as e:
-            log.error("Could not start KTL monitoring.  Retrying in 60 seconds.")
-            log.error(str(e))
+            handle_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
             threading.Timer(60.0, self.start).start()
             return
 
@@ -129,16 +147,21 @@ class KtlMonitor():
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
 
         #todo: What is the best way to handle error/crashes in the callback?  Do we want the monitor to continue?
-        #todo: Do we need to skip the initial read since that should be old?
+        #todo: Do we need to skip the initial read since that should be old? Can we check keyword time is old?
         try:
+            now = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(now, keyword.name, keyword.ascii)
+
             if keyword['populated'] == False:
                 log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
 
-            #todo: form full file path
-            outdir = self.kw_outdir.read()
-            outfile = self.kw_outfile.read()
-            sequence = self.kw_sequence.read()
+            if len(keyword.history) <= 1:
+                log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+                return
+
+            #get full file path
+            #todo: For some instruments, we may need to form full path if lastfile is not defined.
             lastfile = keyword.ascii
 
             #check for blank lastfile
@@ -146,34 +169,14 @@ class KtlMonitor():
                 log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
                 return
 
-            #log it
-            log.info(f"NEW_FILE\t{self.instr}\t{keyword.service}\t{lastfile}\t{outdir}\t{outfile}\t{sequence}")
-
         except Exception as e:
-            handle_fatal_error()
+            handle_error('KTL_READ_ERROR', traceback.format_exc())
+            return
 
+        #send back to queue manager
+        if self.queue_mgr: 
+            self.queue_mgr.add_to_queue(lastfile)
 
-def handle_fatal_error():
-
-    #form subject and msg (and log as well)
-    subject = f'KOA KTL MONITOR ERROR: {sys.argv}'
-    msg = traceback.format_exc()
-    if log: log.error(subject + ' ' + msg)
-    else: print(msg)
-
-    #get admin email.  Return if none.
-    with open('config.live.ini') as f: config = yaml.safe_load(f)
-    adminEmail = config['REPORT']['ADMIN_EMAIL']
-    if not adminEmail: return
-    
-    # Construct email message
-    msg = MIMEText(msg)
-    msg['Subject'] = subject
-    msg['To']      = adminEmail
-    msg['From']    = adminEmail
-    s = smtplib.SMTP('localhost')
-    s.send_message(msg)
-    s.quit()
 
 
 def create_logger(name, rootdir, instr):
@@ -181,7 +184,7 @@ def create_logger(name, rootdir, instr):
 
     #create directory if it does not exist
     processDir = f'{rootdir}/{instr.upper()}'
-    logFile =  f'{processDir}/koa_monitor_{instr.upper()}.log'
+    logFile =  f'{processDir}/{name}_{instr.upper()}.log'
     Path(processDir).mkdir(parents=True, exist_ok=True)
 
     # Create logger object
@@ -207,6 +210,10 @@ def create_logger(name, rootdir, instr):
     return log
 
 
+def handle_error(errcode, text, check_time=True):
+    log.error(f'{errcode}: {text}')
+
+
 #--------------------------------------------------------------------------------
 # main command line entry
 #--------------------------------------------------------------------------------
@@ -214,4 +221,4 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        handle_fatal_error()
+        handle_error('APP ERROR', traceback.format_exc())

@@ -105,11 +105,14 @@ class DEP:
         Perform specific initialization tasks for DEP processing.
         '''
 
-        #define utDate here after loading fits
+        #define some handy utdate vars here after loading fits
         self.utdate = self.get_keyword('DATE-OBS')
         self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
         hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
         self.hstdate = hstdate.strftime('%Y-%m-%d')
+        self.utc = self.get_keyword('UTC')
+        self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
+
 
         #check and create dirs
         self.init_dirs()
@@ -210,17 +213,12 @@ class DEP:
             self.delete_status(self.instr, self.koaid)
             self.delete_local_files(self.instr, self.koaid)
 
-        #other record vars
-        utc = self.get_keyword('UTC')
-        dateobs = self.get_keyword('DATE-OBS')
-        utc_datetime = f"{dateobs} {utc[0:8]}" 
-
         #We always insert a new dep_status record
         query = ("insert into dep_status set "
                 f"   instr='{self.instr}' "
                 f" , koaid='{self.koaid}' "
                 f" , filepath='{self.filepath}' "
-                f" , utc_datetime='{utc_datetime}' "
+                f" , utc_datetime='{self.utdatetime}' "
                 f" , arch_stat='PROCESSING' "
                 f" , creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
         log.info(query)

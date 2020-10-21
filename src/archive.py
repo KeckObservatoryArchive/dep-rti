@@ -14,16 +14,20 @@ import yaml
 import db_conn
 import importlib
 from pathlib import Path
+import logging
 
 import dep
 import instrument
 
-import logging
+
+#module globals
 log = logging.getLogger('koadep')
+last_email_times = None
 
 
 def main():
 
+#TODO: Add option to report query list only before running (ie --status ERROR --listonly)
     # Define inputs
     parser = argparse.ArgumentParser(description='DEP input parameters')
     parser.add_argument('instr', help='Keck Instrument')
@@ -42,11 +46,11 @@ def main():
 
     #run it and catch any unhandled error for email to admin
     try:
-        archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, dbid=dbid, reprocess=args.reprocess,
+        archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
                   starttime=args.starttime, endtime=args.endtime,
                   status=args.status, outdir=args.outdir)
     except Exception as error:
-        handle_fatal_error()
+        email_error('ARCHIVE_ERROR', traceback.format_exc())
 
 
 class Archive():
@@ -114,6 +118,7 @@ class Archive():
         log.setLevel(logging.INFO)
 
         #paths
+        #todo: Should this log really be based on now date?
         processDir = f'{rootdir}/{instr.upper()}'
         ymd = dt.datetime.utcnow().strftime('%Y%m%d')
         logFile =  f'{processDir}/dep_{instr.upper()}_{ymd}.log'
@@ -189,16 +194,26 @@ class Archive():
 
     def handle_dep_error(self):
         log.error("DEP ERROR!")
-        #todo:
+        #todo: Should we do anything here or leave it to dep.py to handle failed archiving?
 
 
-def handle_fatal_error():
+def email_error(errcode, text, check_time=True):
+    '''Email admins the error but only if we haven't sent one recently.'''
+#todo: This won't work as intended b/c we are spawning single instances of archive.py
 
-    #form subject and msg (and log as well)
-    subject = f'DEP ERROR: {sys.argv}'
-    msg = traceback.format_exc()
-    if log: log.error(subject + ' ' + msg)
-    else: print(msg)
+    #always log/print
+    if log: log.error(f'{errcode}: {text}')
+    else: print(text)
+
+    #Only send if we haven't sent one of same errcode recently
+    if check_time:
+        global last_email_times
+        if not last_email_times: last_email_times = {}
+        last_time = last_email_times.get(errcode)
+        now = dt.datetime.now()
+        if last_time and last_time + dt.timedelta(hours=1) > now:
+            return
+        last_email_times[errcode] = now
 
     #get admin email.  Return if none.
     with open('config.live.ini') as f: config = yaml.safe_load(f)
@@ -206,8 +221,10 @@ def handle_fatal_error():
     if not adminEmail: return
     
     # Construct email message
-    msg = MIMEText(msg)
-    msg['Subject'] = subject
+    body = f'{errcode}\n{text}'
+    subj = f'KOA ERROR: ({os.path.basename(__file__)}) {errcode}'
+    msg = MIMEText(body)
+    msg['Subject'] = subj
     msg['To']      = adminEmail
     msg['From']    = adminEmail
     s = smtplib.SMTP('localhost')

@@ -3,6 +3,7 @@
 
 
 ## HIGH PRIORITY
+- do we want one dep_status table with 'level' as column, or separate tables for lev0, lev1, lev2, psfr, etc?
 - log errors to db?
 - define/enumerate arch_stat allowed values (QUEUED, PROCESSING, DONE, ERROR ?)
 - Refactor koaxfr.py.  Do we want this to be part of dep.py or standalone?

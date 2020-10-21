@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `koaid`         varchar(24)   DEFAULT NULL    UNIQUE          COMMENT 'Unique KOAID',     
   `utc_datetime`  datetime      DEFAULT NULL                    COMMENT 'Datetime of image (utdate + utc)',      
   `raw_savepath`  text          DEFAULT NULL                    COMMENT 'Local archived raw file location',     
-  `arch_stat`     varchar(16)   DEFAULT NULL                    COMMENT 'Overall archive status [NULL, DONE, ERROR]',  
+  `arch_stat`     varchar(16)   DEFAULT NULL                    COMMENT 'Overall archive status [NULL, QUEUED, PROCESSING, INVALID, DONE, ERROR]',  
   `file_valid`    varchar(32)   DEFAULT NULL                    COMMENT '[YES, EMPTY, UNREADABLE, DUPLICATE, etc]',   
   `file_size`     double        DEFAULT NULL                    COMMENT 'FITS size in MB',  
   `arch_size`     double        DEFAULT NULL                    COMMENT 'Archive size (including ancillary files)',  

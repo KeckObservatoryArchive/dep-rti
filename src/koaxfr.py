@@ -5,6 +5,9 @@ import os
 import yaml
 
 
+### TODO: This will need a redesign for RTI!
+
+
 def koaxfr(instrObj, tpx=0):
     """
     Transfers the contents of outputDir to its final destination.

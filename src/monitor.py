@@ -83,7 +83,16 @@ def main():
     try:
         monitor = Monitor(instr)
     except Exception as error:
-        email_error('MONITOR_ERROR', traceback.format_exc())
+        handle_error('MONITOR_ERROR', traceback.format_exc())
+
+    #stay alive until control-C to exit
+    while True:
+        try:
+            time.sleep(300)
+            log.debug('Monitor here just saying hi every 5 minutes')
+        except:
+            break
+    log.info(f'Exiting {__file__}')
 
 
 class Monitor():
@@ -114,7 +123,6 @@ class Monitor():
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
 
         self.monitor()
-        #self.monitor_test()
 
 
     def __del__(self):
@@ -127,9 +135,12 @@ class Monitor():
     def monitor(self):
 
         #run KTL monitor for each group defined for instr
+        #NOTE: We must keep all our monitors in an array to prevent garbage collection
+        self.monitors = []
         for keys in instr_keys[self.instr]:
             ktlmon = KtlMonitor(self.instr, keys, self)
             ktlmon.start()
+            self.monitors.append(ktlmon)
 
         #start interval to monitor DEP processes for completion
         self.process_monitor()
@@ -137,8 +148,6 @@ class Monitor():
 
     def process_monitor(self):
         '''Remove any processes from list that are complete.'''
-
-        self.log_periodic_hello()
 
         #Loop procs and remove from list if complete
         #NOTE: looping in reverse so we can delete without messing up looping
@@ -159,18 +168,6 @@ class Monitor():
         threading.Timer(1.0, self.process_monitor).start()
 
 
-    def log_periodic_hello(self):
-        '''Log a hello message every hour so we know we are running ok.'''
-
-        now = dt.datetime.now()
-        if not hasattr(self, 'last_hello'):
-            self.last_hello = now
-        diff = now - self.last_hello
-        if diff.seconds > 3600:
-            log.debug('Monitor here, just saying hi every hour.')
-            self.last_hello = now
-
-
     def add_to_queue(self, filepath):
         '''Add a file to queue for processing'''
 
@@ -179,7 +176,7 @@ class Monitor():
 
         ok = self.check_koa_db_entry(filepath)
         if not ok:
-            email_error('DUPLICATE_FILEPATH', filepath)
+            handle_error('DUPLICATE_FILEPATH', filepath)
             return
 
         #Do insert record
@@ -192,7 +189,7 @@ class Monitor():
         log.info(query)
         result = self.db.query('koa', query)
         if result is False: 
-            self.email_error(f'{__name__} failed: {query}')
+            handle_error('QUEUE_INSERT_ERROR', f'{__name__} failed: {query}')
             return
 
         #check queue
@@ -207,7 +204,7 @@ class Monitor():
                 f" and filepath='{filepath}' ")
         check = self.db.query('koa', query, getOne=True)
         if check is False:
-            email_error('DATABASE_ERROR', f'{__name__}: Could not query {query}')
+            handle_error('DATABASE_ERROR', f'{__name__}: Could not query {query}')
             return False
         if int(check['num']) > 0:
             return False
@@ -222,7 +219,7 @@ class Monitor():
                 f" order by creation_time desc limit 1")
         row = self.db.query('koa', query, getOne=True)
         if row is False:
-            email_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
+            handle_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
             return False
         if len(row) == 0:
             return 
@@ -236,7 +233,7 @@ class Monitor():
         query = f"update dep_status set arch_stat='PROCESSING' where id={row['id']}"
         res = self.db.query('koa', query)
         if row is False:
-            email_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
+            handle_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
             return False
 
         #pop from queue and process it
@@ -320,21 +317,30 @@ class KtlMonitor():
             #monitor keyword that indicates new file
             kw = ktl.cache(keys['service'], keys['lastfile'])
             kw.callback(self.on_new_file)
-            kw.monitor()
+
+            # Prime callback to ensure it gets called at least once with current val
+            if kw['monitored'] == True:
+                self.on_new_file(kw)
+            else:
+                kw.monitor()
 
         except Exception as e:
-            email_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
+            handle_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
             threading.Timer(60.0, self.start).start()
             return
 
     def on_new_file(self, keyword):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
 
-        #todo: What is the best way to handle error/crashes in the callback?  Do we want the monitor to continue?
-        #todo: Do we need to skip the initial read since that should be old? Can we check keyword time is old?
         try:
             if keyword['populated'] == False:
                 log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
+                return
+
+            #assuming first read is old
+            #NOTE: I don't think we could rely on a timestamp check vs now?
+            if len(keyword.history) <= 1:
+                log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
                 return
 
             #get full file path
@@ -347,14 +353,14 @@ class KtlMonitor():
                 return
 
         except Exception as e:
-            email_error('KTL_READ_ERROR', traceback.format_exc())
+            handle_error('KTL_READ_ERROR', traceback.format_exc())
             return
 
         #send back to queue manager
         self.queue_mgr.add_to_queue(lastfile)
 
 
-def email_error(errcode, text, check_time=True):
+def handle_error(errcode, text=None, check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
 
     #always log/print
