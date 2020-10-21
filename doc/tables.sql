@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
 
 CREATE TABLE `dep_status_history` like `dep_status`;
 alter table dep_status_history modify column `koaid` varchar(30) COMMENT 'KOA ID';
-alter table dep_status_history drop primary key FIRST;
-alter table dep_status_history add column `id`  int(11)  NOT NULL  AUTO_INCREMENT PRIMARY KEY before `koaid`;
+alter table dep_status_history drop primary key;
+alter table dep_status_history add column `id`  int(11)  NOT NULL  AUTO_INCREMENT PRIMARY KEY FIRST;
 
 
 CREATE TABLE IF NOT EXISTS `headers` (
