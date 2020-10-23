@@ -34,7 +34,7 @@ from archive import Archive
 
 
 #module globals
-log = logging.getLogger('koamonitor')
+log = logging.getLogger('koa_monitor')
 last_email_times = None
 
 
@@ -116,7 +116,7 @@ class Monitor():
 
         #create logger first
         global log
-        log = self.create_logger('koamonitor', self.config[instr]['ROOTDIR'], instr)
+        log = self.create_logger('koa_monitor', self.config[instr]['ROOTDIR'], instr)
         log.info("Starting KOA Monitor: " + ' '.join(sys.argv[0:]))
 
         # Establish database connection 
@@ -182,10 +182,10 @@ class Monitor():
         #Do insert record
         log.info(f'Adding to queue: {filepath}')
         query = ("insert into dep_status set "
-                f"   instr='{self.instr}' "
-                f" , filepath='{filepath}' "
-                f" , arch_stat='QUEUED' "
-                f" , creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
+                f"   instrument='{self.instr}' "
+                f" , ofname='{filepath}' "
+                f" , status='QUEUED' "
+                f" , creation_time=NOW() ")
         log.info(query)
         result = self.db.query('koa', query)
         if result is False: 
@@ -200,8 +200,8 @@ class Monitor():
 
         # See if entry exists
         query = (f"select count(*) as num from dep_status where "
-                f" instr='{self.instr}' "
-                f" and filepath='{filepath}' ")
+                f" instrument='{self.instr}' "
+                f" and ofname='{filepath}' ")
         check = self.db.query('koa', query, getOne=True)
         if check is False:
             handle_error('DATABASE_ERROR', f'{__name__}: Could not query {query}')
@@ -214,8 +214,8 @@ class Monitor():
     def check_queue(self):
         '''Check queue for jobs that need to be spawned.'''
         query = (f"select * from dep_status where "
-                f" arch_stat='QUEUED' "
-                f" and instr='{self.instr}' "
+                f" status='QUEUED' "
+                f" and instrument='{self.instr}' "
                 f" order by creation_time desc limit 1")
         row = self.db.query('koa', query, getOne=True)
         if row is False:
@@ -230,7 +230,7 @@ class Monitor():
             return
 
         #set status to PROCESSING
-        query = f"update dep_status set arch_stat='PROCESSING' where id={row['id']}"
+        query = f"update dep_status set status='PROCESSING' where id={row['id']}"
         res = self.db.query('koa', query)
         if row is False:
             handle_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
@@ -264,7 +264,7 @@ class Monitor():
 
         #paths
         processDir = f'{rootdir}/{instr.upper()}'
-        logFile =  f'{processDir}/koa_monitor_{instr.upper()}.log'
+        logFile =  f'{processDir}/{name}_{instr.upper()}.log'
 
         #create directory if it does not exist
         try:

@@ -121,7 +121,7 @@ class Archive():
         #todo: Should this log really be based on now date?
         processDir = f'{rootdir}/{instr.upper()}'
         ymd = dt.datetime.utcnow().strftime('%Y%m%d')
-        logFile =  f'{processDir}/dep_{instr.upper()}_{ymd}.log'
+        logFile =  f'{processDir}/{name}_{instr.upper()}_{ymd}.log'
 
         #create directory if it does not exist
         try:
@@ -167,29 +167,24 @@ class Archive():
     def process_id(self, instr, dbid, reprocess, tpx):
         '''Archive a record by DB ID.'''
 
-        query = f"select * from dep_status where id={dbid}"
-        row = self.db.query('koa', query, getOne=True)
-        if not row:
-            log.error(f"Unable to find DB record with ID={dbid}")
-            return
-
-        self.process_file(instr, row['filepath'], reprocess, tpx, dbid)
+        self.process_file(instr, None, reprocess, tpx, dbid)
 
 
     def reprocess_time_range(self, instr, starttime, endtime, tpx):
         '''Look for fits files that have a UTC time within the range given and reprocess.'''
 
         #todo: this is pseudo code and untested
-        #todo: We may store header info in dep_status.header_json
+        #todo: Should we be limiting query by status too?
         starttime = starttime.replace('T', '')
         endtime = endtime.replace('T', '')
         query = (f"select * from dep_status where "
-                 f"     datetime >= '{starttime}' "
-                 f" and datetime <= '{endtime}' ")
-        files = self.db.query('koa', query)
+                 f"     utdatetime >= '{starttime}' "
+                 f" and utdatetime <= '{endtime}' "
+                 f" and instrument = '{instr}' ")
+        rows = self.db.query('koa', query)
 
-        for f in files:
-            self.process_file(instr, f['savepath'], True, tpx)
+        for row in rows:
+            self.process_file(instr, None, True, tpx, row['id'])
 
 
     def handle_dep_error(self):

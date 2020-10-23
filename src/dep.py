@@ -43,7 +43,6 @@ class DEP:
         self.koaid = ''
         self.fits_hdu = None
         self.fits_hdr = None
-        self.fits_path = None
         self.extra_meta = {}
 
         #other helpful vars
@@ -59,10 +58,11 @@ class DEP:
         '''Run all prcessing steps required for archiving end to end'''
 
         ok = True
-        if ok: ok = self.load_fits(self.filepath)
+        if ok: ok = self.check_status_db_entry()
+        if ok: ok = self.load_fits()
         if ok: ok = self.set_koaid()
         if ok: ok = self.processing_init()
-        if ok: ok = self.check_koa_db_entry()
+        if ok: ok = self.check_koaid_db_entry()
         if ok: ok = self.validate_fits()
         if ok: ok = self.run_psfr()
         if ok: ok = self.run_dqa()
@@ -73,30 +73,77 @@ class DEP:
         if ok: ok = self.run_drp()
         if ok: ok = self.check_koapi_send()
         if ok: ok = self.copy_raw_fits()  
-        if ok: ok = self.record_stats()
+        if ok: ok = self.update_dep_stats()
         # if ok: ok = self.xfr_ipac()
 
         #If any of these steps return false then copy to udf
         if not ok: 
             self.copy_bad_file(self.instr, self.filepath, 'Failed DQA')
+        else:
+            #todo: do we wanta dep_status.status here (ie "IPAC")
+            pass
         return ok
 
 
-    def record_stats(self):
-        '''Record all stats before we xfr to ipac.'''
-        #todo: add other column data like size, sdata_dir, etc
-        semid = self.get_semid()
-        koaimtype = self.get_keyword('KOAIMTYP')
-        query = ("update dep_status set "
-                f"   semid='{semid}' "
-                f" , image_type='{koaimtype}' "
-                f" , arch_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' "
-                f" where instr='{self.instr}' and koaid='{self.koaid}' ")
-        log.info(query)
-        result = self.db.query('koa', query)
-        if result is False: 
-            log.error(f'{__name__} failed')
+    def check_status_db_entry(self):
+
+        #If we are processing an existing record, query for it and get filepath
+        if self.dbid:
+            log.info(f"Processing record ID: {self.dbid}")
+            query = f"select * from dep_status where id={self.dbid}"
+            row = self.db.query('koa', query, getOne=True)
+            if not row:
+                log.error(f"Unable to find DB record with ID={self.dbid}")
+                return False
+            #todo: Is this correct logic on filepath?
+            self.filepath = row['stage_file'] if row['stage_file'] else row['ofname']
+
+        #else if we didn't pass in a DB ID, insert a new dep_status record and get ID
+        else:
+            query = ("insert into dep_status set "
+                    f"   instrument='{self.instr}' "
+                    f" , ofname='{self.filepath}' "
+                    f" , status='PROCESSING' "
+                    f" , creation_time=NOW() ")
+            log.info(query)
+            result = self.db.query('koa', query, getInsertId=True)
+            if result is False: 
+                log.error(f'{__name__} failed')
+                return False
+            self.dbid = result
+
+        #update dep_status
+        if not self.update_dep_status('status', 'PROCESSING'): return False
+        if not self.update_dep_status('dep_start_time', dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')): return False
+
+        return True
+
+
+    def check_koaid_db_entry(self):
+
+        #Query for existing KOAID record
+        query = (f'select *from dep_status '
+                f' where koaid="{self.koaid}"')
+        rows = self.db.query('koa', query)
+        if rows is False:
+            log.error(f'Could not query dep_status for: {self.instr}, {self.koaid}')
             return False
+
+        #If entry exists and we are not reprocessing, return error
+        if len(rows) > 0 and not self.reprocess:
+            log.error(f"Record already exists for {self.instr} {self.koaid}.  Rerun with --reprocess to override.")
+            return False
+
+        #if entry exists and reprocessing, delete record
+        #todo: this delete strategy needs to change (mv to dep_status_history?)
+        if len(rows) > 0 and self.reprocess:
+            log.info(f"Reprocessing {self.instr} {self.koaid}")
+            self.move_old_status_entries(rows)
+            self.delete_local_files(self.instr, self.koaid)
+
+        #update koaid in status
+        if not self.update_dep_status('koaid', self.koaid): return False
+
         return True
 
 
@@ -113,15 +160,11 @@ class DEP:
         self.utc = self.get_keyword('UTC')
         self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
 
-
         #check and create dirs
         self.init_dirs()
 
-        #create README (output dir with everything before /koadata##/... stripped off)
-        readmeFile = self.dirs['output'] + '/README';
-        with open(readmeFile, 'w') as f:
-            path = self.dirs['output']
-            f.write(path + '\n')
+        #Update some details for this record
+        if not self.update_dep_status('utdatetime', self.utdatetime): return False
 
         return True
 
@@ -144,6 +187,7 @@ class DEP:
 
         # Additions for NIRSPEC
         # TODO: move this to instr_nirspec.py?
+        #todo: remove this entirely?
         if self.instr == 'NIRSPEC':
             for dir in ['scam', 'spec']:
                 newdir = self.dirs['lev0'] + '/' + dir
@@ -168,87 +212,51 @@ class DEP:
         self.dirs = dirs
 
 
-    def load_fits(self, filepath):
+    def load_fits(self):
         '''
-        Sets the current FITS file we are working on.  Clears out temp fits variables.
+        Loads the fits file
         '''
+        if not os.path.isfile(self.filepath):
+            log.error(f"FITS filepath does not exist: {self.filepath}")
+            return False
         try:
-            self.fits_hdu = fits.open(filepath, ignore_missing_end=True)
+            self.fits_hdu = fits.open(self.filepath, ignore_missing_end=True)
             self.fits_hdr = self.fits_hdu[0].header
-            self.fits_path = filepath
         except:
-            log.error('load_fits_file: Could not read FITS file "' + filepath + '"!')
+            log.error(f"Could not read FITS file: {self.filepath}")
             return False
         return True
 
 
-    def check_koa_db_entry(self):
+    def move_old_status_entries(self, rows):
 
-        #If we are not updating DB, just return 
-        if not self.tpx:
-            log.info("TPX is off.  Not creating DB entry.") 
+        #move to history table and delete record
+        for row in rows:
+            id = row['id']
+            query = (f"INSERT INTO dep_status_history "
+                    f" SELECT ds.* FROM dep_status as ds " 
+                    f" WHERE id = {id}")
+            log.info(query)
+            result = self.db.query('koa', query)
+            if result is False: 
+                log.error(f'{__name__} failed')
+                return False
+
+            query = f"delete from dep_status where id='{id}' "
+            log.info(query)
+            result = self.db.query('koa', query)
+            if result is False: 
+                log.error(f'{__name__} failed')
+                return False
             return True
-
-        #If we are processing an existing record, just return
-        if self.dbid:
-            log.info(f"Processing record with ID {self.dbid}")
-            return True
-
-        # See if entry exists
-        query = f'select count(*) as num from dep_status where instr="{self.instr}" and koaid="{self.koaid}"'
-        check = self.db.query('koa', query, getOne=True)
-        if check is False:
-            log.error(f'Could not query dep_status for: {self.instr}, {self.koaid}')
-            return False
-
-        #if entry exists and not reprocessing, fail
-        if int(check['num']) > 0 and not self.reprocess:
-            log.error(f"Record already exists for {self.instr} {self.koaid}.  Rerun with --reprocess to override.")
-            return False
-
-        #if entry exists and reprocessing, delete record
-        if int(check['num']) > 0 and self.reprocess:
-            log.info(f"Reprocessing {self.instr} {self.koaid}")
-            self.delete_status(self.instr, self.koaid)
-            self.delete_local_files(self.instr, self.koaid)
-
-        #We always insert a new dep_status record
-        query = ("insert into dep_status set "
-                f"   instr='{self.instr}' "
-                f" , koaid='{self.koaid}' "
-                f" , filepath='{self.filepath}' "
-                f" , utc_datetime='{self.utdatetime}' "
-                f" , arch_stat='PROCESSING' "
-                f" , creation_time='{dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}' ")
-        log.info(query)
-        result = self.db.query('koa', query)
-        if result is False: 
-            log.error(f'{__name__} failed')
-            return False
-        return True
-
-
-    def delete_status(self, instr, koaid):
-        query = f"delete from dep_status where instr='{instr}' and koaid='{koaid}' "
-        log.info(query)
-        result = self.db.query('koa', query)
-        if result is False: 
-            log.error(f'{__name__} failed')
-            return False
-        return True
 
 
     def copy_raw_fits(self):
         '''Make a permanent read-only copy of the FITS file on Keck storageserver'''
 
-        #If we are not updating DB, just return 
-        #todo: is this correct logic for copy?
-        if not self.tpx:
-            log.info("TPX is off.  Not copying raw fits to storageserver.") 
-            return True
-
         #form filepath and copy
         #todo: set to readonly
+        #todo: should failure here hold up archiving to ipac?
         outfile = self.get_raw_filepath()
         outdir = os.path.dirname(outfile)
         log.info(f'Copying raw fits to {outfile}')
@@ -259,7 +267,7 @@ class DEP:
             log.error(f"Could not copy raw fits to: {outfile}")
       
         #update dep_status.savepath
-        self.update_dep_status('raw_savepath', outfile)
+        self.update_dep_status('stage_file', outfile)
         return True
 
 
@@ -273,15 +281,17 @@ class DEP:
 
     def delete_local_files(self, instr, koaid):
         '''Delete local archived output files.  This is important if we are reprocessing data.'''
+        #todo: should we be saving a copy of old files?
 
-        if not self.koaid or len(self.koaid) < 17:
+        if not self.koaid or len(self.koaid) < 20:
             log.error(f"Cannot delete local files.  KOAID is invalid: {self.koaid}")
             return False
 
-        #delete it
-        #todo: other files/anc?
+        #delete files matching KOAID*
+        #todo: other files/anc/raw?
         try:
-            match = f"{self.dirs['output']}/lev0/{self.koaid}*"
+            match = f"{self.dirs['lev0']}/{self.koaid}*"
+            log.info(f'Deleting local files for: {match}')
             for f in glob.glob(match):                
                 log.info(f"removing file: {f}")
                 os.remove(f)
@@ -294,14 +304,12 @@ class DEP:
     def update_dep_status(self, column, value):
         """Sends command to update KOA dep_status."""
 
-        #If we are not updating DB, just return 
-        if not self.tpx: return True
-
         #todo: test failure case if record does not exist.
-        query = f'update dep_status set {column}="{value}" where instr="{self.instr}" and koaid="{self.koaid}"'
+        query = f"update dep_status set {column}='{value}' where id='{self.dbid}'"
         log.info(query)
-        if self.db.query('koa', query) is False:
-            if log: log.error(f'update_dep_status failed for: {self.instr}, {self.koaid}, {column}, {value}')
+        result = self.db.query('koa', query)
+        if result is False:
+            log.error(f'{__name__} failed')
             return False
         return True
 
@@ -633,6 +641,44 @@ class DEP:
             return default
         else:
             return data['progtitl']
+
+
+    def update_dep_stats(self):
+        '''Record DEP stats before we xfr to ipac.'''
+        #todo: add other column data like size, sdata_dir, etc
+        if not self.update_dep_status('archive_dir', self.outdir): return False
+
+        filesize_mb = self.get_filesize_mb()
+        if not self.update_dep_status('filesize_mb', filesize_mb): return False
+
+        archsize_mb = self.get_archsize_mb()
+        if not self.update_dep_status('archsize_mb', archsize_mb): return False
+
+        semid = self.get_semid()
+        if not self.update_dep_status('semid', semid): return False
+
+        koaimtyp = self.get_keyword('KOAIMTYP')
+        if not self.update_dep_status('koaimtyp', koaimtyp): return False
+
+        now = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if not self.update_dep_status('dep_end_time', now): return False
+
+        return True
+
+
+    def get_filesize_mb(self):
+        """Returns the archived fits size in MB"""
+        bytes = os.path.getsize(self.outfile)
+        return str(bytes/1e6)
+
+
+    def get_archsize_mb(self):
+        """Returns the archive size in MB"""
+        bytes = 0
+        search = f"{self.outdir}/{self.koaid}*"
+        for file in glob.glob(search):
+            bytes += os.path.getsize(file)
+        return str(bytes/1e6)
 
 
     def get_api_data(self, url, getOne=False, isJson=True):

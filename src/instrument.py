@@ -321,8 +321,7 @@ class Instrument(dep.DEP):
         #if we couldn't match valid pattern, then build from file last mod time
         #note: converting to universal time (+10 hours)
         if not valid:
-            filename = self.fits_path
-            lastMod = os.stat(filename).st_mtime
+            lastMod = os.stat(self.filepath).st_mtime
             dateObs = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             dateObs = dateObs.strftime('%Y-%m-%d')
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
@@ -362,8 +361,7 @@ class Instrument(dep.DEP):
         #if we couldn't match valid pattern, then build from file last mod time
         #note: converting to universal time (+10 hours)
         if not valid:
-            filename = self.fits_path
-            lastMod = os.stat(filename).st_mtime
+            lastMod = os.stat(self.filepath).st_mtime
             utc = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             utc = utc.strftime('%H:%M:%S.00')
             update = True
@@ -407,7 +405,7 @@ class Instrument(dep.DEP):
         #NOTE: for reprocessing old data that doesn't have OUTDIR keyword, this matches
         #on /stage/ or /storageserver/ instead of /s/, which still gets the job done.  not ideal.
         try:
-            filename = self.fits_path
+            filename = self.filepath
             start = filename.find('/s')
             end = filename.rfind('/')
             return filename[start:end]
@@ -751,10 +749,11 @@ class Instrument(dep.DEP):
             return False
 
         #build outfile path and save as class var for reference later
-        self.outfile = self.dirs['lev0']
-        if   (koaid.startswith('NC')): self.outfile += '/scam'
-        elif (koaid.startswith('NS')): self.outfile += '/spec'
-        self.outfile += '/' + koaid
+        #todo: remove the NIRSPEC stuff?
+        self.outdir = self.dirs['lev0']
+        if   (koaid.startswith('NC')): self.outdir += '/scam'
+        elif (koaid.startswith('NS')): self.outdir += '/spec'
+        self.outfile = f"{self.outdir}/{koaid}"
 
         #write out new fits file with altered header
         try:
