@@ -749,11 +749,7 @@ class Instrument(dep.DEP):
             return False
 
         #build outfile path and save as class var for reference later
-        #todo: remove the NIRSPEC stuff?
-        self.outdir = self.dirs['lev0']
-        if   (koaid.startswith('NC')): self.outdir += '/scam'
-        elif (koaid.startswith('NS')): self.outdir += '/spec'
-        self.outfile = f"{self.outdir}/{koaid}"
+        self.outfile = f"{self.dirs['lev0']}/{koaid}"
 
         #write out new fits file with altered header
         try:

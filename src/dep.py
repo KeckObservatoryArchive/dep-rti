@@ -185,15 +185,6 @@ class DEP:
                 except:
                     raise Exception(f'instrument.py: could not create directory: {dir}')
 
-        # Additions for NIRSPEC
-        # TODO: move this to instr_nirspec.py?
-        #todo: remove this entirely?
-        if self.instr == 'NIRSPEC':
-            for dir in ['scam', 'spec']:
-                newdir = self.dirs['lev0'] + '/' + dir
-                if not os.path.isdir(newdir):
-                    os.mkdir(newdir)
-
 
     def set_root_dirs(self):
         """Sets the various rootdir subdirectories of interest"""
@@ -646,7 +637,7 @@ class DEP:
     def update_dep_stats(self):
         '''Record DEP stats before we xfr to ipac.'''
         #todo: add other column data like size, sdata_dir, etc
-        if not self.update_dep_status('archive_dir', self.outdir): return False
+        if not self.update_dep_status('archive_dir', self.dirs['lev0']): return False
 
         filesize_mb = self.get_filesize_mb()
         if not self.update_dep_status('filesize_mb', filesize_mb): return False
@@ -675,7 +666,7 @@ class DEP:
     def get_archsize_mb(self):
         """Returns the archive size in MB"""
         bytes = 0
-        search = f"{self.outdir}/{self.koaid}*"
+        search = f"{self.dirs['lev0']}/{self.koaid}*"
         for file in glob.glob(search):
             bytes += os.path.getsize(file)
         return str(bytes/1e6)
