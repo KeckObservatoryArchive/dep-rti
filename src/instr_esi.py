@@ -8,7 +8,7 @@ from common import *
 import numpy as np
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 class Esi(instrument.Instrument):

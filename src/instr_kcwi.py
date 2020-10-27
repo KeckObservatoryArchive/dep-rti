@@ -14,7 +14,7 @@ import math
 from skimage import exposure
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 class Kcwi(instrument.Instrument):
