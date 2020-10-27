@@ -2,47 +2,51 @@
 
 
 ## HIGH PRIORITY
-- HIRES: monitor WDISK toggle to False, then construct filename
-- https://stackoverflow.com/questions/45535594/pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
-- Handle errors and status=ERROR in dep.py
-- Refactor koaxfr.py.  Do we want this to be part of dep.py or standalone?
-- Insert header json
+- Put README back in
+- Handle errors and update dep_status.status=ERROR in dep.py
+- Create a log file per KOAID?
+- Implement dep.transfer_ipac step. TPX flag is not being used currently.
+- Insert/update header json into headers table
+- Should monitor.py immediately copy file to staging before queuing?
 - Implement handling for same filepath (ie renaming and updating 'stage_file' with _vN version)
-- Write requirements for admin status gui and reprocessing tool
-- What are we doing with rejected files?
-- How will we deal with TPX flag?  Is it good enough to use a -dev or -test flag to redirect to another db?
-- Test PSFR (NIRC2)
-- Test DRP (NIRC2, OSIRIS)
-- More try/except to ensure processing finishes without crashing (ie set_koaimtyp)
-- What is the minimal processing required to get file archived?
-- Speed test caching importlib
-- How will we handle if koa daemon is down and filepaths go uncalled?  Query KTL option in archive.py?
-- Design such that koa daemon can recieve code updates in realtime without restart.
-- Is there a fast gzip option?  Do a speed test vs internet speed.
-- Move common to processing base class and maybe get rid of common.py?
-- Throttle max processes based on server resources?
-- See if API calls are a considerable slowdown.
-- Speed test all of code to find bottlenecks.
+- Implement various command line options for archive.py
+- What are we doing with rejected/anc files? If status=INVALID, copy to /anc/ and rsync but do not notify IPAC?
+- How will we test/dev? Do we need something like a '-tpx' flag? Use dev config and a -dev or -test flag to redirect to another db?
 - Implement basic missing program assignment
+- More try/except to ensure processing finishes without crashing (ie set_koaimtyp)
+- How will we recover if koa monitor is down and filepaths go uncalled?  Query KTL option in archive.py?
+- PyMysql is not thread safe: https://stackoverflow.com/questions/45535594/pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
+- Throttle max DEP processes based on server resources instead of hardcoded max=10?
+- Enum dep_status.arch_stat values? Add a 'TRANSFERRED' status? [QUEUED, PROCESSING, COMPLETE, INVALID, ERROR]
 - DEIMOS FCS archive trigger (some header keyword points to another file to archive)
+
+ 
+## LOW PRIORITY
 - Search TODOs in code
 - Look at old DEP on github and ensure we got all hotfixes and changes since mid Sept
-- how will we deal with /anc/ files?  If status=INVALID, copy to /anc/ and rsync but do not notify IPAC?
+- Test PSFR (NIRC2)
+- Test DRP (NIRC2, OSIRIS)
 - Improve documentation
-
- echo "select to_timestamp(time),keyword,ascvalue from kbds where keyword='LOUTFILE' order by time desc limit 30;" | psql -h vm-history-1 -U k1obs -d keywordlog
-
-## LOW PRIORITY
+- Move common to processing base class and maybe get rid of common.py?
+- Speed test caching importlib.  
+- See if API calls are a considerable slowdown.
+- Speed test all of code to find bottlenecks.
+- Is there a fast gzip option?  Do a speed test vs internet speed.
+- Design such that koa daemon can recieve code updates in realtime without restart.
 - Do we want to merge archive.py and dep.py?
 - Got this error once to stderr: "?RPC: Unable to send: monitor_server(kbds) __server_down__?."  Not sure if we can detect and log.
 - Review usage of instrument.keymap and see if it needs improvement.
 - Add "duplicate metadata keyword" check.  What to do? (ok if same val, otherwise ?)
 - Improve logging, email reporting and error handling.
-- Should we create a log file per KOAID?
 - Change keyword metadata defs to database tables?  Coordinate with IPAC.
 - How do we keep track of new sdata dirs?  A: Added by Jchock and we aren't necessarily notified.  Need better system.
 - See instr_lris.py for examples of condensed or streamlined functions that we can either apply to other instr_* files or create shared functions.
 - log all queries in db_conn to reduce code bloat?
+
+
+##NOTES:
+- Keyword history query: echo "select to_timestamp(time),keyword,ascvalue from kbds where keyword='LOUTFILE' order by time desc limit 30;" | psql -h vm-history-1 -U k1obs -d keywordlog
+
 
 ## MISC IDEAS
 - Do instrObj header fixes up front so we can just refer to things in the header as header['name']?
