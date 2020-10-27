@@ -218,7 +218,7 @@ class Monitor():
                 f" , creation_time=NOW() ")
         log.info(query)
         result = self.db.query('koa', query)
-        if result is False: 
+        if result is False:
             handle_error('QUEUE_INSERT_ERROR', f'{__name__} failed: {query}')
             return
 
