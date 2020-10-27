@@ -29,6 +29,7 @@ import threading
 import multiprocessing
 import ktl
 import logging
+import re
 
 from archive import Archive
 
@@ -38,29 +39,42 @@ log = logging.getLogger('koa_monitor')
 last_email_times = None
 
 
-#Define instrument keywords that indicate new datafile was written.
 #todo: Finish mapping all instrs
 #todo: This could be put in each of the instr subclasses.
+#Define instrument keywords to monitor that indicate a new datafile was written.
+#'trigger' value indicates which keyword to monitor that will trigger processing.
+#If 'val' is defined, trigger must equal val to initiate processing.
+#If 'format' is defined, all keywords in curlies will be replaced by that keyword value.
+#If format is not defined, the value of the trigger will be used.
+#If zfill is defined, then left pad those keyword vals (assuming with '0')
 instr_keys = {
     'KCWI': [
         {
             'service':   'kfcs',
-            'lastfile':  'lastfile',
+            'trigger':  'lastfile',
         },
         {
             'service':   'kbds',
-            'lastfile':  'loutfile',
+            'trigger':  'loutfile',
         }
     ],
     'NIRES': [
         {
             'service':   '???',
-            'lastfile':  '???',
+            'trigger':  '???',
         },
     ],
     'DEIMOS': [],
     'ESI': [],
-    'HIRES': [],
+    'HIRES': [
+        {
+            'service': 'hiccd',
+            'trigger': 'wdisk', 
+            'val':     'false',
+            'format':  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
+            'zfill': {'LFRAMENO': 4}
+        },
+    ],
     'LRIS': [],
     'MOSFIRE': [],
     'NIRC2': [],
@@ -305,7 +319,7 @@ class KtlMonitor():
         self.queue_mgr = queue_mgr
 
     def start(self):
-        '''Start monitoring 'lastfile' keyword for new files.'''
+        '''Start monitoring 'trigger' keyword for new files.'''
 
         #These cache calls can throw exceptions (if instr server is down for example)
         #So, we should catch and retry until successful.  Be careful not to multi-register the callback
@@ -315,7 +329,7 @@ class KtlMonitor():
             self.service = ktl.cache(keys['service'])
 
             #monitor keyword that indicates new file
-            kw = ktl.cache(keys['service'], keys['lastfile'])
+            kw = ktl.cache(keys['service'], keys['trigger'])
             kw.callback(self.on_new_file)
 
             # Prime callback to ensure it gets called at least once with current val
@@ -329,6 +343,7 @@ class KtlMonitor():
             threading.Timer(60.0, self.start).start()
             return
 
+
     def on_new_file(self, keyword):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
 
@@ -339,16 +354,30 @@ class KtlMonitor():
 
             #assuming first read is old
             #NOTE: I don't think we could rely on a timestamp check vs now?
-            if len(keyword.history) <= 1:
-                log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+            # if len(keyword.history) <= 1:
+            #     log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+            #     return
+
+            # #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
+            trigger = keyword.ascii
+            reqval = self.keys.get('val', None)
+            if reqval is not None and reqval != trigger:
+                log.info(f'Trigger val of {trigger} != {reqval}')
                 return
 
             #get full file path
-            #todo: For some instruments, we may need to form full path if lastfile is not defined.
-            lastfile = keyword.ascii
+            format = self.keys.get('format', None)
+            zfill = self.keys.get('zfill', None)
+            if not format:
+                filepath = trigger
+            else:
+                filepath = self.get_formatted_filepath(format, zfill)
 
-            #check for blank lastfile
-            if not lastfile or not lastfile.strip():
+            #todo: For some instruments, we may need to form full path if trigger is not defined.
+
+            #check for blank filepath 
+            #todo: or filepath that does not have a dot in it?
+            if not filepath or not filepath.strip():
                 log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
                 return
 
@@ -357,7 +386,20 @@ class KtlMonitor():
             return
 
         #send back to queue manager
-        self.queue_mgr.add_to_queue(lastfile)
+        self.queue_mgr.add_to_queue(filepath)
+
+
+    def get_formatted_filepath(self, format, zfill):
+        filepath = format
+        matches = re.findall("{.*?}", format)
+        for key in matches:
+            key = key[1:-1]
+            val = self.service[key].read()
+            pad = zfill.get(key, None)
+            if pad is not None:
+                val = val.zfill(pad)
+            filepath = filepath.replace('{'+key+'}', val)
+        return filepath
 
 
 def handle_error(errcode, text=None, check_time=True):
