@@ -50,29 +50,45 @@ last_email_times = None
 instr_keys = {
     'KCWI': [
         {
-            'service':   'kfcs',
-            'trigger':  'lastfile',
+            'service':  'kfcs',
+            'trigger':  'LASTFILE',
+            'val'    :  None,
+            'fp_info':  ['LASTFILE'],
+            'format' :  lambda vals: f"{vals['LASTFILE']}"
         },
         {
             'service':   'kbds',
-            'trigger':  'loutfile',
+            'trigger':  'LOUTFILE',
+            'val'    :  None,
+            'fp_info':  ['LOUTFILE'],
+            'format' :  lambda vals: f"{vals['LOUTFILE']}"
         }
     ],
     'NIRES': [
         {
-            'service':   '???',
-            'trigger':  '???',
+            'service':  'nids',
+            'trigger':  'LASTFILE',
+            'val'    :  None,
+            'fp_info':  ['LASTFILE'],
+            'format' :  lambda vals: f"{LASTFILE}"
+        },
+        {
+            'service':  'nsds',
+            'trigger':  'LASTFILE',
+            'val'    :  None,
+            'fp_info':  ['LASTFILE'],
+            'format' :  lambda vals: f"/s{LASTFILE}"
         },
     ],
     'DEIMOS': [],
     'ESI': [],
     'HIRES': [
         {
-            'service': 'hiccd',
-            'trigger': 'wdisk', 
-            'val':     'false',
-            'format':  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-            'zfill': {'LFRAMENO': 4}
+            'service':  'hiccd',
+            'trigger':  'WDISK',
+            'val'    :  'false',
+            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
+            'format' :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
         },
     ],
     'LRIS': [],
@@ -326,7 +342,14 @@ class KtlMonitor():
         try:
             #create service object for easy reads later
             keys = self.keys
+            filepath_keys = keys['fp_info']
+
             self.service = ktl.cache(keys['service'])
+
+            # monitor keys for services that don't have a lastfile equivalent
+            for key in filepath_keys:
+                keyword = ktl.cache(service, key)
+                keyword.monitor()
 
             #monitor keyword that indicates new file
             kw = ktl.cache(keys['service'], keys['trigger'])
@@ -346,40 +369,29 @@ class KtlMonitor():
 
     def on_new_file(self, keyword):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
-
+        keys = self.keys
+        reqval = keys['val']
         try:
             if keyword['populated'] == False:
                 log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
 
-            #assuming first read is old
-            #NOTE: I don't think we could rely on a timestamp check vs now?
-            # if len(keyword.history) <= 1:
-            #     log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
-            #     return
+            if reqval is None or keyword.ascii==reqval:
+                # construct the filepath from the keywords(s)
+                filepath_keys = keys['fp_info']
+                filepath_info = {}
 
-            # #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
-            trigger = keyword.ascii
-            reqval = self.keys.get('val', None)
-            if reqval is not None and reqval != trigger:
-                log.info(f'Trigger val of {trigger} != {reqval}')
-                return
+                for key in filepath_keys:
+                    keyword = self.service[key]
+                    filepath_info[keyword.name] = keyword.ascii
 
-            #get full file path
-            format = self.keys.get('format', None)
-            zfill = self.keys.get('zfill', None)
-            if not format:
-                filepath = trigger
-            else:
-                filepath = self.get_formatted_filepath(format, zfill)
+                filepath = keys['format'](filepath_info)
 
-            #todo: For some instruments, we may need to form full path if trigger is not defined.
-
-            #check for blank filepath 
-            #todo: or filepath that does not have a dot in it?
-            if not filepath or not filepath.strip():
-                log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
-                return
+                #check for blank filepath
+                #todo: or filepath that does not have a dot in it?
+                if not filepath or not filepath.strip():
+                    log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
+                    return
 
         except Exception as e:
             handle_error('KTL_READ_ERROR', traceback.format_exc())
