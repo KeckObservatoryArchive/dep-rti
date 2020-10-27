@@ -8,7 +8,7 @@ from common import *
 from math import ceil
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 class Nirspec(instrument.Instrument):

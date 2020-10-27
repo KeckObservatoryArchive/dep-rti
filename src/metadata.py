@@ -20,7 +20,7 @@ import pandas as pd
 import html
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, extraData=None, keyskips=[], dev=False):

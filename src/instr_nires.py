@@ -7,7 +7,7 @@ import datetime as dt
 from common import *
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 class Nires(instrument.Instrument):

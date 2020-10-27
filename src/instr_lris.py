@@ -26,7 +26,7 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 import hist_equal2d
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 class Lris(instrument.Instrument):

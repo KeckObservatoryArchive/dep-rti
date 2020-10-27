@@ -23,7 +23,7 @@ from common import *
 from envlog import *
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 class DEP:

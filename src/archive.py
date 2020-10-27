@@ -21,7 +21,7 @@ import instrument
 
 
 #module globals
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 last_email_times = None
 
 
@@ -79,7 +79,7 @@ class Archive():
         #create logger first
         #todo: not critical (try/except)
         global log
-        log = self.create_logger('koadep', self.config[instr]['ROOTDIR'], instr)
+        log = self.create_logger('koa_dep', self.config[instr]['ROOTDIR'], instr)
         log.info("Starting DEP: " + ' '.join(sys.argv[0:]))
 
         # Establish database connection 
@@ -117,8 +117,8 @@ class Archive():
         log = logging.getLogger(name)
         log.setLevel(logging.INFO)
 
-        #paths
-        #todo: Should this log really be based on now date?
+        #paths 
+        #NOTE: Using UTC so a night's data ends up in same log file.
         processDir = f'{rootdir}/{instr.upper()}'
         ymd = dt.datetime.utcnow().strftime('%Y%m%d')
         logFile =  f'{processDir}/{name}_{instr.upper()}_{ymd}.log'

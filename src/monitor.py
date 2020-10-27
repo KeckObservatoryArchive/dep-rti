@@ -35,18 +35,17 @@ from archive import Archive
 
 
 #module globals
-log = logging.getLogger('koa_monitor')
 last_email_times = None
 
 
-#todo: Finish mapping all instrs
-#todo: This could be put in each of the instr subclasses.
 #Define instrument keywords to monitor that indicate a new datafile was written.
 #'trigger' value indicates which keyword to monitor that will trigger processing.
 #If 'val' is defined, trigger must equal val to initiate processing.
 #If 'format' is defined, all keywords in curlies will be replaced by that keyword value.
 #If format is not defined, the value of the trigger will be used.
 #If zfill is defined, then left pad those keyword vals (assuming with '0')
+#todo: Finish mapping all instrs
+#todo: This could be put in each of the instr subclasses.
 instr_keys = {
     'KCWI': [
         {
@@ -72,7 +71,7 @@ instr_keys = {
             'trigger': 'wdisk', 
             'val':     'false',
             'format':  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-            'zfill': {'LFRAMENO': 4}
+            'zfill':   {'LFRAMENO': 4}
         },
     ],
     'LRIS': [],
@@ -87,15 +86,17 @@ def main():
 
     # Define arg parser
     parser = argparse.ArgumentParser()
-    parser.add_argument('instr', help='Keck Instrument')
+    parser.add_argument('instruments', nargs='+', default=[], help='Keck instruments list to monitor')
 
     #parse args
     args = parser.parse_args()    
-    instr = args.instr.upper()
 
     #run monitor and catch any unhandled error for email to admin
     try:
-        monitor = Monitor(instr)
+        monitors = []
+        for instr in args.instruments:
+            monitor = Monitor(instr.upper())
+            monitors.append(monitor)
     except Exception as error:
         handle_error('MONITOR_ERROR', traceback.format_exc())
 
@@ -103,14 +104,20 @@ def main():
     while True:
         try:
             time.sleep(300)
-            log.debug('Monitor here just saying hi every 5 minutes')
+            for m in monitors:
+                m.log.debug('Monitor here just saying hi every 5 minutes')
         except:
             break
-    log.info(f'Exiting {__file__}')
+    for m in monitors:
+        m.log.info(f'Exiting {__file__}')
 
 
 class Monitor():
-
+    '''
+    Class to monitor all keywords that indicate a new file is written.  
+    When a new file is detected, will insert a record into DB.
+    Monitors DB queue and spawns new DEP archive processes per datafile.
+    '''
     def __init__(self, instr):
 
         #input vars
@@ -129,9 +136,8 @@ class Monitor():
             self.config = yaml.safe_load(f)
 
         #create logger first
-        global log
-        log = self.create_logger('koa_monitor', self.config[instr]['ROOTDIR'], instr)
-        log.info("Starting KOA Monitor: " + ' '.join(sys.argv[0:]))
+        self.log = self.create_logger(f'koa_monitor_{instr}', self.config[instr]['ROOTDIR'], instr)
+        self.log.info(f"Starting KOA Monitor for {instr}")
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
@@ -152,7 +158,7 @@ class Monitor():
         #NOTE: We must keep all our monitors in an array to prevent garbage collection
         self.monitors = []
         for keys in instr_keys[self.instr]:
-            ktlmon = KtlMonitor(self.instr, keys, self)
+            ktlmon = KtlMonitor(self.instr, keys, self, self.log)
             ktlmon.start()
             self.monitors.append(ktlmon)
 
@@ -165,12 +171,12 @@ class Monitor():
 
         #Loop procs and remove from list if complete
         #NOTE: looping in reverse so we can delete without messing up looping
-        #log.debug(f"Checking processes. Size is {len(self.procs)}")
+        #self.log.debug(f"Checking processes. Size is {len(self.procs)}")
         removed = 0
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
             if p.exitcode is not None:
-                log.debug(f'---Removing completed process PID: {p.pid}')
+                self.log.debug(f'---Removing completed process PID: {p.pid}')
                 del self.procs[i]
                 removed += 1
 
@@ -194,13 +200,13 @@ class Monitor():
             return
 
         #Do insert record
-        log.info(f'Adding to queue: {filepath}')
+        self.log.info(f'Adding to queue: {filepath}')
         query = ("insert into dep_status set "
                 f"   instrument='{self.instr}' "
                 f" , ofname='{filepath}' "
                 f" , status='QUEUED' "
                 f" , creation_time=NOW() ")
-        log.info(query)
+        self.log.info(query)
         result = self.db.query('koa', query)
         if result is False: 
             handle_error('QUEUE_INSERT_ERROR', f'{__name__} failed: {query}')
@@ -240,7 +246,7 @@ class Monitor():
 
         #check that we have not exceeded max num procs
         if len(self.procs) >= self.max_procs:
-            log.warning(f'MAX {self.max_procs} concurrent processes exceeded.')
+            self.log.warning(f'MAX {self.max_procs} concurrent processes exceeded.')
             return
 
         #set status to PROCESSING
@@ -261,7 +267,7 @@ class Monitor():
         proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, id))
         proc.start()
         self.procs.append(proc)
-        log.debug(f'Started as process ID: {proc.pid}')
+        self.log.debug(f'Started as process ID: {proc.pid}')
 
 
     def spawn_processing(self, instr, dbid):
@@ -278,7 +284,7 @@ class Monitor():
 
         #paths
         processDir = f'{rootdir}/{instr.upper()}'
-        logFile =  f'{processDir}/{name}_{instr.upper()}.log'
+        logFile =  f'{processDir}/{name}.log'
 
         #create directory if it does not exist
         try:
@@ -302,21 +308,28 @@ class Monitor():
         log.addHandler(sh)
         
         #init message and return
-        log.info(f'logger created for {name} at {logFile}')
+        log.info(f'logger created for {name} {instr} at {logFile}')
         return log
 
 
 class KtlMonitor():
     '''
-    Class to handle monitoring a distinct set of keywords for an instrument to 
+    Class to handle monitoring a distinct keyword for an instrument to 
     determine when a new image has been written.
-    '''
 
-    def __init__(self, instr, keys, queue_mgr):
-        log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}")
+    Parameters:
+        instr (str): Instrument to monitor.
+        keys (dict): Defines service and keyword to monitor 
+                     as well as special formatting to construct filepath.
+        queue_mgr (obj): Class object that contains callback 'add_to_queue' function.
+        log (obj): logger object
+    '''
+    def __init__(self, instr, keys, queue_mgr, log):
+        self.log = log
         self.instr = instr
         self.keys = keys
         self.queue_mgr = queue_mgr
+        self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
 
     def start(self):
         '''Start monitoring 'trigger' keyword for new files.'''
@@ -345,24 +358,24 @@ class KtlMonitor():
 
 
     def on_new_file(self, keyword):
-        '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
+        '''Callback for KTL monitoring.  Gets full filepath and adds to queue.'''
 
         try:
             if keyword['populated'] == False:
-                log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
+                self.log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
 
             #assuming first read is old
             #NOTE: I don't think we could rely on a timestamp check vs now?
-            # if len(keyword.history) <= 1:
-            #     log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
-            #     return
+            if len(keyword.history) <= 1:
+                self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+                return
 
             # #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
             trigger = keyword.ascii
             reqval = self.keys.get('val', None)
             if reqval is not None and reqval != trigger:
-                log.info(f'Trigger val of {trigger} != {reqval}')
+                self.log.info(f'Trigger val of {trigger} != {reqval}')
                 return
 
             #get full file path
@@ -373,12 +386,9 @@ class KtlMonitor():
             else:
                 filepath = self.get_formatted_filepath(format, zfill)
 
-            #todo: For some instruments, we may need to form full path if trigger is not defined.
-
             #check for blank filepath 
-            #todo: or filepath that does not have a dot in it?
             if not filepath or not filepath.strip():
-                log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
+                self.log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
                 return
 
         except Exception as e:
@@ -390,6 +400,12 @@ class KtlMonitor():
 
 
     def get_formatted_filepath(self, format, zfill):
+        '''
+        Construct filepath from multiple KTL keywords. See instr_keys module global defined above.
+        Parameters:
+            format (str): Path formatting containing keywords in curlies to replace with KTL values
+            zfill (dict): Map KTL keywords to '0' zfill.
+        '''
         filepath = format
         matches = re.findall("{.*?}", format)
         for key in matches:
@@ -406,7 +422,7 @@ def handle_error(errcode, text=None, check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
 
     #always log/print
-    if log: log.error(f'{errcode}: {text}')
+    if log: self.log.error(f'{errcode}: {text}')
     else: print(text)
 
     #Only send if we haven't sent one of same errcode recently

@@ -11,7 +11,7 @@ import subprocess
 from socket import gethostname
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 class Nirc2(instrument.Instrument):

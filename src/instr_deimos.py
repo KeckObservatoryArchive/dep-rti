@@ -18,7 +18,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from mpl_toolkits.axes_grid1 import ImageGrid
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 class Deimos(instrument.Instrument):

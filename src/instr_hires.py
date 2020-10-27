@@ -16,7 +16,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 import scipy
 
 import logging
-log = logging.getLogger('koadep')
+log = logging.getLogger('koa_dep')
 
 
 class Hires(instrument.Instrument):

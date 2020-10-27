@@ -2,9 +2,14 @@
 
 
 ## HIGH PRIORITY
+- HIRES: monitor WDISK toggle to False, then construct filename
 - https://stackoverflow.com/questions/45535594/pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
-- Do we want to merge archive.py and dep.py?
+- Handle errors and status=ERROR in dep.py
 - Refactor koaxfr.py.  Do we want this to be part of dep.py or standalone?
+- Insert header json
+- Implement handling for same filepath (ie renaming and updating 'stage_file' with _vN version)
+- Write requirements for admin status gui and reprocessing tool
+- What are we doing with rejected files?
 - How will we deal with TPX flag?  Is it good enough to use a -dev or -test flag to redirect to another db?
 - Test PSFR (NIRC2)
 - Test DRP (NIRC2, OSIRIS)
@@ -19,22 +24,21 @@
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.
 - Implement basic missing program assignment
-- What are we doing with rejected files?
-- Insert header json
 - DEIMOS FCS archive trigger (some header keyword points to another file to archive)
-- How about a monitor log/db entry every hour just so we know it is alive and kicking?
 - Search TODOs in code
 - Look at old DEP on github and ensure we got all hotfixes and changes since mid Sept
+- how will we deal with /anc/ files?  If status=INVALID, copy to /anc/ and rsync but do not notify IPAC?
 - Improve documentation
 
  echo "select to_timestamp(time),keyword,ascvalue from kbds where keyword='LOUTFILE' order by time desc limit 30;" | psql -h vm-history-1 -U k1obs -d keywordlog
 
 ## LOW PRIORITY
-- Remove NIRSPEC special scam and spec folders
+- Do we want to merge archive.py and dep.py?
 - Got this error once to stderr: "?RPC: Unable to send: monitor_server(kbds) __server_down__?."  Not sure if we can detect and log.
 - Review usage of instrument.keymap and see if it needs improvement.
 - Add "duplicate metadata keyword" check.  What to do? (ok if same val, otherwise ?)
 - Improve logging, email reporting and error handling.
+- Should we create a log file per KOAID?
 - Change keyword metadata defs to database tables?  Coordinate with IPAC.
 - How do we keep track of new sdata dirs?  A: Added by Jchock and we aren't necessarily notified.  Need better system.
 - See instr_lris.py for examples of condensed or streamlined functions that we can either apply to other instr_* files or create shared functions.
