@@ -2,7 +2,8 @@
 
 
 ## HIGH PRIORITY
-- Put README back in
+- Add .fits to KOAID in DB?
+- Put README back in as KOAID.txt
 - Handle errors and update dep_status.status=ERROR in dep.py
 - Create a log file per KOAID?
 - Implement dep.transfer_ipac step. TPX flag is not being used currently.
