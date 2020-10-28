@@ -49,29 +49,45 @@ last_email_times = None
 instr_keys = {
     'KCWI': [
         {
-            'service':   'kfcs',
-            'trigger':  'lastfile',
+            'service':  'kfcs',
+            'trigger':  'LASTFILE',
+            'val'    :  None,
+            'fp_info':  ['LASTFILE'],
+            'format' :  lambda vals: f"{vals['LASTFILE']}"
         },
         {
             'service':   'kbds',
-            'trigger':  'loutfile',
+            'trigger':  'LOUTFILE',
+            'val'    :  None,
+            'fp_info':  ['LOUTFILE'],
+            'format' :  lambda vals: f"{vals['LOUTFILE']}"
         }
     ],
     'NIRES': [
         {
-            'service':   '???',
-            'trigger':  '???',
+            'service':  'nids',
+            'trigger':  'LASTFILE',
+            'val'    :  None,
+            'fp_info':  ['LASTFILE'],
+            'format' :  lambda vals: f"{LASTFILE}"
+        },
+        {
+            'service':  'nsds',
+            'trigger':  'LASTFILE',
+            'val'    :  None,
+            'fp_info':  ['LASTFILE'],
+            'format' :  lambda vals: f"/s{LASTFILE}"
         },
     ],
     'DEIMOS': [],
     'ESI': [],
     'HIRES': [
         {
-            'service': 'hiccd',
-            'trigger': 'wdisk', 
-            'val':     'false',
-            'format':  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-            'zfill':   {'LFRAMENO': 4}
+            'service':  'hiccd',
+            'trigger':  'WDISK',
+            'val'    :  'false',
+            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
+            'format' :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
         },
     ],
     'LRIS': [],
@@ -208,7 +224,7 @@ class Monitor():
                 f" , creation_time=NOW() ")
         self.log.info(query)
         result = self.db.query('koa', query)
-        if result is False: 
+        if result is False:
             handle_error('QUEUE_INSERT_ERROR', f'{__name__} failed: {query}')
             return
 
@@ -339,7 +355,14 @@ class KtlMonitor():
         try:
             #create service object for easy reads later
             keys = self.keys
+            filepath_keys = keys['fp_info']
+
             self.service = ktl.cache(keys['service'])
+
+            # monitor keys for services that don't have a lastfile equivalent
+            for key in filepath_keys:
+                keyword = ktl.cache(keys['service'], key)
+                keyword.monitor()
 
             #monitor keyword that indicates new file
             kw = ktl.cache(keys['service'], keys['trigger'])
@@ -358,8 +381,9 @@ class KtlMonitor():
 
 
     def on_new_file(self, keyword):
-        '''Callback for KTL monitoring.  Gets full filepath and adds to queue.'''
-
+        '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
+        keys = self.keys
+        reqval = keys['val']
         try:
             if keyword['populated'] == False:
                 self.log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
@@ -371,24 +395,23 @@ class KtlMonitor():
                 self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
                 return
 
-            # #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
-            trigger = keyword.ascii
-            reqval = self.keys.get('val', None)
-            if reqval is not None and reqval != trigger:
-                self.log.info(f'Trigger val of {trigger} != {reqval}')
-                return
+            if reqval is None or keyword.ascii==reqval:
+                # construct the filepath from the keywords(s)
+                filepath_keys = keys['fp_info']
+                filepath_info = {}
 
-            #get full file path
-            format = self.keys.get('format', None)
-            zfill = self.keys.get('zfill', None)
-            if not format:
-                filepath = trigger
+                for key in filepath_keys:
+                    keyword = self.service[key]
+                    filepath_info[keyword.name] = keyword.ascii
+
+                filepath = keys['format'](filepath_info)
+
+                #check for blank filepath
+                if not filepath or not filepath.strip():
+                    self.log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
+                    return
             else:
-                filepath = self.get_formatted_filepath(format, zfill)
-
-            #check for blank filepath 
-            if not filepath or not filepath.strip():
-                self.log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
+                self.log.info(f'Trigger val of {trigger} != {reqval}')
                 return
 
         except Exception as e:
@@ -422,7 +445,7 @@ def handle_error(errcode, text=None, check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
 
     #always log/print
-    if log: self.log.error(f'{errcode}: {text}')
+    if log: log.error(f'{errcode}: {text}')
     else: print(text)
 
     #Only send if we haven't sent one of same errcode recently
