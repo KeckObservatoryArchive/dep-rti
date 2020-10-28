@@ -77,10 +77,33 @@ instr_keys = {
             'val'    :  None,
             'fp_info':  ['LASTFILE'],
             'format' :  lambda vals: f"/s{LASTFILE}"
-        },
+        }
     ],
-    'DEIMOS': [],
-    'ESI': [],
+    'DEIMOS': [
+        {
+            'service':  'deimosplus',
+            'trigger':  'LASTCCD',
+            'val'    :  None,
+            'fp_info':  ['LASTCCD'],
+            'format' :  lambda vals: f"/s{LASTCCD}"
+        },
+        {
+            'service':  'deimosplus',
+            'trigger':  'LASTFCS',
+            'val'    :  None,
+            'fp_info':  ['LASTFCS'],
+            'format' :  lambda vals: f"/s{LASTFCS}"
+        }
+    ],
+    'ESI': [
+        {
+            'service':  'esi',
+            'trigger':  'WDISK',
+            'val'    :  'false',
+            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
+            'format' :  lambda vals: f"/s{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
+        }
+    ],
     'HIRES': [
         {
             'service':  'hiccd',
@@ -88,13 +111,74 @@ instr_keys = {
             'val'    :  'false',
             'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
             'format' :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
-        },
+        }
     ],
-    'LRIS': [],
-    'MOSFIRE': [],
-    'NIRC2': [],
-    'NIRSPEC': [],
-    'OSIRIS': [],
+    'LRIS': [
+        {
+            'service':  'lris',
+            'trigger':  'WDISK',
+            'val'    :  'false',
+            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
+            'format' :  lambda vals: f"/s{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
+        },
+        {
+            'service':  'lrisblue',
+            'trigger':  'WDISK',
+            'val'    :  'false',
+            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
+            'format' :  lambda vals: f"/s{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
+        }
+    ],
+    'MOSFIRE': [
+        {
+            'service':  'mosfire',
+            'trigger':  'LASTFILE',
+            'val'    :  None,
+            'fp_info':  ['LASTFILE'],
+            'format' :  lambda vals: f"{LASTFILE}"
+        }
+    ],
+    'NIRC2': [
+        {
+            'service':  'alad',
+            'trigger':  'LASTFILE', # could alternatively be FILERDY with val==0
+            'val'    :  None,
+            'fp_info':  ['OUTDIR', 'LASTFILE'],
+            'format' :  lambda vals: f"/s{OUTDIR}{LASTFILE}"
+        }
+    ],
+    'NIRSPEC': [
+        {
+            'service':  'nspec',
+            'trigger':  'LASTFILE',
+            'val'    :  None,
+            'fp_info':  ['LASTFILE'],
+            'format' :  lambda vals: f"/s{LASTFILE}"
+        },
+        {
+            'service':  'nscam',
+            'trigger':  'LASTFILE',
+            'val'    :  None,
+            'fp_info':  ['LASTFILE'],
+            'format' :  lambda vals: f"/s{LASTFILE}"
+        }
+    ],
+    'OSIRIS': [
+        {
+            'service':  'osiris',
+            'trigger':  'ILASTFILE',
+            'val'    :  None,
+            'fp_info':  ['ILASTFILE'],
+            'format' :  lambda vals: f"{ILASTFILE}"
+        },
+        {
+            'service':  'osiris',
+            'trigger':  'SLASTFILE',
+            'val'    :  None,
+            'fp_info':  ['SLASTFILE'],
+            'format' :  lambda vals: f"{SLASTFILE}"
+        }
+    ]
 }
 
 
