@@ -73,6 +73,7 @@ class DEP:
         if ok: ok = self.run_drp()
         if ok: ok = self.check_koapi_send()
         if ok: ok = self.copy_raw_fits()  
+        if ok: ok = self.create_readme()
         if ok: ok = self.update_dep_stats()
         # if ok: ok = self.xfr_ipac()
 
@@ -83,6 +84,19 @@ class DEP:
             #todo: do we wanta dep_status.status here (ie "IPAC")
             pass
         return ok
+
+
+    def create_readme(self):
+        '''Create a text file that indicates some meta about KOAID product delivery'''
+        try:
+            filepath = f"{self.dirs['lev0']}/{self.koaid}.txt"
+            with open(filepath, 'w') as f:
+                path = self.dirs['output']
+                f.write(path + '\n')
+        except Exception as e:
+            log.error(f'Unable to create readme file at: {filepath}')
+            return False
+        return True
 
 
     def check_status_db_entry(self):
