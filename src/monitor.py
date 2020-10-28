@@ -361,7 +361,7 @@ class KtlMonitor():
 
             # monitor keys for services that don't have a lastfile equivalent
             for key in filepath_keys:
-                keyword = ktl.cache(service, key)
+                keyword = ktl.cache(keys['service'], key)
                 keyword.monitor()
 
             #monitor keyword that indicates new file
@@ -445,7 +445,7 @@ def handle_error(errcode, text=None, check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
 
     #always log/print
-    if log: self.log.error(f'{errcode}: {text}')
+    if log: log.error(f'{errcode}: {text}')
     else: print(text)
 
     #Only send if we haven't sent one of same errcode recently
