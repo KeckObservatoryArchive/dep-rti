@@ -78,7 +78,8 @@ class DEP:
         if ok: ok = self.copy_raw_fits()  
         if ok: ok = self.create_readme()
         if ok: ok = self.update_dep_stats()
-        # if ok: ok = self.transfer_ipac()
+#        if ok: ok = self.transfer_ipac()
+        if ok: ok = self.add_header_to_db()
 
         #If any of these steps return false then copy to udf
         if not ok: 
@@ -799,25 +800,25 @@ class DEP:
         import subprocess as sp
         xfrCmd = sp.Popen(["rsync -avz --include='" + pattern + "' " + fromDir + ' ' + toLocation],
                         stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
-        if self.tpx:
-            self.update_dep_status('xfr_start_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
-            self.update_dep_status('status_code', 'TRANSFERRING')
+        utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        if not self.update_dep_status('xfr_start_time', utstring): return False
+        if not self.update_dep_status('status', 'TRANSFERRING'): return False
 
         output, error = xfrCmd.communicate()
 
         # Transfer success
         if not error:
-            if self.tpx:
-                self.update_dep_status('xfr_end_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
-                self.update_dep_status('status_code', 'TRANSFERRED')
+            utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            if not self.update_dep_status('xfr_end_time', utstring): return False
+            if not self.update_dep_status('status', 'TRANSFERRED'): return False
 
             # Send API request to archive the data set
             apiUrl = f'{api}instrument={self.instr}&utdate={self.utdate}&koaid={self.koaid}&ingesttype=lev0'
             if self.reprocess:
                 apiUrl = f'{apiUrl}&reingest=true'
             log.info(f'sending ingest API call {apiUrl}')
-            if self.tpx:
-                self.update_dep_status('ipac_notify_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
+            utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            if not self.update_dep_status('ipac_notify_time', utstring): return False
             apiData = get_api_data(apiUrl)
             if not apiData or not data.get('apiStatus'):
                 log.error(f'error calling IPAC API {apiUrl}')
@@ -828,7 +829,34 @@ class DEP:
         # Transfer error
         else:
             # Update dep_status
-            if self.tpx:
-                self.update_dep_status('status', 'ERROR')
-                self.update_dep_status('status_code', 'TRANSFER_ERROR')
+            self.update_dep_status('status', 'ERROR')
+            self.update_dep_status('status_code', 'TRANSFER_ERROR')
             return False
+
+
+    def add_header_to_db(self):
+        '''
+        Converts the primary header into a dictionary and inserts that 
+        data into the json column of the headers database table.
+        '''
+
+        d = {}
+        for key in self.fits_hdr.keys():
+            if key == 'COMMENT' or key == '' or key in d.keys():
+                continue
+            d[key] = {}
+            d[key]['value'] = self.get_keyword(key)
+            d[key]['comment'] = self.fits_hdr.comments[key]
+
+        query = 'insert into headers set koaid=%s, header=%s'
+        vals = (self.koaid, json.dumps(d),)
+        if self.reprocess:
+            query = 'update headers set header=%s where koaid=%s'
+            vals = (json.dumps(d), self.koaid,)
+        result = self.db.query('koa', query, values=vals)
+        if result is False: 
+            log.error(f'header table insert failed')
+            return False
+
+        return True
+
