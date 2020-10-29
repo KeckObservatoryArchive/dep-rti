@@ -67,14 +67,14 @@ instr_keys = {
             'trigger':  'LASTFILE',
             'val'    :  None,
             'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"{LASTFILE}"
+            'format' :  lambda vals: f"{vals['LASTFILE']}"
         },
         {
             'service':  'nsds',
             'trigger':  'LASTFILE',
             'val'    :  None,
             'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"/s{LASTFILE}"
+            'format' :  lambda vals: f"/s{vals['LASTFILE']}"
         },
     ],
     'DEIMOS': [],
@@ -257,10 +257,11 @@ class Monitor():
         '''Spawn archiving for a single file by database ID.'''
         #NOTE: Using multiprocessing instead of subprocess so we can spawn loaded functions
         #as a separate process which saves us the ~0.5 second overhead of launching python.
+        self.log.debug(f'Processing DB record ID={id}')
         proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, id))
         proc.start()
         self.procs.append(proc)
-        self.log.debug(f'Started as process ID: {proc.pid}')
+        self.log.debug(f'DEP started as system process ID: {proc.pid}')
 
 
     def spawn_processing(self, instr, dbid):
