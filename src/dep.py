@@ -735,7 +735,7 @@ class DEP:
                         stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
         utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_dep_status('xfr_start_time', utstring): return False
-        if not self.update_dep_status('status_code', 'TRANSFERRING'): return False
+        if not self.update_dep_status('status', 'TRANSFERRING'): return False
 
         output, error = xfrCmd.communicate()
 
@@ -743,7 +743,7 @@ class DEP:
         if not error:
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_dep_status('xfr_end_time', utstring): return False
-            if not self.update_dep_status('status_code', 'TRANSFERRED'): return False
+            if not self.update_dep_status('status', 'TRANSFERRED'): return False
 
             # Send API request to archive the data set
             apiUrl = f'{api}instrument={self.instr}&utdate={self.utdate}&koaid={self.koaid}&ingesttype=lev0'
