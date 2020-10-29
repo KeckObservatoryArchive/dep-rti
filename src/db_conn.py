@@ -108,7 +108,7 @@ class db_conn(object):
                 conn.close()
 
 
-    def query(self, database, query, getOne=False, getColumn=False, getInsertId=False):
+    def query(self, database, query, values=False, getOne=False, getColumn=False, getInsertId=False):
         '''
         Executes basic query.  Determines query type and returns fetchall on select, otherwise rowcount on other query types.
         Returns false on any exception error.  Opens and closes a new connection each time.
@@ -138,7 +138,8 @@ class db_conn(object):
 
             #execute query and determine return value by qtype
             if cursor:
-                cursor.execute(query)
+                if values: cursor.execute(query, values)
+                else:      cursor.execute(query)
                 if   qtype in ('select'): result = cursor.fetchall()
                 elif getInsertId        : result = cursor.lastrowid
                 else                    : result = cursor.rowcount
