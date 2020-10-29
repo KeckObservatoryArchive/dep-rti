@@ -74,7 +74,7 @@ class Nires(instrument.Instrument):
 
         instr = self.get_instr()
         if instr == 'nires':
-            ftype = self.get_keyword('FTYPE')
+            ftype = self.get_keyword('INSTR')
             if   ftype == 'imag': prefix = 'NI'
             elif ftype == 'spec': prefix = 'NR'
             else                : prefix = ''
@@ -115,7 +115,7 @@ class Nires(instrument.Instrument):
 
         # log.info('set_wavelengths: setting wavelength keyword values')
 
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
 
         #imaging (K-filter always on):
         if (instr == 'imag'):
@@ -139,7 +139,7 @@ class Nires(instrument.Instrument):
 
         # log.info('set_specres: setting SPECRES keyword values')
 
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if (instr == 'spec'):
             specres = 2700.0
             self.set_keyword('SPECRES' , specres,  'KOA: Nominal spectral resolution')
@@ -151,7 +151,7 @@ class Nires(instrument.Instrument):
         Adds CCD pixel scale, dispersion (arcsec/pixel) keyword to header.
         '''
 
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if   (instr == 'imag'): dispscal = 0.12
         elif (instr == 'spec'): dispscal = 0.15
         self.set_keyword('DISPSCAL' , dispscal, 'KOA: CCD pixel scale, dispersion')
@@ -163,7 +163,7 @@ class Nires(instrument.Instrument):
         Adds spatial scale keyword to header.
         '''
 
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if   (instr == 'imag'): spatscal = 0.12
         elif (instr == 'spec'): spatscal = 0.15
         self.set_keyword('SPATSCAL' , spatscal, 'KOA: CCD pixel scale, spatial')
@@ -176,7 +176,7 @@ class Nires(instrument.Instrument):
         '''
 
         #add keyword for 'imag' only
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if (instr == 'imag'):
             # log.info('set_filter: setting FILTER keyword value')
             filt = 'Kp'
@@ -190,7 +190,7 @@ class Nires(instrument.Instrument):
         '''
 
         #add keywords for 'spec' only
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if (instr == 'spec'):
             # log.info('set_slit_dims: setting slit keyword values')
             slitlen  = 18.1

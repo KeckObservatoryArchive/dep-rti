@@ -37,18 +37,17 @@ class Instrument(dep.DEP):
 
         super().__init__(instr, filepath, config, db, reprocess, tpx, dbid)
 
-        # Keyword values to be used with a FITS file during runtime
-        # NOTE: array may be used to denote an ordered list of possible keywords to look for.
-        # NOTE: these may be overwritten by instr_*.py
+        # Common keywords used in code that can be mapped to actual keyword per instrument 
+        # so a call to get_keyword can be used generically.  Overwrite values in instr_[instr].py
+        # NOTE: An array may be used to denote an ordered list of possible keywords to look for.
         self.keymap = {}
         self.keymap['INSTRUME'] = 'INSTRUME'
         self.keymap['UTC']      = 'UTC'
         self.keymap['DATE-OBS'] = 'DATE-OBS'
         self.keymap['SEMESTER'] = 'SEMESTER'
-        self.keymap['OFNAME']   = 'OUTFILE'
+        self.keymap['OFNAME']   = 'OFNAME'
         self.keymap['FRAMENO']  = 'FRAMENO'
         self.keymap['OUTDIR']   = 'OUTDIR'
-        self.keymap['FTYPE']    = 'INSTR'       # For instruments with two file types
 
         # Values to be populated by subclass
         self.prefix    = ''

@@ -18,7 +18,8 @@ class Esi(instrument.Instrument):
         super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         # Set any unique keyword index values here
-        self.keymap['UTC']       = 'UT'        
+        self.keymap['UTC']      = 'UT'        
+        self.keymap['OFNAME']   = 'OUTFILE'
 
         # Other vars that subclass can overwrite
         self.keyskips   = ['PMFM', 'RECNO', 'CHECKSUM', 'DATASUM']

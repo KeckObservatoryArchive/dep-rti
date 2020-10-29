@@ -28,8 +28,7 @@ class Deimos(instrument.Instrument):
         super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         # Set any unique keyword index values here
-        self.keymap['OFNAME']       = 'DATAFILE'        
-        self.keymap['FRAMENO']      = ''
+        self.keymap['OFNAME']   = 'OUTFILE'
 
         # Other vars that subclass can overwrite
         # Skip warnings for these FCS-only keywords
@@ -164,13 +163,12 @@ class Deimos(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            log.info('set_ofName: Could not detrermine OFNAME')
+            log.info('set_ofName: Could not determine OFNAME')
             ofname = ''
             return False
         
         frameno = str(frameno).zfill(4)
         ofName = ''.join((outfile, frameno, '.fits'))
-        log.info('set_ofName: OFNAME = {}'.format(ofName))
         self.set_keyword('OFNAME', ofName, 'KOA: Original file name')
 
         return True

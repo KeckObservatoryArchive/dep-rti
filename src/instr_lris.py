@@ -35,6 +35,9 @@ class Lris(instrument.Instrument):
 
         super().__init__(instr, filepath, config, db, reprocess, tpx)
 
+        # Set any unique keyword index values here
+        self.keymap['OFNAME']   = 'OUTFILE'
+
         # Other vars that subclass can overwrite
         self.keyskips   = ['CCDGN00', 'CCDRN00']
         #self.keyskips = ['IM01MN00', 'IM01SD00', 'IM01MD00', 'PT01MN00', 'PT01SD00', 'PT01MD00', 'IM01MN01', 'IM01SD01', 'IM01MD01', 'PT01MN01', 'PT01SD01', 'PT01MD01', 'IM02MN02', 'IM02SD02', 'IM02MD02', 'PT02MN02', 'PT02SD02', 'PT02MD02', 'IM02MN03', 'IM02SD03', 'IM02MD03', 'PT02MN03', 'PT02SD03', 'PT02MD03']

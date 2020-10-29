@@ -21,8 +21,7 @@ class Nirc2(instrument.Instrument):
         super().__init__(instr, filepath, config, db, reprocess, tpx)
 
         # Set any unique keyword index values here
-        # NIRC2 uses ROOTNAME instead of OUTDIR
-        self.ofName = 'FILENAME'
+        self.keymap['OFNAME'] = 'FILENAME'
 
 
     def run_dqa(self):
