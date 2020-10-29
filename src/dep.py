@@ -16,6 +16,7 @@ from astropy.io import fits
 import datetime as dt
 import shutil
 import glob
+import inspect
 
 import metadata
 import update_koapi_send
@@ -44,6 +45,7 @@ class DEP:
         self.fits_hdu = None
         self.fits_hdr = None
         self.extra_meta = {}
+        self.errors = []
 
         #other helpful vars
         self.rootdir = self.config[self.instr]['ROOTDIR']
@@ -79,24 +81,18 @@ class DEP:
 
         #If any of these steps return false then copy to udf
         if not ok: 
-            self.copy_bad_file(self.instr, self.filepath, 'Failed DQA')
+            self.handle_dep_error()
         else:
             #todo: do we wanta dep_status.status here (ie "IPAC")
             pass
         return ok
 
 
-    def create_readme(self):
-        '''Create a text file that indicates some meta about KOAID product delivery'''
-        try:
-            filepath = f"{self.dirs['lev0']}/{self.koaid}.txt"
-            with open(filepath, 'w') as f:
-                path = self.dirs['output']
-                f.write(path + '\n')
-        except Exception as e:
-            log.error(f'Unable to create readme file at: {filepath}')
-            return False
-        return True
+    def log_error(self, status, errcode, text=''):
+        caller = inspect.stack()[1][3]
+        log.error(f"func: {caller}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        errdata = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
+        self.errors.append(errdata)
 
 
     def check_status_db_entry(self):
@@ -107,7 +103,7 @@ class DEP:
             query = f"select * from dep_status where id={self.dbid}"
             row = self.db.query('koa', query, getOne=True)
             if not row:
-                log.error(f"Unable to find DB record with ID={self.dbid}")
+                self.log_error('INVALID', 'DB_ID_NOT_FOUND', query)
                 return False
             #todo: Is this correct logic on filepath?
             self.filepath = row['stage_file'] if row['stage_file'] else row['ofname']
@@ -122,7 +118,7 @@ class DEP:
             log.info(query)
             result = self.db.query('koa', query, getInsertId=True)
             if result is False: 
-                log.error(f'{__name__} failed')
+                self.log_error('ERROR', 'QUERY_ERROR', query)
                 return False
             self.dbid = result
 
@@ -140,12 +136,12 @@ class DEP:
                 f' where koaid="{self.koaid}"')
         rows = self.db.query('koa', query)
         if rows is False:
-            log.error(f'Could not query dep_status for: {self.instr}, {self.koaid}')
+            self.log_error('ERROR', 'QUERY_ERROR', query)
             return False
 
         #If entry exists and we are not reprocessing, return error
         if len(rows) > 0 and not self.reprocess:
-            log.error(f"Record already exists for {self.instr} {self.koaid}.  Rerun with --reprocess to override.")
+            self.log_error('INVALID', 'DUPLICATE_KOAID')
             return False
 
         #if entry exists and reprocessing, delete record
@@ -222,13 +218,13 @@ class DEP:
         Loads the fits file
         '''
         if not os.path.isfile(self.filepath):
-            log.error(f"FITS filepath does not exist: {self.filepath}")
+            self.log_error('ERROR', 'FITS_NOT_FOUND')
             return False
         try:
             self.fits_hdu = fits.open(self.filepath, ignore_missing_end=True)
             self.fits_hdr = self.fits_hdu[0].header
         except:
-            log.error(f"Could not read FITS file: {self.filepath}")
+            self.log_error('INVALID', 'UNREADABLE_FITS')
             return False
         return True
 
@@ -244,14 +240,14 @@ class DEP:
             log.info(query)
             result = self.db.query('koa', query)
             if result is False: 
-                log.error(f'{__name__} failed')
+                self.log_error('ERROR', 'QUERY_ERROR', query)
                 return False
 
             query = f"delete from dep_status where id='{id}' "
             log.info(query)
             result = self.db.query('koa', query)
             if result is False: 
-                log.error(f'{__name__} failed')
+                self.log_error('ERROR', 'QUERY_ERROR', query)
                 return False
             return True
 
@@ -269,7 +265,7 @@ class DEP:
             os.makedirs(outdir, exist_ok=True)
             shutil.copy(self.filepath, outfile)  
         except Exception as e:
-            log.error(f"Could not copy raw fits to: {outfile}")
+            self.log_error('ERROR', 'FILE_COPY_ERROR', outfile)
       
         #update dep_status.savepath
         self.update_dep_status('stage_file', outfile)
@@ -289,7 +285,7 @@ class DEP:
         #todo: should we be saving a copy of old files?
 
         if not self.koaid or len(self.koaid) < 20:
-            log.error(f"Cannot delete local files.  KOAID is invalid: {self.koaid}")
+            self.log_error('ERROR', 'INVALID_KOAID')
             return False
 
         #delete files matching KOAID*
@@ -301,6 +297,7 @@ class DEP:
                 log.info(f"removing file: {f}")
                 os.remove(f)
         except Exception as e:
+            self.log_error('ERROR', 'FILE_DELETE_ERROR')
             log.error(f"Could not delete local files for: {match}")
             return False
         return True
@@ -314,7 +311,7 @@ class DEP:
         log.info(query)
         result = self.db.query('koa', query)
         if result is False:
-            log.error(f'{__name__} failed')
+            self.log_error('ERROR', 'QUERY_ERROR', query)
             return False
         return True
 
@@ -329,13 +326,12 @@ class DEP:
         rejects = ['mira', 'savier-protected', 'SPEC/ORP', '/subtracted', 'idf']
         for reject in rejects:
             if reject in self.filepath:
-                self.copy_bad_file(self.instr, self.filepath, f"Filepath contains '{reject}'")
+                self.log_error('INVALID', 'FILEPATH_REJECT')
                 return False
 
         # check for empty file
         if (os.path.getsize(self.filepath) == 0):
-            self.copy_bad_file(self.instr, self.filepath, "Empty file")
-            log.error(f"Empty file: {self.filepath}")
+            self.log_error('INVALID', 'EMPTY_FILE')
             return False
 
         # Get fits header (check for bad header)
@@ -346,21 +342,21 @@ class DEP:
             else:
               header0 = fits.getheader(self.filepath)
         except:
-            self.copy_bad_file(self.instr, self.filepath, "Unreadable header")
+            self.log_error('INVALID', 'UNREADABLE_FITS')
             return False
 
         # Construct the original file name
-        filename, ok = self.construct_filename(self.instr, self.filepath, header0)
-        if not ok:
-          self.copy_bad_file(self.instr, self.filepath, 'Bad Header')
-          return False
+        filename, stat = self.construct_filename(self.instr, self.filepath, header0)
+        if stat is not True:
+            self.log_error('INVALID', stat)
+            return False
 
         # Make sure constructed filename matches basename.
         basename = os.path.basename(self.filepath)
         basename = basename.replace(".fits.gz", ".fits")
         if filename != basename:
-          copy_bad_file(self.instr, self.filepath, 'Mismatched filename')
-          return False
+            self.log_error('INVALID', 'MISMATCHED_FILENAME')
+            return False
 
         return True
 
@@ -378,15 +374,13 @@ class DEP:
                     outfile = ''.join((outfile, '.fits'))
                 return outfile, True
             except KeyError:
-                copy_bad_file(instr, fitsFile, 'Bad Outfile')
-                return '', False
+                return '', 'BAD_OUTFILE'
         elif instr in ['KCWI']:
             try:
                 outfile = keywords['OFNAME']
                 return outfile, True
             except KeyError:
-                copy_bad_file(instr, fitsFile, 'Bad Outfile')
-                return '', False
+                return '', 'BAD_OUTFILE'
         else:
             try:
                 outfile = keywords['OUTFILE']
@@ -397,8 +391,7 @@ class DEP:
                     try:
                         outfile = keywords['FILENAME']
                     except KeyError:
-                        copy_bad_file(instr, fitsFile, 'Bad Outfile')
-                        return '', False
+                        return '', 'BAD_OUTFILE'
 
         # Get the frame number of the file
         if outfile[:2] == 'kf':   frameno = keywords['IMGNUM']
@@ -414,8 +407,7 @@ class DEP:
                     try:
                         frameno = keywords['FILENUM2']
                     except KeyError:
-                        copy_bad_file(instr, fitsFile, 'Bad Frameno')
-                        return '', False
+                        return '', 'BAD_FRAMENO'
 
         #Pad frameno and construct filename
         frameno = str(frameno).strip().zfill(4)
@@ -510,6 +502,7 @@ class DEP:
                 make_dir_md5_table(outDir, None, md5Outfile, regex=f"{self.koaid}.ext\d")
 
             except:
+                #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
                 log.error(f'Could not create extended header table for ext header index {i} for file {filename}!')
 
         #NOTE: This should not hold up archiving
@@ -534,16 +527,60 @@ class DEP:
         log.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
         ok = update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
         if not ok:
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error('check_koapi_send failed')
 
         #NOTE: This should not hold up archiving
         return True
 
 
-    def copy_bad_file(self, instr, filepath, reason):
-        #todo: What are we doing with bad files?
-        log.error(f"Invalid FITS.  Reason: {reason}.  File: {filepath}")
-        pass
+    def handle_dep_error(self):
+
+        #if for some reason we didn't record the error
+        status = "ERROR"
+        errcode = "UNKNOWN"
+        text = ''
+
+        #get last of errors logged for this koaid
+        if self.errors:
+            error = self.errors[-1]
+            status  = error['status']
+            errcode = error['errcode']
+            text = str(self.errors)
+
+        #log
+        log.error(f'Status: {status}, Code: {errcode}, DBID: {self.dbid}, KOAID: {self.koaid}, File:{self.filepath}')
+        if text: log.error(text)
+
+        #update by dbid
+        if self.dbid:
+            query = (f"update dep_status set status='{status}', status_code='{errcode}' "
+                     f" where id={self.dbid}")
+            log.info(query)
+            result = self.db.query('koa', query)
+            if result is False: 
+                #todo: what can we do if THIS fails??  Email admins direct?
+                log.error(f'ERROR STATUS QUERY FAILED: {query}')
+                return False
+
+        #Copy to anc if INVALID
+        if status == 'INVALID':
+            self.copy_bad_file()
+
+
+    def copy_bad_file(self):
+        #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
+        if not self.filepath:
+            log.error('No filepath to copy to ANC folder')
+            return False
+        try:
+            outdir = self.dirs['udf']
+            shutil.copy(self.filepath, outdir)  
+            log.info(f"Copied invalid fits {self.filepath} to {outdir}")
+        except Exception as e:
+            log.error(f"Could not copy invalid fits {self.filepath} to {outdir}")
+            return False
+        return True
 
 
     def verify_date(self, date=''):
@@ -616,6 +653,7 @@ class DEP:
         url = api + 'ktn='+semid+'&cmd=getAllocInst&json=True'
         data = self.get_api_data(url)
         if not data or not data.get('success'):
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error('Unable to query API: ' + url)
             return default
         else:
@@ -630,6 +668,7 @@ class DEP:
                  f' where p.semid="{semid}" and p.piID=pi.piID')
         data = self.db.query('koa', query, getOne=True)
         if not data or 'pi_lastname' not in data:
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error(f'Unable to get PI name for semid {semid}')
             return default
         else:
@@ -642,10 +681,24 @@ class DEP:
         query = f'select progtitl from koa_program where semid="{semid}"'
         data = self.db.query('koa', query, getOne=True)
         if not data or 'progtitl' not in data:
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error(f'Unable to get title for semid {semid}')
             return default
         else:
             return data['progtitl']
+
+
+    def create_readme(self):
+        '''Create a text file that indicates some meta about KOAID product delivery'''
+        try:
+            filepath = f"{self.dirs['lev0']}/{self.koaid}.txt"
+            with open(filepath, 'w') as f:
+                path = self.dirs['output']
+                f.write(path + '\n')
+        except Exception as e:
+            self.log_error('ERROR', 'FILE_IO', filepath)
+            return False
+        return True
 
 
     def update_dep_stats(self):

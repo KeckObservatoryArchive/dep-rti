@@ -2,10 +2,11 @@
 
 
 ## HIGH PRIORITY
-- Add .fits to KOAID in DB?
-- Put README back in as KOAID.txt
-- Handle errors and update dep_status.status=ERROR in dep.py
+- Handle remaining errors/warns in dep/instrument/instr_[instr].
 - Create a log file per KOAID?
+- Cleanup dep.validate_fits() and dep.construct_filename()
+- Fix dep_status dates to be UTC time
+- Add .fits to KOAID in DB?
 - Implement dep.transfer_ipac step. TPX flag is not being used currently.
 - Insert/update header json into headers table
 - Should monitor.py immediately copy file to staging before queuing?

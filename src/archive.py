@@ -50,7 +50,7 @@ def main():
                   starttime=args.starttime, endtime=args.endtime,
                   status=args.status, outdir=args.outdir)
     except Exception as error:
-        email_error('ARCHIVE_ERROR', traceback.format_exc())
+        email_error('ARCHIVE_ERROR', traceback.format_exc(), instr)
 
 
 class Archive():
@@ -192,7 +192,7 @@ class Archive():
         #todo: Should we do anything here or leave it to dep.py to handle failed archiving?
 
 
-def email_error(errcode, text, check_time=True):
+def email_error(errcode, text, instr='', check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
 #todo: This won't work as intended b/c we are spawning single instances of archive.py
 
@@ -217,7 +217,7 @@ def email_error(errcode, text, check_time=True):
     
     # Construct email message
     body = f'{errcode}\n{text}'
-    subj = f'KOA ERROR: ({os.path.basename(__file__)}) {errcode}'
+    subj = f'KOA DEP ERROR: [{instr}] {errcode}'
     msg = MIMEText(body)
     msg['Subject'] = subj
     msg['To']      = adminEmail
