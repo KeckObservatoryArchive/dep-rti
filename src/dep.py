@@ -18,6 +18,7 @@ import shutil
 import glob
 import inspect
 import fnmatch
+import pathlib
 
 import metadata
 import update_koapi_send
@@ -74,12 +75,12 @@ class DEP:
         if ok: ok = self.create_meta()
         if ok:      self.create_ext_meta()
         if ok: ok = self.run_drp()
-        if ok: ok = self.check_koapi_send()
+        if ok:      self.check_koapi_send()
         if ok: ok = self.copy_raw_fits()  
         if ok: ok = self.create_readme()
         if ok: ok = self.update_dep_stats()
 #        if ok: ok = self.transfer_ipac()
-        if ok: ok = self.add_header_to_db()
+        if ok:      self.add_header_to_db()
 
         #If any of these steps return false then copy to udf
         if not ok: 
@@ -193,7 +194,7 @@ class DEP:
             if not os.path.isdir(dir):
                 log.info(f'Creating output directory: {dir}')
                 try:
-                    os.makedirs(dir)
+                    pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
                 except:
                     raise Exception(f'instrument.py: could not create directory: {dir}')
 
@@ -259,15 +260,15 @@ class DEP:
 
         #form filepath and copy
         #todo: set to readonly
-        #todo: should failure here hold up archiving to ipac?
         outfile = self.get_raw_filepath()
         outdir = os.path.dirname(outfile)
         log.info(f'Copying raw fits to {outfile}')
         try:
-            os.makedirs(outdir, exist_ok=True)
+            pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
             shutil.copy(self.filepath, outfile)  
         except Exception as e:
             self.log_error('ERROR', 'FILE_COPY_ERROR', outfile)
+            return False
       
         #update dep_status.savepath
         self.update_dep_status('stage_file', outfile)
@@ -506,8 +507,8 @@ class DEP:
             except:
                 #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
                 log.error(f'Could not create extended header table for ext header index {i} for file {filename}!')
+                return False
 
-        #NOTE: This should not hold up archiving
         return True
 
 
@@ -531,6 +532,7 @@ class DEP:
         if not ok:
             #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error('check_koapi_send failed')
+            return False
 
         #NOTE: This should not hold up archiving
         return True
@@ -855,6 +857,7 @@ class DEP:
             vals = (json.dumps(d), self.koaid,)
         result = self.db.query('koa', query, values=vals)
         if result is False: 
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error(f'header table insert failed')
             return False
 
