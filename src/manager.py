@@ -80,7 +80,8 @@ def process_start(pid, server, interpreter=None, port=None, extra=None):
             cmd.append(interpreter)
         cmd.append(server)
         if extra:
-            cmd.append(extra)
+            extra = extra.split()
+            cmd = cmd + extra
         if port:
             cmd.append('--port')
             cmd.append(port)
