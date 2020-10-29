@@ -212,7 +212,7 @@ class Monitor():
                 f"   instrument='{self.instr}' "
                 f" , ofname='{filepath}' "
                 f" , status='QUEUED' "
-                f" , creation_time=NOW() ")
+                f" , creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
         self.log.info(query)
         result = self.db.query('koa', query)
         if result is False:
@@ -237,6 +237,7 @@ class Monitor():
             return 
 
         #check that we have not exceeded max num procs
+        #todo: do we want to notify admins of this condition?
         if len(self.procs) >= self.max_procs:
             self.log.warning(f'MAX {self.max_procs} concurrent processes exceeded.')
             return
@@ -410,7 +411,7 @@ def handle_error(errcode, text=None, instr='', check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
 
     #always log/print
-    print(text)
+    print(f'{errcode}: {text}')
 
     #Only send if we haven't sent one of same errcode recently
     if check_time:

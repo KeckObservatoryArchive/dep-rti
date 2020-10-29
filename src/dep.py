@@ -116,7 +116,7 @@ class DEP:
                     f"   instrument='{self.instr}' "
                     f" , ofname='{self.filepath}' "
                     f" , status='PROCESSING' "
-                    f" , creation_time=NOW() ")
+                    f" , creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
             log.info(query)
             result = self.db.query('koa', query, getInsertId=True)
             if result is False: 
@@ -126,7 +126,7 @@ class DEP:
 
         #update dep_status
         if not self.update_dep_status('status', 'PROCESSING'): return False
-        if not self.update_dep_status('dep_start_time', dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')): return False
+        if not self.update_dep_status('dep_start_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')): return False
 
         return True
 
@@ -720,7 +720,7 @@ class DEP:
         koaimtyp = self.get_keyword('KOAIMTYP')
         if not self.update_dep_status('koaimtyp', koaimtyp): return False
 
-        now = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_dep_status('dep_end_time', now): return False
 
         return True
