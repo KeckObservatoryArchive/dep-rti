@@ -495,7 +495,7 @@ class KtlMonitor():
                     self.log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
                     return
             else:
-                self.log.info(f'Trigger val of {trigger} != {reqval}')
+                self.log.info(f'Trigger val of {keys["trigger"]} != {reqval}')
                 return
 
         except Exception as e:
