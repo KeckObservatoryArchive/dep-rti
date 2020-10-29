@@ -17,6 +17,7 @@ import datetime as dt
 import shutil
 import glob
 import inspect
+import fnmatch
 
 import metadata
 import update_koapi_send
@@ -77,7 +78,7 @@ class DEP:
         if ok: ok = self.copy_raw_fits()  
         if ok: ok = self.create_readme()
         if ok: ok = self.update_dep_stats()
-        # if ok: ok = self.xfr_ipac()
+        # if ok: ok = self.transfer_ipac()
 
         #If any of these steps return false then copy to udf
         if not ok: 
@@ -754,3 +755,80 @@ class DEP:
         except Exception as e:
             return None
 
+
+    def transfer_ipac(self):
+        """
+        Transfers the data set for koaid located in the output directory to its
+        final archive destination.  After successful transfer of data set, 
+        ingestion API (KOAXFR:INGESTAPI) is called to trigger the archiving process.
+        """
+
+        # shorthand vars
+        fromDir = self.dirs['lev0']
+
+        # Verify that this dataset should be transferred
+        query = f'select * from dep_status where id={self.dbid} and xfr_start_time is null'
+        row = self.db.query('koa', query, getOne=True)
+        if not row:
+            log.error(f'dep_status entry not ready to transfer for {self.koaid} and dbid={self.dbid}')
+            return False
+
+        # Verify that there is a dataset to transfer
+        if not os.path.isdir(fromDir):
+            log.error(f'transfer directory ({fromDir}) does not exist')
+            return False
+
+        pattern = f'{self.koaid}*'
+        koaidList = [f for f in fnmatch.filter(os.listdir(fromDir), pattern) if os.path.isfile(os.path.join(fromDir, f))]
+        if len(koaidList) == 0:
+            log.error(f'directory ({fromDir}) has no files to transfer for {self.koaid}')
+            return False
+
+        # xfr config parameters
+        server = self.config['KOAXFR']['SERVER']
+        account = self.config['KOAXFR']['ACCOUNT']
+        toDir = self.config['KOAXFR']['DIR']
+        api = self.config['KOAXFR']['INGESTAPI']
+
+        # Configure the transfer command
+        toLocation = ''.join((account, '@', server, ':', toDir, '/', self.instr))
+        log.info(f'transferring directory {fromDir} to {toLocation}')
+        log.info(f'rsync -avz --include="{pattern}" {fromDir} {toLocation}')
+
+        # Transfer the data
+        import subprocess as sp
+        xfrCmd = sp.Popen(["rsync -avz --include='" + pattern + "' " + fromDir + ' ' + toLocation],
+                        stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
+        if self.tpx:
+            self.update_dep_status('xfr_start_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
+            self.update_dep_status('status_code', 'TRANSFERRING')
+
+        output, error = xfrCmd.communicate()
+
+        # Transfer success
+        if not error:
+            if self.tpx:
+                self.update_dep_status('xfr_end_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
+                self.update_dep_status('status_code', 'TRANSFERRED')
+
+            # Send API request to archive the data set
+            apiUrl = f'{api}instrument={self.instr}&utdate={self.utdate}&koaid={self.koaid}&ingesttype=lev0'
+            if self.reprocess:
+                apiUrl = f'{apiUrl}&reingest=true'
+            log.info(f'sending ingest API call {apiUrl}')
+            if self.tpx:
+                self.update_dep_status('ipac_notify_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
+            apiData = get_api_data(apiUrl)
+            if not apiData or not data.get('apiStatus'):
+                log.error(f'error calling IPAC API {apiUrl}')
+                self.update_dep_status('status', 'ERROR')
+                self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
+                return False
+            return True
+        # Transfer error
+        else:
+            # Update dep_status
+            if self.tpx:
+                self.update_dep_status('status', 'ERROR')
+                self.update_dep_status('status_code', 'TRANSFER_ERROR')
+            return False
