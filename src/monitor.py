@@ -320,9 +320,9 @@ class KtlMonitor():
 
             #assuming first read is old
             #NOTE: I don't think we could rely on a timestamp check vs now?
-            # if len(keyword.history) <= 1:
-            #    self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
-            #    return
+            if len(keyword.history) <= 1:
+               self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+               return
 
             #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
             reqval = keys['val']
