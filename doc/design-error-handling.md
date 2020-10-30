@@ -60,19 +60,22 @@ Notification of errors is done via email to dev admins.  Details of the error sh
 Script is independent of DEP and will be run on a cron every hour and can be called directly from DEP whenever DEP updates a record with status=ERROR.
 
 Script will query a dep_error_notify table for last error email_time:
-	select email_time from dep_error_notify where instrument='{instr}'
+
+    select email_time from dep_error_notify where instrument='{instr}'
 
 If email_time is NULL or more than X minutes ago, script will see if there are any ERROR records:
-	select count(*) from dep_status where instrument='{instr}' and status='ERROR' 
+
+    select count(*) from dep_status where instrument='{instr}' and status='ERROR' 
 
 Script will send an email summary that says how many outstanding errors there are of each status_code type (above query could be altered to get the counts as well).  Example contents:
-	HIRES DEP has the following errors:
-	  34 FILE_IO 
-	  62 FITS_NOT_FOUND
+
+    HIRES DEP has the following errors:
+      34 FILE_IO 
+      62 FITS_NOT_FOUND
 
 Script will update email_time:
 
-	update email_time set email_time=NOW() where instrument='{instr}'
+    update email_time set email_time=NOW() where instrument='{instr}'
 
 
 
