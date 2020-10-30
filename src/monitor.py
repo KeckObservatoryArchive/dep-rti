@@ -32,68 +32,12 @@ import logging
 import re
 
 from archive import Archive
+import monitor_config
 
 
 #module globals
 last_email_times = None
 
-
-#Define instrument keywords to monitor that indicate a new datafile was written.
-#'trigger' value indicates which keyword to monitor that will trigger processing.
-#If 'val' is defined, trigger must equal val to initiate processing.
-#'format' defines the filepath construction from other keywords defined in 'fp_info'
-#todo: Finish mapping all instrs
-#todo: This could be put in each of the instr subclasses.
-instr_keys = {
-    'KCWI': [
-        {
-            'service':  'kfcs',
-            'trigger':  'LASTFILE',
-            'val'    :  None,
-            'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"{vals['LASTFILE']}"
-        },
-        {
-            'service':   'kbds',
-            'trigger':  'LOUTFILE',
-            'val'    :  None,
-            'fp_info':  ['LOUTFILE'],
-            'format' :  lambda vals: f"{vals['LOUTFILE']}"
-        }
-    ],
-    'NIRES': [
-        {
-            'service':  'nids',
-            'trigger':  'LASTFILE',
-            'val'    :  None,
-            'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"{vals['LASTFILE']}"
-        },
-        {
-            'service':  'nsds',
-            'trigger':  'LASTFILE',
-            'val'    :  None,
-            'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"/s{vals['LASTFILE']}"
-        },
-    ],
-    'DEIMOS': [],
-    'ESI': [],
-    'HIRES': [
-        {
-            'service':  'hiccd',
-            'trigger':  'WDISK',
-            'val'    :  'false',
-            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
-            'format' :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
-        },
-    ],
-    'LRIS': [],
-    'MOSFIRE': [],
-    'NIRC2': [],
-    'NIRSPEC': [],
-    'OSIRIS': [],
-}
 
 
 def main():
@@ -172,7 +116,7 @@ class Monitor():
         #run KTL monitor for each group defined for instr
         #NOTE: We must keep all our monitors in an array to prevent garbage collection
         self.monitors = []
-        for keys in instr_keys[self.instr]:
+        for keys in monitor_config.instr_keymap[self.instr]:
             ktlmon = KtlMonitor(self.instr, keys, self, self.log)
             ktlmon.start()
             self.monitors.append(ktlmon)
@@ -216,7 +160,7 @@ class Monitor():
         self.log.info(query)
         result = self.db.query('koa', query)
         if result is False:
-            self.handle_error('QUEUE_INSERT_ERROR', f'{__name__} failed: {query}')
+            self.handle_error('DATABASE_ERROR', query)
             return
 
         #check queue
@@ -231,7 +175,7 @@ class Monitor():
                 f" order by creation_time desc limit 1")
         row = self.db.query('koa', query, getOne=True)
         if row is False:
-            self.handle_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
+            self.handle_error('DATABASE_ERROR', f'query')
             return False
         if len(row) == 0:
             return 
@@ -246,10 +190,11 @@ class Monitor():
         query = f"update dep_status set status='PROCESSING' where id={row['id']}"
         res = self.db.query('koa', query)
         if row is False:
-            self.handle_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
+            self.handle_error('DATABASE_ERROR', f'query')
             return False
 
         #pop from queue and process it
+        self.log.debug(f"Processing DB record ID={id}, filepath={row['ofname']}")
         self.process_file(row['id'])
 
 
@@ -257,7 +202,6 @@ class Monitor():
         '''Spawn archiving for a single file by database ID.'''
         #NOTE: Using multiprocessing instead of subprocess so we can spawn loaded functions
         #as a separate process which saves us the ~0.5 second overhead of launching python.
-        self.log.debug(f'Processing DB record ID={id}')
         proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, id))
         proc.start()
         self.procs.append(proc)
@@ -376,9 +320,9 @@ class KtlMonitor():
 
             #assuming first read is old
             #NOTE: I don't think we could rely on a timestamp check vs now?
-            if len(keyword.history) <= 1:
-               self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
-               return
+            # if len(keyword.history) <= 1:
+            #    self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+            #    return
 
             #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
             reqval = keys['val']
@@ -410,6 +354,7 @@ class KtlMonitor():
 
 def handle_error(errcode, text=None, instr='', check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
+    #todo: Should last time be checked on a per instrument basis? (ie move this into class)
 
     #always log/print
     print(f'{errcode}: {text}')
