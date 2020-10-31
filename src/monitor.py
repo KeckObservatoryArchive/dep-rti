@@ -322,7 +322,10 @@ class KtlMonitor():
 
 
     def check_service(self):
-        '''Try to read heartbeat keyword from service.  If we can't get a value, restart.'''
+        '''
+        Try to read heartbeat keyword from service.  If all ok, then check again in 1 minute.
+        If we can't get a value, restart service monitoring.  
+        '''
         heartbeat = self.keys.get('heartbeat')
         if not heartbeat: return
 
@@ -373,6 +376,15 @@ class KtlMonitor():
             #check for blank filepath
             if not filepath or not filepath.strip():
                 self.log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
+                return
+
+            #Some filepaths do not add the /s/ to the path which we need
+            if not filepath.startswith('/s/'):
+                filepath = f'/s{filepath}' 
+
+            #check for invalid filepath
+            if '/sdata' not in filepath:
+                self.log.warning(f"INVALID FILEPATH (no 'sdata')\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
 
         except Exception as e:

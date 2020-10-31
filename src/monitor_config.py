@@ -37,7 +37,7 @@ instr_keymap = {
             'trigger'  :  'LASTFILE',
             'val'      :  None,
             'fp_info'  :  ['LASTFILE'],
-            'format'   :  lambda vals: f"/s{vals['LASTFILE']}",
+            'format'   :  lambda vals: f"{vals['LASTFILE']}",
             'heartbeat': 'STATUS'
         },
     ],
