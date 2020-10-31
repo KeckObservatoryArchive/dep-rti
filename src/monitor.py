@@ -281,7 +281,7 @@ class KtlMonitor():
         self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
 
 
-    def start(self, restart=False):
+    def start(self):
         '''Start monitoring 'trigger' keyword for new files.'''
 
         #These cache calls can throw exceptions (if instr server is down for example)
@@ -318,24 +318,24 @@ class KtlMonitor():
             return
 
         #Start an interval timer to periodically check that this service is running.
-        if not restart:
-            threading.Timer(60.0, self.check_service).start()
+        threading.Timer(60.0, self.check_service).start()
 
 
     def check_service(self):
         '''Try to read heartbeat keyword from service.  If we can't get a value, restart.'''
         heartbeat = self.keys.get('heartbeat')
-        if not heartbeat:
-            return
+        if not heartbeat: return
+
         try:
             val = self.service[heartbeat].read()
         except:
             val = None
+
         if not val:
             self.queue_mgr.handle_error('KTL_CHECK_ERROR', f"KTL service '{self.keys['service']}' is NOT running.  Restarting service.")
-            self.start(restart=True)
-
-        threading.Timer(60.0, self.check_service).start()
+            self.start()
+        else:
+            threading.Timer(60.0, self.check_service).start()
 
 
     def on_new_file(self, keyword):
