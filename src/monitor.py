@@ -9,6 +9,9 @@ processes can run at once.
 Usage: 
     python monitor.py [instr]
 
+Reference:
+    http://spg.ucolick.org/KTLPython/index.html
+
 '''
 import sys
 import argparse
@@ -194,7 +197,7 @@ class Monitor():
             return False
 
         #pop from queue and process it
-        self.log.debug(f"Processing DB record ID={id}, filepath={row['ofname']}")
+        self.log.debug(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
         self.process_file(row['id'])
 
 
@@ -274,14 +277,21 @@ class KtlMonitor():
         self.instr = instr
         self.keys = keys
         self.queue_mgr = queue_mgr
+        self.service = None
         self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
 
-    def start(self):
+
+    def start(self, restart=False):
         '''Start monitoring 'trigger' keyword for new files.'''
 
         #These cache calls can throw exceptions (if instr server is down for example)
         #So, we should catch and retry until successful.  Be careful not to multi-register the callback
         try:
+            #delete service if exists
+            if self.service:
+                del self.service
+                self.service = None
+
             #create service object for easy reads later
             keys = self.keys
             self.service = ktl.cache(keys['service'])
@@ -306,6 +316,27 @@ class KtlMonitor():
             self.queue_mgr.handle_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
             threading.Timer(60.0, self.start).start()
             return
+
+        #Start an interval timer to periodically check that this service is running.
+        if not restart:
+            threading.Timer(60.0, self.check_service).start()
+
+
+    def check_service(self):
+        '''Try to read heartbeat keyword from service.  If we can't get a value, restart.'''
+        heartbeat = self.keys.get('heartbeat')
+        if not heartbeat:
+            return
+        try:
+            val = self.service[heartbeat].read()
+        except:
+            val = None
+        if not val:
+            self.queue_mgr.handle_error('KTL_CHECK_ERROR', f"KTL service '{self.keys['service']}' is NOT running.  Restarting service.")
+            self.start(restart=True)
+
+        threading.Timer(60.0, self.check_service).start()
+
 
     def on_new_file(self, keyword):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
