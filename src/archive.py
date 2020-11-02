@@ -44,13 +44,10 @@ def main():
     #todo: if options require reprocessing or query, always prompt with confirmation 
     # and tell them how many files are affected and what the datetime range is
 
-    #run it and catch any unhandled error for email to admin
-    try:
-        archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
-                  starttime=args.starttime, endtime=args.endtime,
-                  status=args.status, outdir=args.outdir)
-    except Exception as error:
-        email_error('ARCHIVE_ERROR', traceback.format_exc(), instr)
+    #run it 
+    archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
+              starttime=args.starttime, endtime=args.endtime,
+              status=args.status, outdir=args.outdir)
 
 
 class Archive():
@@ -68,8 +65,17 @@ class Archive():
         self.status = status
         self.outdir = outdir
 
+        #handle any uncaught errors and email admin
+        try:
+            self.start()
+        except Exception as error:
+            email_error('ARCHIVE_ERROR', traceback.format_exc(), instr)
+
+
+    def start(self):
+
         #cd to script dir so relative paths work
-        #todo: is this needed?
+        #todo: is this needed?  Does it work for both cmd line and monitor call?
         os.chdir(sys.path[0])
 
         #load config file
@@ -77,9 +83,8 @@ class Archive():
             self.config = yaml.safe_load(f)
 
         #create logger first
-        #todo: not critical (try/except)
         global log
-        log = self.create_logger('koa_dep', self.config[instr]['ROOTDIR'], instr)
+        log = self.create_logger('koa_dep', self.config[self.instr]['ROOTDIR'], self.instr)
         log.info("Starting DEP: " + ' '.join(sys.argv[0:]))
 
         # Establish database connection 
@@ -87,16 +92,16 @@ class Archive():
 
         #routing
         #todo: Add remaining options
-        if filepath:
-            self.process_file(instr, filepath, reprocess, tpx)
-        elif dbid:
-            self.process_id(instr, dbid, reprocess, tpx)
-        elif starttime and endtime:
-            self.reprocess_time_range(instr, starttime, endtime, tpx)
-        elif status:
-            self.reprocess_by_status(instr, status, tpx)
-        elif outdir:
-            self.reprocess_by_outdir(instr, outdir, tpx)
+        if self.filepath:
+            self.process_file(self.instr, self.filepath, self.reprocess, self.tpx)
+        elif self.dbid:
+            self.process_id(self.instr, self.dbid, self.reprocess, self.tpx)
+        elif self.starttime and self.endtime:
+            self.reprocess_time_range(self.instr, self.starttime, self.endtime, self.tpx)
+        elif self.status:
+            self.reprocess_by_status(self.instr, self.status, self.tpx)
+        elif self.outdir:
+            self.reprocess_by_outdir(self.instr, self.outdir, self.tpx)
         else:
             log.error("Cannot run DEP.  Unable to decipher inputs.")
 
@@ -188,8 +193,9 @@ class Archive():
 
 
     def handle_dep_error(self):
-        log.error("DEP ERROR!")
-        #todo: Should we do anything here or leave it to dep.py to handle failed archiving?
+        #todo: call independent error reporting script which will query dep_status
+        #and decide whether to email admins
+        pass
 
 
 def email_error(errcode, text, instr='', check_time=True):
