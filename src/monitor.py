@@ -278,6 +278,7 @@ class KtlMonitor():
         self.keys = keys
         self.queue_mgr = queue_mgr
         self.service = None
+        self.restart = False
         self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
 
 
@@ -336,6 +337,7 @@ class KtlMonitor():
 
         if not val:
             self.queue_mgr.handle_error('KTL_CHECK_ERROR', f"KTL service '{self.keys['service']}' is NOT running.  Restarting service.")
+            self.restart = True
             self.start()
         else:
             threading.Timer(60.0, self.check_service).start()
@@ -354,8 +356,9 @@ class KtlMonitor():
 
             #assuming first read is old
             #NOTE: I don't think we could rely on a timestamp check vs now?
-            if len(keyword.history) <= 1:
+            if len(keyword.history) <= 1 or self.restart:
                self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+               self.restart = False
                return
 
             #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
