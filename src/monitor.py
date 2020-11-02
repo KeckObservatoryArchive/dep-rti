@@ -199,7 +199,10 @@ class Monitor():
 
         #pop from queue and process it
         self.log.debug(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
-        self.process_file(row['id'])
+        try:
+            self.process_file(row['id'])
+        except Exception as e:
+            self.handle_error('PROCESS_ERROR', f"ID={row['id']}, filepath={row['ofname']}\n, {traceback.format_exc()}")
 
 
     def process_file(self, id):
