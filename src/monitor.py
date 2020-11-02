@@ -1,13 +1,14 @@
 #!/kroot/rel/default/bin/kpython3
 '''
-Desc: Daemon to monitor for new FITS files to archive and call DEP appropriately.
-Run this per instrument for archiving new FITS files.  Will monitor KTL keywords
-to find new files for archiving.  Uses the database as its queue so the queue is not
-in memory.  Keeps a list of spawned processes so as to manage how many concurrent 
-processes can run at once.
+Desc: Daemon to monitor for new FITS files and send to DEP for archiving.
+Monitors KTL keywords to find new files for archiving.  Uses the database as its queue 
+so the queue is not in memory.  Keeps a list of spawned processes to manage how many 
+concurrent processes can run at once.  Can run as single or multiple instruments.
 
 Usage: 
-    python monitor.py [instr]
+    python monitor.py [instr list]
+    python monitor.py hires
+    python monitor.py kcwi nires
 
 Reference:
     http://spg.ucolick.org/KTLPython/index.html
@@ -40,16 +41,17 @@ import monitor_config
 
 #module globals
 last_email_times = None
-
+PROC_CHECK_SEC = 1.0
+KTL_START_RETRY_SEC = 60.0
+SERVICE_CHECK_SEC = 60.0
 
 
 def main():
+    '''Handle command line args and create one monitor object per instrument.'''
 
-    # Define arg parser
+    # Arg parser
     parser = argparse.ArgumentParser()
     parser.add_argument('instruments', nargs='+', default=[], help='Keck instruments list to monitor')
-
-    #parse args
     args = parser.parse_args()    
 
     #run monitors and catch any unhandled error for email to admin
@@ -66,7 +68,7 @@ def main():
         try:
             time.sleep(300)
             for m in monitors:
-                m.log.debug('Monitor here just saying hi every 5 minutes')
+                m.log.debug('Monitor saying hi every 5 minutes')
         except:
             break
     for m in monitors:
@@ -75,8 +77,8 @@ def main():
 
 class Monitor():
     '''
-    Class to monitor all keywords that indicate a new file is written.  
-    When a new file is detected, will insert a record into DB.
+    Class to monitor KTL keywords for an instrument to find new files to archive.  
+    When a new file is detected via KTL, will insert a record into DB.
     Monitors DB queue and spawns new DEP archive processes per datafile.
     '''
     def __init__(self, instr):
@@ -133,7 +135,6 @@ class Monitor():
 
         #Loop procs and remove from list if complete
         #NOTE: looping in reverse so we can delete without messing up looping
-        #self.log.debug(f"Checking processes. Size is {len(self.procs)}")
         removed = 0
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
@@ -146,8 +147,8 @@ class Monitor():
         if removed: self.check_queue()
 
         #call this function every N seconds
-        #todo: we could do this faster
-        threading.Timer(1.0, self.process_monitor).start()
+        #NOTE: we could do this faster
+        threading.Timer(PROC_CHECK_SEC, self.process_monitor).start()
 
 
     def add_to_queue(self, filepath):
@@ -186,7 +187,7 @@ class Monitor():
         #check that we have not exceeded max num procs
         #todo: do we want to notify admins of this condition?
         if len(self.procs) >= self.max_procs:
-            self.log.warning(f'MAX {self.max_procs} concurrent processes exceeded.')
+            self.log.warning(f'MAX {self.max_procs} concurrent processes reached.')
             return
 
         #set status to PROCESSING
@@ -315,11 +316,11 @@ class KtlMonitor():
 
         except Exception as e:
             self.queue_mgr.handle_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
-            threading.Timer(60.0, self.start).start()
+            threading.Timer(KTL_START_RETRY_SEC, self.start).start()
             return
 
         #Start an interval timer to periodically check that this service is running.
-        threading.Timer(60.0, self.check_service).start()
+        threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 
 
     def check_service(self):
@@ -341,12 +342,11 @@ class KtlMonitor():
             self.restart = True
             self.start()
         else:
-            threading.Timer(60.0, self.check_service).start()
+            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 
 
     def on_new_file(self, keyword):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
-        keys = self.keys
         try:
             #todo: Why is this multi logging if more than one KtlMonitor per instr(ie KCWI)?
             self.log.debug(f'on_new_file: {keyword.name}={keyword.ascii}')
@@ -363,6 +363,7 @@ class KtlMonitor():
                return
 
             #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
+            keys = self.keys
             reqval = keys['val']
             if reqval is not None and reqval != keyword.ascii:
                 self.log.info(f'Trigger val of {keyword.ascii} != {reqval}')
