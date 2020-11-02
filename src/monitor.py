@@ -178,7 +178,7 @@ class Monitor():
                 f" order by creation_time desc limit 1")
         row = self.db.query('koa', query, getOne=True)
         if row is False:
-            self.handle_error('DATABASE_ERROR', f'query')
+            self.handle_error('DATABASE_ERROR', query)
             return False
         if len(row) == 0:
             return 
@@ -193,7 +193,7 @@ class Monitor():
         query = f"update dep_status set status='PROCESSING' where id={row['id']}"
         res = self.db.query('koa', query)
         if row is False:
-            self.handle_error('DATABASE_ERROR', f'query')
+            self.handle_error('DATABASE_ERROR', query)
             return False
 
         #pop from queue and process it
@@ -332,7 +332,8 @@ class KtlMonitor():
 
         try:
             val = self.service[heartbeat].read()
-        except:
+        except Exception as e:
+            self.log.debug(f"KTL read exception: {str(e)}")
             val = None
 
         if not val:
