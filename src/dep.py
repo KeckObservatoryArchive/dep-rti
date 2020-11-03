@@ -79,7 +79,7 @@ class DEP:
         if ok: ok = self.copy_raw_fits()  
         if ok: ok = self.create_readme()
         if ok: ok = self.update_dep_stats()
-#        if ok: ok = self.transfer_ipac()
+        if ok: ok = self.transfer_ipac()
         if ok:      self.add_header_to_db()
 
         #If any of these steps return false then copy to udf
@@ -795,7 +795,7 @@ class DEP:
         api = self.config['KOAXFR']['INGESTAPI']
 
         # Configure the transfer command
-        toLocation = ''.join((account, '@', server, ':', toDir, '/', self.instr))
+        toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}'
         log.info(f'transferring directory {fromDir} to {toLocation}')
         log.info(f'rsync -avz --include="{pattern}" {fromDir} {toLocation}')
 
@@ -822,12 +822,13 @@ class DEP:
             log.info(f'sending ingest API call {apiUrl}')
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_dep_status('ipac_notify_time', utstring): return False
-            apiData = get_api_data(apiUrl)
-            if not apiData or not data.get('apiStatus'):
-                log.error(f'error calling IPAC API {apiUrl}')
-                self.update_dep_status('status', 'ERROR')
-                self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
-                return False
+# Need to uncomment the following when API is ready
+#            apiData = self.get_api_data(apiUrl)
+#            if not apiData or not data.get('apiStatus'):
+#                log.error(f'error calling IPAC API {apiUrl}')
+#                self.update_dep_status('status', 'ERROR')
+#                self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
+#                return False
             return True
         # Transfer error
         else:
