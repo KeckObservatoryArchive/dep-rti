@@ -127,6 +127,7 @@ class DEP:
 
         #update dep_status
         if not self.update_dep_status('status', 'PROCESSING'): return False
+        if not self.update_dep_status('status_code', ''): return False
         if not self.update_dep_status('dep_start_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')): return False
 
         return True

@@ -1,26 +1,23 @@
-(NOTE: This is an uber detailed list of development TODOs and notes)
-
-
 ## HIGH PRIORITY
+- Implement various command line options for archive.py
 - Handle remaining errors/warns in dep/instrument/instr_[instr].
 - Create a log file per KOAID?
 - Cleanup dep.validate_fits() and dep.construct_filename()
-- Fix dep_status dates to be UTC time
+- Decide if we use -tpx flag or a (-noxfr flag + dev config) to handle partial runs and/or test runs.
+- Create independent DEP error monitoring script.
+- monitor: Create metadata compare script for RTI vs nightly DEP
+- monitor: Change monitor email time check to be per instrument
+- monitor: Throttle max DEP processes based on server resources instead of hardcoded max=10?
+- monitor: How will we recover if monitor is down and filepaths are not logged or inserted?
+- monitor: Should monitor.py immediately copy file to staging before queuing?
 - Add .fits to KOAID in DB?
-- Implement dep.transfer_ipac step. TPX flag is not being used currently.
-- Insert/update header json into headers table
-- Should monitor.py immediately copy file to staging before queuing?
 - Implement handling for same filepath (ie renaming and updating 'stage_file' with _vN version)
-- Implement various command line options for archive.py
 - What are we doing with rejected/anc files? If status=INVALID, copy to /anc/ and rsync but do not notify IPAC?
-- How will we test/dev? Do we need something like a '-tpx' flag? Use dev config and a -dev or -test flag to redirect to another db?
 - Implement basic missing program assignment
 - More try/except to ensure processing finishes without crashing (ie set_koaimtyp)
-- How will we recover if koa monitor is down and filepaths go uncalled?  Query KTL option in archive.py?
 - PyMysql is not thread safe: https://stackoverflow.com/questions/45535594/pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
-- Throttle max DEP processes based on server resources instead of hardcoded max=10?
-- Enum dep_status.arch_stat values? Add a 'TRANSFERRED' status? [QUEUED, PROCESSING, COMPLETE, INVALID, ERROR]
-- DEIMOS FCS archive trigger (some header keyword points to another file to archive)
+- Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
+- DEIMOS FCS archive trigger (see old/dep_locate.py where some header keyword points to another file to archive)
 
  
 ## LOW PRIORITY
@@ -43,7 +40,6 @@
 - Change keyword metadata defs to database tables?  Coordinate with IPAC.
 - How do we keep track of new sdata dirs?  A: Added by Jchock and we aren't necessarily notified.  Need better system.
 - See instr_lris.py for examples of condensed or streamlined functions that we can either apply to other instr_* files or create shared functions.
-- log all queries in db_conn to reduce code bloat?
 
 
 ##NOTES:

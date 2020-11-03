@@ -38,7 +38,8 @@ def main():
     parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--endtime' , type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--status' , type=str, default=None, help='Status to query for reprocessing.')
-    parser.add_argument('--outdir' , type=str, default=None, help='Outdir match to query for reprocessing.')
+    parser.add_argument('--ofname' , type=str, default=None, help='OFNAME match to query for reprocessing.')
+    parser.add_argument('--confirm', dest="confirm", default=False, action="store_true", help='Confirm query results.')
     args = parser.parse_args()    
 
     #todo: if options require reprocessing or query, always prompt with confirmation 
@@ -47,13 +48,14 @@ def main():
     #run it 
     archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
               starttime=args.starttime, endtime=args.endtime,
-              status=args.status, outdir=args.outdir)
+              status=args.status, ofname=args.ofname,
+              confirm=args.confirm)
 
 
 class Archive():
 
     def __init__(self, instr, tpx=1, filepath=None, dbid=None, reprocess=False, 
-                 starttime=None, endtime=None, status=None, outdir=None):
+                 starttime=None, endtime=None, status=None, ofname=None, confirm=False):
 
         self.instr = instr
         self.tpx = tpx
@@ -63,7 +65,8 @@ class Archive():
         self.starttime = starttime
         self.endtime = endtime
         self.status = status
-        self.outdir = outdir
+        self.ofname = ofname
+        self.confirm = confirm
 
         #handle any uncaught errors and email admin
         try:
@@ -93,15 +96,11 @@ class Archive():
         #routing
         #todo: Add remaining options
         if self.filepath:
-            self.process_file(self.instr, self.filepath, self.reprocess, self.tpx)
+            self.process_file(filepath=self.filepath)
         elif self.dbid:
-            self.process_id(self.instr, self.dbid, self.reprocess, self.tpx)
-        elif self.starttime and self.endtime:
-            self.reprocess_time_range(self.instr, self.starttime, self.endtime, self.tpx)
-        elif self.status:
-            self.reprocess_by_status(self.instr, self.status, self.tpx)
-        elif self.outdir:
-            self.reprocess_by_outdir(self.instr, self.outdir, self.tpx)
+            self.process_file(dbid=self.dbid)
+        elif self.starttime or self.endtime or self.status or self.ofname:
+            self.reprocess_by_query()
         else:
             log.error("Cannot run DEP.  Unable to decipher inputs.")
 
@@ -155,12 +154,13 @@ class Archive():
         return log
 
 
-    def process_file(self, instr, filepath, reprocess, tpx, dbid=None):
+    def process_file(self, filepath=None, dbid=None):
 
         #TODO: Test that if an invalid instrument is used, this will throw an error and admin will be emailed.
-        module = importlib.import_module('instr_' + instr.lower())
-        instr_class = getattr(module, instr.capitalize())
-        instr_obj = instr_class(instr, filepath, self.config, self.db, reprocess, tpx, dbid=dbid)
+        module = importlib.import_module('instr_' + self.instr.lower())
+        instr_class = getattr(module, self.instr.capitalize())
+        instr_obj = instr_class(self.instr, filepath, self.config, self.db, 
+                                self.reprocess, self.tpx, dbid=dbid)
 
         ok = instr_obj.process()
         if not ok:
@@ -169,27 +169,34 @@ class Archive():
             log.info("DEP finished successfully!")
 
 
-    def process_id(self, instr, dbid, reprocess, tpx):
-        '''Archive a record by DB ID.'''
+    def reprocess_by_query(self):
+        '''Query for fits files to reprocess.'''
 
-        self.process_file(instr, None, reprocess, tpx, dbid)
-
-
-    def reprocess_time_range(self, instr, starttime, endtime, tpx):
-        '''Look for fits files that have a UTC time within the range given and reprocess.'''
-
-        #todo: this is pseudo code and untested
-        #todo: Should we be limiting query by status too?
-        starttime = starttime.replace('T', '')
-        endtime = endtime.replace('T', '')
         query = (f"select * from dep_status where "
-                 f"     utdatetime >= '{starttime}' "
-                 f" and utdatetime <= '{endtime}' "
-                 f" and instrument = '{instr}' ")
+                 f" instrument = '{self.instr}' ")
+        if self.status: 
+            query += f" and status = '{self.status}' "
+        if self.ofname: 
+            query += f" and ofname like '%{self.ofname}%' "
+        if self.starttime: 
+            starttime = self.starttime.replace('T', ' ')
+            query += f" and utdatetime >= '{starttime}' "
+        if self.endtime:   
+            endtime = self.endtime.replace('T', ' ')
+            query += f" and utdatetime <= '{endtime}' "
+        query += " order by id asc"
         rows = self.db.query('koa', query)
 
-        for row in rows:
-            self.process_file(instr, None, True, tpx, row['id'])
+        if not self.confirm:
+            print(f"\n{query}\n")
+            print("--------------------")
+            for row in rows:
+                print(f"{row['id']}\t{row['status']}\t{row['utdatetime']}\t{row['koaid']}\t{row['ofname']}")
+            print("--------------------")
+            print(f"{len(rows)} records found.  Use --confirm option to process these records.\n")
+        else:
+            for row in rows:
+                self.process_file(dbid=row['id'])
 
 
     def handle_dep_error(self):
