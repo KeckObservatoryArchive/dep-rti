@@ -27,7 +27,6 @@ last_email_times = None
 
 def main():
 
-#TODO: Add option to report query list only before running (ie --status ERROR --listonly)
     # Define inputs
     parser = argparse.ArgumentParser(description='DEP input parameters')
     parser.add_argument('instr', help='Keck Instrument')
@@ -42,9 +41,6 @@ def main():
     parser.add_argument('--confirm', dest="confirm", default=False, action="store_true", help='Confirm query results.')
     args = parser.parse_args()    
 
-    #todo: if options require reprocessing or query, always prompt with confirmation 
-    # and tell them how many files are affected and what the datetime range is
-
     #run it 
     archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
               starttime=args.starttime, endtime=args.endtime,
@@ -57,6 +53,7 @@ class Archive():
     def __init__(self, instr, tpx=1, filepath=None, dbid=None, reprocess=False, 
                  starttime=None, endtime=None, status=None, ofname=None, confirm=False):
 
+        #inputs
         self.instr = instr
         self.tpx = tpx
         self.filepath = filepath
@@ -67,6 +64,9 @@ class Archive():
         self.status = status
         self.ofname = ofname
         self.confirm = confirm
+
+        #other class vars
+        self.db = None
 
         #handle any uncaught errors and email admin
         try:
@@ -94,7 +94,6 @@ class Archive():
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
 
         #routing
-        #todo: Add remaining options
         if self.filepath:
             self.process_file(filepath=self.filepath)
         elif self.dbid:
@@ -155,8 +154,7 @@ class Archive():
 
 
     def process_file(self, filepath=None, dbid=None):
-
-        #TODO: Test that if an invalid instrument is used, this will throw an error and admin will be emailed.
+        '''Creates instrument object by name and starts processing.'''
         module = importlib.import_module('instr_' + self.instr.lower())
         instr_class = getattr(module, self.instr.capitalize())
         instr_obj = instr_class(self.instr, filepath, self.config, self.db, 
@@ -207,7 +205,8 @@ class Archive():
 
 def email_error(errcode, text, instr='', check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
-#todo: This won't work as intended b/c we are spawning single instances of archive.py
+    #NOTE: This won't work as intended if DEP called as single instance from monitor
+    #but it is still useful for command line mode.
 
     #always log/print
     if log: log.error(f'{errcode}: {text}')
