@@ -55,7 +55,7 @@ class Archive():
                  confirm=False, transfer=False):
 
         #inputs
-        self.instr = instr
+        self.instr = instr.upper()
         self.filepath = filepath
         self.dbid = dbid
         self.reprocess = reprocess
