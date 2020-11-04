@@ -48,6 +48,8 @@ class DEP:
         self.fits_hdr = None
         self.extra_meta = {}
         self.errors = []
+        self.stage_file = None
+        self.ofname = None
 
         #other helpful vars
         self.rootdir = self.config[self.instr]['ROOTDIR']
@@ -66,6 +68,7 @@ class DEP:
         if ok: ok = self.load_fits()
         if ok: ok = self.set_koaid()
         if ok: ok = self.processing_init()
+        if ok: ok = self.stage_raw_fits()  
         if ok: ok = self.check_koaid_db_entry()
         if ok: ok = self.validate_fits()
         if ok: ok = self.run_psfr()
@@ -76,7 +79,6 @@ class DEP:
         if ok:      self.create_ext_meta()
         if ok: ok = self.run_drp()
         if ok:      self.check_koapi_send()
-        if ok: ok = self.copy_raw_fits()  
         if ok: ok = self.create_readme()
         if ok: ok = self.update_dep_stats()
         if ok: ok = self.transfer_ipac()
@@ -99,19 +101,9 @@ class DEP:
 
     def check_status_db_entry(self):
 
-        #If we are processing an existing record, query for it and get filepath
-        if self.dbid:
-            log.info(f"Processing record ID: {self.dbid}")
-            query = f"select * from dep_status where id={self.dbid}"
-            row = self.db.query('koa', query, getOne=True)
-            if not row:
-                self.log_error('INVALID', 'DB_ID_NOT_FOUND', query)
-                return False
-            #todo: Is this correct logic on filepath?
-            self.filepath = row['stage_file'] if row['stage_file'] else row['ofname']
-
-        #else if we didn't pass in a DB ID, insert a new dep_status record and get ID
-        else:
+        #If we didn't pass in a DB ID, we must have filepath 
+        #so insert a new dep_status record and get ID
+        if not self.dbid:
             query = ("insert into dep_status set "
                     f"   instrument='{self.instr}' "
                     f" , ofname='{self.filepath}' "
@@ -124,9 +116,24 @@ class DEP:
                 return False
             self.dbid = result
 
+        #Now query for it by ID (typically we are given a DB ID)
+        log.info(f"Processing record ID: {self.dbid}")
+        query = f"select * from dep_status where id={self.dbid}"
+        row = self.db.query('koa', query, getOne=True)
+        if not row:
+            self.log_error('INVALID', 'DB_ID_NOT_FOUND', query)
+            return False
+
+        #If stage file is defined, use that for filepath if it exists
+        self.ofname = row.get('ofname')
+        self.stage_file = row.get('stage_file')
+        self.filepath = row['ofname']
+        if self.stage_file and os.path.isfile(self.stage_file):
+            self.filepath = self.stage_file
+
         #if reprocessing, copy record to history and clear status columns
         if self.reprocess:
-            log.info(f"Reprocessing ID# {self.dbid}")
+            log.info(f"Reprocessing ID# {self.dbid} with filepath {self.filepath}")
             self.copy_old_status_entry(self.dbid)
             self.reset_status_record(self.dbid)
 
@@ -168,7 +175,7 @@ class DEP:
         Perform specific initialization tasks for DEP processing.
         '''
 
-        #define some handy utdate vars here after loading fits
+        #define some handy utdate vars here after loading fits (dependent on set_koaid())
         self.utdate = self.get_keyword('DATE-OBS')
         self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
         hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
@@ -176,7 +183,7 @@ class DEP:
         self.utc = self.get_keyword('UTC')
         self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
 
-        #check and create dirs
+        #create output dirs (this is dependent on utdatedir above)
         self.init_dirs()
 
         #Update some details for this record
@@ -192,7 +199,6 @@ class DEP:
         self.set_root_dirs()
 
         # Create the output directories, if they don't already exist.
-        # Unless this is a full pyDEP run, in which case we exit with warning
         for key, dir in self.dirs.items():
             if not os.path.isdir(dir):
                 log.info(f'Creating output directory: {dir}')
@@ -209,14 +215,14 @@ class DEP:
         instr = self.instr.upper()
         ymd = self.utdatedir
 
-        dirs = {}
-        dirs['process'] = ''.join((rootdir, '/', instr))
-        dirs['output']  = ''.join((rootdir, '/', instr, '/', ymd))
-        dirs['lev0']    = ''.join((rootdir, '/', instr, '/', ymd, '/lev0'))
-        dirs['lev1']    = ''.join((rootdir, '/', instr, '/', ymd, '/lev1'))
-        dirs['anc']     = ''.join((rootdir, '/', instr, '/', ymd, '/anc'))
-        dirs['udf']     = ''.join((dirs['anc'], '/udf'))
-        self.dirs = dirs
+        self.dirs = {}
+        self.dirs['process'] = f"{rootdir}/{instr}"
+        self.dirs['output']  = f"{rootdir}/{instr}/{ymd}"
+        self.dirs['lev0']    = f"{rootdir}/{instr}/{ymd}/lev0"
+        self.dirs['lev1']    = f"{rootdir}/{instr}/{ymd}/lev1"
+        self.dirs['anc']     = f"{rootdir}/{instr}/{ymd}/anc"
+        self.dirs['udf']     = f"{rootdir}/{instr}/{ymd}/anc/udf"
+        self.dirs['stage']   = f"{rootdir}/{instr}/stage"
 
 
     def load_fits(self):
@@ -275,17 +281,35 @@ class DEP:
         return True
 
 
-    def copy_raw_fits(self):
-        '''Make a permanent read-only copy of the FITS file on Keck storageserver'''
+    def stage_raw_fits(self):
+        '''Stage raw fits file so we have a copy at Keck before summit disks get wiped.'''
+
+        #if record already has stage_file defined and it exists, no copy needed
+        if self.stage_file and os.path.isfile(self.stage_file):
+            log.info('Stage file defined and exists.  No copy needed.')
+            return True        
 
         #form filepath and copy
-        #todo: set to readonly
-        outfile = self.get_raw_filepath()
+        outfile = f"{self.dirs['stage']}/{self.utdatedir}{self.ofname}"
         if outfile == self.filepath:
             return True
-        outdir = os.path.dirname(outfile)
+
+        #if outfile exists, we attach KOAID to filename
+        #(This is for rare case where observer deletes file and recreates it)
+        if os.path.isfile(outfile):
+            log.warning(f'Stage file already exists.  Renaming with version.')
+            outdir = os.path.dirname(outfile)
+            base = os.path.basename(outfile)
+            idx = base.rfind('.')
+            utc = re.sub('[^0-9]','', self.utc)
+            if idx >= 0: base = f"{base[:idx]}_T{utc}{base[idx:]}"
+            else:        base += f"_T{utc}"
+            outfile = f"{outdir}/{base}"
+
+        #copy file
         log.info(f'Copying raw fits to {outfile}')
         try:
+            outdir = os.path.dirname(outfile)
             pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
             shutil.copy(self.filepath, outfile)  
         except Exception as e:
@@ -301,7 +325,7 @@ class DEP:
         filename = os.path.basename(self.filepath)
         outdir = self.dirs['output']
         outdir = outdir.replace(self.rootdir, '')
-        outfile = f"{self.config[self.instr]['STORAGEDIR']}{outdir}/{filename}"
+        outfile = f"{self.config[self.instr]['ROOTDIR']}{outdir}/{filename}"
         return outfile
 
 
