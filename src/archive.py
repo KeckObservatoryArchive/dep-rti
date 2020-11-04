@@ -32,30 +32,30 @@ def main():
     parser.add_argument('instr', help='Keck Instrument')
     parser.add_argument('--filepath' , type=str, default=None, help='Filepath to FITS file to archive.')
     parser.add_argument('--dbid' , type=str, default=None, help='Database ID record to archive.')
-    parser.add_argument('--tpx' , type=int, default=1, help='Update DB tables and transfer to IPAC.  Else, create files only and no transfer.')
     parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
     parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--endtime' , type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--status' , type=str, default=None, help='Status to query for reprocessing.')
     parser.add_argument('--ofname' , type=str, default=None, help='OFNAME match to query for reprocessing.')
     parser.add_argument('--confirm', dest="confirm", default=False, action="store_true", help='Confirm query results.')
+    parser.add_argument('--transfer' , default=False, action='store_true', help='Transfer to IPAC and trigger IPAC API.  Else, create files only.')
     args = parser.parse_args()    
 
     #run it 
-    archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
+    archive = Archive(args.instr, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
               starttime=args.starttime, endtime=args.endtime,
               status=args.status, ofname=args.ofname,
-              confirm=args.confirm)
+              confirm=args.confirm, transfer=args.transfer)
 
 
 class Archive():
 
-    def __init__(self, instr, tpx=1, filepath=None, dbid=None, reprocess=False, 
-                 starttime=None, endtime=None, status=None, ofname=None, confirm=False):
+    def __init__(self, instr, filepath=None, dbid=None, reprocess=False, 
+                 starttime=None, endtime=None, status=None, ofname=None, 
+                 confirm=False, transfer=False):
 
         #inputs
         self.instr = instr
-        self.tpx = tpx
         self.filepath = filepath
         self.dbid = dbid
         self.reprocess = reprocess
@@ -64,6 +64,7 @@ class Archive():
         self.status = status
         self.ofname = ofname
         self.confirm = confirm
+        self.transfer = transfer
 
         #other class vars
         self.db = None
@@ -158,7 +159,7 @@ class Archive():
         module = importlib.import_module('instr_' + self.instr.lower())
         instr_class = getattr(module, self.instr.capitalize())
         instr_obj = instr_class(self.instr, filepath, self.config, self.db, 
-                                self.reprocess, self.tpx, dbid=dbid)
+                                self.reprocess, self.transfer, dbid=dbid)
 
         ok = instr_obj.process()
         if not ok:

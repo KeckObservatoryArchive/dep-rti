@@ -12,9 +12,9 @@ log = logging.getLogger('koa_dep')
 
 class Nires(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx, dbid=None):
+    def __init__(self, instr, filepath, config, db, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx, dbid)
+        super().__init__(instr, filepath, config, db, reprocess, transfer, dbid)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'        

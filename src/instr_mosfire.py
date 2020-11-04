@@ -13,9 +13,9 @@ log = logging.getLogger('koa_dep')
 
 class Mosfire(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, config, db, reprocess, transfer):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx)
+        super().__init__(instr, filepath, config, db, reprocess, transfer)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'        

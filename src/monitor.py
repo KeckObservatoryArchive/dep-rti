@@ -217,7 +217,7 @@ class Monitor():
 
     def spawn_processing(self, instr, dbid):
         '''Call archiving for a single file by DB ID.'''
-        obj = Archive(self.instr, dbid=dbid)
+        obj = Archive(self.instr, dbid=dbid, transfer=True)
 
 
     def create_logger(self, name, rootdir, instr):

@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
 
 CREATE TABLE `dep_status_history` like `dep_status`;
 ALTER TABLE  `dep_status_history` drop index `koaid`;
+ALTER TABLE  `dep_status_history` DROP PRIMARY KEY, CHANGE id id int(11);
 
 
 CREATE TABLE IF NOT EXISTS `headers` (

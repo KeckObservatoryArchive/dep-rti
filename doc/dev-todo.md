@@ -1,9 +1,8 @@
 ## HIGH PRIORITY
-- Implement various command line options for archive.py
+- Decide if we use -tpx flag or a (-noxfr flag + dev config) to handle partial runs and/or test runs.
 - Handle remaining errors/warns in dep/instrument/instr_[instr].
 - Create a log file per KOAID?
 - Cleanup dep.validate_fits() and dep.construct_filename()
-- Decide if we use -tpx flag or a (-noxfr flag + dev config) to handle partial runs and/or test runs.
 - Create independent DEP error monitoring script.
 - monitor: Create metadata compare script for RTI vs nightly DEP
 - monitor: Change monitor email time check to be per instrument

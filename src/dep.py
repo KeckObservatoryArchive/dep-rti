@@ -31,7 +31,7 @@ log = logging.getLogger('koa_dep')
 
 class DEP:
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx, dbid=None):
+    def __init__(self, instr, filepath, config, db, reprocess, transfer, dbid=None):
 
         #class inputs
         self.instr     = instr
@@ -39,7 +39,7 @@ class DEP:
         self.config    = config
         self.db        = db
         self.reprocess = reprocess
-        self.tpx       = tpx
+        self.transfer  = transfer
         self.dbid      = dbid
 
         #init other vars
@@ -86,7 +86,6 @@ class DEP:
         if not ok: 
             self.handle_dep_error()
         else:
-            #todo: do we wanta dep_status.status here (ie "IPAC")
             pass
         return ok
 
@@ -125,6 +124,12 @@ class DEP:
                 return False
             self.dbid = result
 
+        #if reprocessing, copy record to history and clear status columns
+        if self.reprocess:
+            log.info(f"Reprocessing ID# {self.dbid}")
+            self.copy_old_status_entry(self.dbid)
+            self.reset_status_record(self.dbid)
+
         #update dep_status
         if not self.update_dep_status('status', 'PROCESSING'): return False
         if not self.update_dep_status('status_code', ''): return False
@@ -136,8 +141,8 @@ class DEP:
     def check_koaid_db_entry(self):
 
         #Query for existing KOAID record
-        query = (f'select *from dep_status '
-                f' where koaid="{self.koaid}"')
+        query = (f"select * from dep_status "
+                 f" where koaid='{self.koaid}'")
         rows = self.db.query('koa', query)
         if rows is False:
             self.log_error('ERROR', 'QUERY_ERROR', query)
@@ -148,14 +153,11 @@ class DEP:
             self.log_error('INVALID', 'DUPLICATE_KOAID')
             return False
 
-        #if entry exists and reprocessing, delete record
-        #todo: this delete strategy needs to change (mv to dep_status_history?)
-        if len(rows) > 0 and self.reprocess:
-            log.info(f"Reprocessing {self.instr} {self.koaid}")
-            self.move_old_status_entries(rows)
+        #if reprocessing, delete local files by KOAID
+        if self.reprocess:
             self.delete_local_files(self.instr, self.koaid)
 
-        #update koaid in status
+        #Now that KOAID check is passed, update dep_status.koaid
         if not self.update_dep_status('koaid', self.koaid): return False
 
         return True
@@ -233,27 +235,44 @@ class DEP:
         return True
 
 
-    def move_old_status_entries(self, rows):
+    def copy_old_status_entry(self, id):
 
-        #move to history table and delete record
-        for row in rows:
-            id = row['id']
-            query = (f"INSERT INTO dep_status_history "
-                    f" SELECT ds.* FROM dep_status as ds " 
-                    f" WHERE id = {id}")
-            log.info(query)
-            result = self.db.query('koa', query)
-            if result is False: 
-                self.log_error('ERROR', 'QUERY_ERROR', query)
-                return False
+        #move to history table 
+        query = (f"INSERT INTO dep_status_history "
+                f" SELECT ds.* FROM dep_status as ds " 
+                f" WHERE id = {id}")
+        log.info(query)
+        result = self.db.query('koa', query)
+        if result is False: 
+            self.log_error('ERROR', 'QUERY_ERROR', query)
+            return False
+        return True
 
-            query = f"delete from dep_status where id='{id}' "
-            log.info(query)
-            result = self.db.query('koa', query)
-            if result is False: 
-                self.log_error('ERROR', 'QUERY_ERROR', query)
-                return False
-            return True
+
+    def reset_status_record(self, id):
+        '''When reprocessing a record, we need to reset most columns to default.'''
+        query = (f"update dep_status set "
+                 f" status_code        = NULL, " 
+                 f" archive_dir        = NULL, "
+                 f" creation_time      = NULL, "
+                 f" dep_start_time     = NULL, "
+                 f" dep_end_time       = NULL, "
+                 f" xfr_start_time     = NULL, "
+                 f" xfr_end_time       = NULL, "
+                 f" ipac_notify_time   = NULL, "
+                 f" ipac_response_time = NULL, "
+                 f" stage_time         = NULL, "
+                 f" filesize_mb        = NULL, "
+                 f" archsize_mb        = NULL, "
+                 f" koaimtyp           = NULL, "
+                 f" semid              = NULL "
+                 f" where id = {id} ")
+        log.info(query)
+        result = self.db.query('koa', query)
+        if result is False: 
+            self.log_error('ERROR', 'QUERY_ERROR', query)
+            return False
+        return True
 
 
     def copy_raw_fits(self):
@@ -262,6 +281,8 @@ class DEP:
         #form filepath and copy
         #todo: set to readonly
         outfile = self.get_raw_filepath()
+        if outfile == self.filepath:
+            return True
         outdir = os.path.dirname(outfile)
         log.info(f'Copying raw fits to {outfile}')
         try:
@@ -280,7 +301,7 @@ class DEP:
         filename = os.path.basename(self.filepath)
         outdir = self.dirs['output']
         outdir = outdir.replace(self.rootdir, '')
-        outfile = f"{self.config['DIRS']['STORAGEDIR']}{outdir}/{filename}"
+        outfile = f"{self.config[self.instr]['STORAGEDIR']}{outdir}/{filename}"
         return outfile
 
 
@@ -311,7 +332,8 @@ class DEP:
         """Sends command to update KOA dep_status."""
 
         #todo: test failure case if record does not exist.
-        query = f"update dep_status set {column}='{value}' where id='{self.dbid}'"
+        if value is None: query = f"update dep_status set {column}=NULL where id='{self.dbid}'"
+        else:             query = f"update dep_status set {column}='{value}' where id='{self.dbid}'"
         log.info(query)
         result = self.db.query('koa', query)
         if result is False:
@@ -767,6 +789,10 @@ class DEP:
         ingestion API (KOAXFR:INGESTAPI) is called to trigger the archiving process.
         """
 
+        if not self.transfer:
+            log.info('NOT TRANSFERRING TO IPAC.  Use --transfer flag.')
+            return True
+
         # shorthand vars
         fromDir = self.dirs['lev0']
 
@@ -779,13 +805,13 @@ class DEP:
 
         # Verify that there is a dataset to transfer
         if not os.path.isdir(fromDir):
-            log.error(f'transfer directory ({fromDir}) does not exist')
+            self.log_error('ERROR', 'NO_TRANSFER_DIR', fromDir)
             return False
 
         pattern = f'{self.koaid}*'
         koaidList = [f for f in fnmatch.filter(os.listdir(fromDir), pattern) if os.path.isfile(os.path.join(fromDir, f))]
         if len(koaidList) == 0:
-            log.error(f'directory ({fromDir}) has no files to transfer for {self.koaid}')
+            self.log_error('ERROR', 'NO_TRANSFER_FILES', fromDir)
             return False
 
         # xfr config parameters
@@ -801,8 +827,8 @@ class DEP:
 
         # Transfer the data
         import subprocess as sp
-        xfrCmd = sp.Popen(["rsync -avz --include='" + pattern + "' " + fromDir + ' ' + toLocation],
-                        stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
+        cmd = f'rsync -avz --include="*/" --include="{pattern}" --exclude="*" {fromDir} {toLocation}'
+        xfrCmd = sp.Popen([cmd], stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
         utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_dep_status('xfr_start_time', utstring): return False
         if not self.update_dep_status('status', 'TRANSFERRING'): return False
@@ -833,8 +859,8 @@ class DEP:
         # Transfer error
         else:
             # Update dep_status
-            self.update_dep_status('status', 'ERROR')
-            self.update_dep_status('status_code', 'TRANSFER_ERROR')
+            self.update_dep_status('xfr_start_time', None)
+            self.log_error('ERROR', 'TRANSFER_ERROR')
             return False
 
 
