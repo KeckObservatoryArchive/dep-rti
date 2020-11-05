@@ -166,7 +166,6 @@ class Instrument(dep.DEP):
         return True
 
 
-
     def make_koaid(self):
         """
         Function to create the KOAID for the current loaded FITS file
@@ -180,11 +179,11 @@ class Instrument(dep.DEP):
 
         # Extract the UTC time and date observed from the header
         self.set_utc()
-        utc = self.get_keyword('UTC')
+        utc = self.get_keyword('UTC', useMap=False)
         if utc == None: return False
 
         self.set_dateObs()
-        dateobs = self.get_keyword('DATE-OBS')
+        dateobs = self.get_keyword('DATE-OBS', useMap=False)
         if dateobs == None: return False
 
         # Create a timedate object using the string from the header
@@ -305,7 +304,6 @@ class Instrument(dep.DEP):
             dateObs = str(dateObs) #NOTE: sometimes we can get a number
             dateObs = dateObs.strip()
             valid = re.search('^\d\d\d\d[-]\d\d[-]\d\d', dateObs)
-
             #fix slashes?
             if not valid and '/' in dateObs:
                 orig = dateObs
