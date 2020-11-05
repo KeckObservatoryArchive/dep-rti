@@ -29,6 +29,7 @@ class Nirspec(instrument.Instrument):
         if ok: ok = super().run_dqa()
         if ok: ok = self.set_dqa_date()
         if ok: ok = self.set_dqa_vers()
+        if ok: ok = self.set_ut()
         if ok: ok = self.set_datlevel(0)
         if ok: ok = self.set_elaptime()
         if ok: ok = self.set_koaimtyp()

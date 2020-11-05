@@ -32,6 +32,7 @@ class Kcwi(instrument.Instrument):
 
         ok = True
         if ok: ok = super().run_dqa()
+        if ok: ok = self.set_ut()
         if ok: ok = self.set_telescope()
         if ok: ok = self.set_filename()
         if ok: ok = self.set_elaptime()
