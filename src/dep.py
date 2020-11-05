@@ -34,7 +34,7 @@ class DEP:
     def __init__(self, instr, filepath, config, db, reprocess, transfer, dbid=None):
 
         #class inputs
-        self.instr     = instr
+        self.instr     = instr.upper()
         self.filepath  = filepath
         self.config    = config
         self.db        = db
@@ -50,6 +50,10 @@ class DEP:
         self.errors = []
         self.stage_file = None
         self.ofname = None
+        self.utdatedir = None
+        self.utc = None
+        self.utdate = None
+        self.dirs = None
 
         #other helpful vars
         self.rootdir = self.config[self.instr]['ROOTDIR']
@@ -68,7 +72,6 @@ class DEP:
         if ok: ok = self.load_fits()
         if ok: ok = self.set_koaid()
         if ok: ok = self.processing_init()
-        if ok: ok = self.stage_raw_fits()  
         if ok: ok = self.check_koaid_db_entry()
         if ok: ok = self.validate_fits()
         if ok: ok = self.run_psfr()
@@ -83,6 +86,7 @@ class DEP:
         if ok: ok = self.update_dep_stats()
         if ok: ok = self.transfer_ipac()
         if ok:      self.add_header_to_db()
+        if ok:      self.copy_raw_fits()  
 
         #If any of these steps return false then copy to udf
         if not ok: 
@@ -176,11 +180,11 @@ class DEP:
         '''
 
         #define some handy utdate vars here after loading fits (dependent on set_koaid())
-        self.utdate = self.get_keyword('DATE-OBS')
+        self.utdate = self.get_keyword('DATE-OBS', useMap=False)
         self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
         hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
         self.hstdate = hstdate.strftime('%Y-%m-%d')
-        self.utc = self.get_keyword('UTC')
+        self.utc = self.get_keyword('UTC', useMap=False)
         self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
 
         #create output dirs (this is dependent on utdatedir above)
@@ -212,7 +216,7 @@ class DEP:
         """Sets the various rootdir subdirectories of interest"""
 
         rootdir = self.rootdir
-        instr = self.instr.upper()
+        instr = self.instr
         ymd = self.utdatedir
 
         self.dirs = {}
@@ -220,9 +224,8 @@ class DEP:
         self.dirs['output']  = f"{rootdir}/{instr}/{ymd}"
         self.dirs['lev0']    = f"{rootdir}/{instr}/{ymd}/lev0"
         self.dirs['lev1']    = f"{rootdir}/{instr}/{ymd}/lev1"
-        self.dirs['anc']     = f"{rootdir}/{instr}/{ymd}/anc"
-        self.dirs['udf']     = f"{rootdir}/{instr}/{ymd}/anc/udf"
         self.dirs['stage']   = f"{rootdir}/{instr}/stage"
+        self.dirs['udf']     = f"{rootdir}/{instr}/stage/udf"
 
 
     def load_fits(self):
@@ -232,6 +235,10 @@ class DEP:
         if not os.path.isfile(self.filepath):
             self.log_error('ERROR', 'FITS_NOT_FOUND')
             return False
+        if (os.path.getsize(self.filepath) == 0):
+            self.log_error('INVALID', 'EMPTY_FILE')
+            return False
+
         try:
             self.fits_hdu = fits.open(self.filepath, ignore_missing_end=True)
             self.fits_hdr = self.fits_hdu[0].header
@@ -281,16 +288,30 @@ class DEP:
         return True
 
 
-    def stage_raw_fits(self):
-        '''Stage raw fits file so we have a copy at Keck before summit disks get wiped.'''
+    def copy_raw_fits(self, invalid=False):
+        '''
+        Copy raw fits file so we have a copy at Keck before summit disks get wiped.
+        NOTE: Stage is sort of a misnomer here since we are doing this at the end
+        of processing and we don't use it except for reprocessing.  But since
+        the copy can take a while, we do it at the end after ipac transfer.
+        NOTE: We could move this just after processing_init() if we don't care about delay.
+        '''
 
         #if record already has stage_file defined and it exists, no copy needed
         if self.stage_file and os.path.isfile(self.stage_file):
             log.info('Stage file defined and exists.  No copy needed.')
             return True        
 
+        if invalid and not self.ofname:
+            log.info('No raw fits file to copy.')
+            return True
+
         #form filepath and copy
-        outfile = f"{self.dirs['stage']}/{self.utdatedir}{self.ofname}"
+        if invalid: 
+            if self.dirs: outfile = f"{self.dirs['udf']}/{self.utdatedir}{self.ofname}"
+            else:         outfile = f"{self.rootdir}/{self.instr}/stage/udf/{self.ofname}"
+        else:       
+            outfile = f"{self.dirs['stage']}/{self.utdatedir}{self.ofname}"
         if outfile == self.filepath:
             return True
 
@@ -300,11 +321,13 @@ class DEP:
             log.warning(f'Stage file already exists.  Renaming with version.')
             outdir = os.path.dirname(outfile)
             base = os.path.basename(outfile)
-            idx = base.rfind('.')
-            utc = re.sub('[^0-9]','', self.utc)
-            if idx >= 0: base = f"{base[:idx]}_T{utc}{base[idx:]}"
-            else:        base += f"_T{utc}"
-            outfile = f"{outdir}/{base}"
+            for i in range(2,20):
+                idx = base.rfind('.')
+                if idx >= 0: newbase = f"{base[:idx]}_ver{i}{base[idx:]}"
+                else:        newbase = f"{base}_ver{i}"
+                outfile = f"{outdir}/{newbase}"
+                if not os.path.isfile(outfile):
+                    break
 
         #copy file
         log.info(f'Copying raw fits to {outfile}')
@@ -379,11 +402,6 @@ class DEP:
                 self.log_error('INVALID', 'FILEPATH_REJECT')
                 return False
 
-        # check for empty file
-        if (os.path.getsize(self.filepath) == 0):
-            self.log_error('INVALID', 'EMPTY_FILE')
-            return False
-
         # Get fits header (check for bad header)
         try:
             if self.instr == 'NIRC2':
@@ -405,7 +423,7 @@ class DEP:
         basename = os.path.basename(self.filepath)
         basename = basename.replace(".fits.gz", ".fits")
         if filename != basename:
-            self.log_error('INVALID', 'MISMATCHED_FILENAME')
+            self.log_error('INVALID', 'MISMATCHED_FILENAME', f"{filename} != {basename}")
             return False
 
         return True
@@ -486,7 +504,7 @@ class DEP:
         '''
         #todo: put in warnings for empty ext headers
 
-        if self.instr.upper() in ('KCWI'):
+        if self.instr in ('KCWI'):
             return True
         log.info(f'Making FITS extension metadata files for: {self.koaid}')
 
@@ -616,7 +634,7 @@ class DEP:
 
         #Copy to anc if INVALID
         if status == 'INVALID':
-            self.copy_bad_file()
+            self.copy_raw_fits(invalid=True)
 
 
     def copy_bad_file(self):
