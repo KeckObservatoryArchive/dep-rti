@@ -176,7 +176,7 @@ class Monitor():
         query = (f"select * from dep_status where "
                 f" status='QUEUED' "
                 f" and instrument='{self.instr}' "
-                f" order by creation_time desc limit 1")
+                f" order by creation_time asc limit 1")
         row = self.db.query('koa', query, getOne=True)
         if row is False:
             self.handle_error('DATABASE_ERROR', query)
@@ -187,7 +187,7 @@ class Monitor():
         #check that we have not exceeded max num procs
         #todo: do we want to notify admins of this condition?
         if len(self.procs) >= self.max_procs:
-            self.log.warning(f'MAX {self.max_procs} concurrent processes reached.')
+            self.handle_error('MAX_PROCESSES', self.max_procs)
             return
 
         #set status to PROCESSING
@@ -392,7 +392,7 @@ class KtlMonitor():
 
             #check for invalid filepath
             if '/sdata' not in filepath:
-                self.log.warning(f"INVALID FILEPATH (no 'sdata')\t{self.instr}\t{keyword.service}\t{filepath}")
+                self.log.error(f"INVALID FILEPATH (no 'sdata')\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
 
         except Exception as e:
