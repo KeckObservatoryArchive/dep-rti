@@ -32,37 +32,38 @@ class Hires(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_dqa_date()
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_ut() # may need to delete duplicate UTC?
-        if ok: ok = self.set_utend()
-#        if ok: ok = self.set_numamps()
-#        if ok: ok = self.set_numccds() # needed?
-        if ok: ok = self.set_koaimtyp() # imagetyp
-#        if ok: ok = self.set_blank()
-        if ok: ok = self.fix_binning()
-        if ok: ok = self.set_ofName()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_instrument_status() # inststat
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_image_stats_keywords() # IM* and PST*, imagestat
-        if ok: ok = self.set_npixsat(satVal=65535.0) # npixsat
-        if ok: ok = self.set_sig2nois()
-        if ok: ok = self.set_slit_values()
-        if ok: ok = self.set_gain_and_readnoise() # ccdtype
-        if ok: ok = self.set_skypa() # skypa
-        if ok: ok = self.set_subexp()
-        if ok: ok = self.set_roqual()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        if ok: ok = self.fix_propint()
-
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',        'crit': True},
+            {'name':'set_ut',           'crit': True}, # may need to delete duplicate UTC?
+            {'name':'set_utend',        'crit': True},
+            {'name':'set_ofName',       'crit': True},
+            {'name':'set_semester',     'crit': True},
+            {'name':'set_prog_info',    'crit': True},
+            {'name':'set_propint',      'crit': True},
+            {'name':'fix_propint',      'crit': True},           
+            #{'name':'set_numamps',      'crit': False},
+            #{'name':'set_numccds',      'crit': False}, # needed?
+            {'name':'set_koaimtyp',      'crit': False}, # imagetyp
+            #{'name':'set_blank',        'crit': False},
+            {'name':'fix_binning',      'crit': False},
+            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_instr_status', 'crit': False}, # inststat
+            {'name':'set_weather',      'crit': False},
+            {'name':'set_image_stats',  'crit': False}, # IM* and PST*, imagestat
+            {'name':'set_npixsat',      'crit': False,  'args': {'satVal':65535.0}},
+            {'name':'set_sig2nois',     'crit': False},
+            {'name':'set_slit_values',  'crit': False},
+            {'name':'set_gain_and_rn',  'crit': False}, # ccdtype
+            {'name':'set_skypa',        'crit': False}, # skypa
+            {'name':'set_subexp',       'crit': False},
+            {'name':'set_roqual',       'crit': False},
+            {'name':'set_oa',           'crit': False},
+            {'name':'set_dqa_date',     'crit': False},
+            {'name':'set_dqa_vers',     'crit': False},
+            {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     def get_dir_list(self):
@@ -380,7 +381,7 @@ class Hires(instrument.Instrument):
         return True
 
 
-    def set_instrument_status(self):
+    def set_instr_status(self):
         '''
         Determine instrument status from instrument configuration
 
@@ -389,7 +390,7 @@ class Hires(instrument.Instrument):
         inststat = -1 (missing keywords)
         '''
 
-        log.info('set_instrument_status: Setting ...')
+        log.info('set_instr_status: Setting ...')
 
         inststat = 1
         koaimtyp = self.get_keyword('IMAGETYP', default='')
@@ -548,7 +549,7 @@ class Hires(instrument.Instrument):
         return True
     
     
-    def set_gain_and_readnoise(self): # ccdtype
+    def set_gain_and_rn(self): # ccdtype
         '''
         Assign values for CCD gain and read noise
         '''
@@ -690,7 +691,7 @@ class Hires(instrument.Instrument):
         return True
  
 
-    def set_image_stats_keywords(self):
+    def set_image_stats(self):
         '''
         Adds mean, median, std keywords to header
         '''

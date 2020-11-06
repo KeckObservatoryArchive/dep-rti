@@ -1,19 +1,17 @@
 ## HIGH PRIORITY
-- Decide if we use -tpx flag or a (-noxfr flag + dev config) to handle partial runs and/or test runs.
+- monitor: bug in check_queue order by!
 - Handle remaining errors/warns in dep/instrument/instr_[instr].
+- More try/except to ensure processing finishes without crashing (ie set_koaimtyp) What is critical/needed on IPAC end?  Ask Anastasia.
 - Create a log file per KOAID?
 - Cleanup dep.validate_fits() and dep.construct_filename()
 - Create independent DEP error monitoring script.
-- monitor: Create metadata compare script for RTI vs nightly DEP
 - monitor: Change monitor email time check to be per instrument
 - monitor: Throttle max DEP processes based on server resources instead of hardcoded max=10?
 - monitor: How will we recover if monitor is down and filepaths are not logged or inserted?
-- monitor: Should monitor.py immediately copy file to staging before queuing?
+- monitor: max procs should send error
+- monitor: don't send error on KTL start/restarts if instr is not online
 - Add .fits to KOAID in DB?
-- Implement handling for same filepath (ie renaming and updating 'stage_file' with _vN version)
-- What are we doing with rejected/anc files? If status=INVALID, copy to /anc/ and rsync but do not notify IPAC?
 - Implement basic missing program assignment
-- More try/except to ensure processing finishes without crashing (ie set_koaimtyp)
 - PyMysql is not thread safe: https://stackoverflow.com/questions/45535594/pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
 - Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
 - DEIMOS FCS archive trigger (see old/dep_locate.py where some header keyword points to another file to archive)

@@ -19,6 +19,7 @@ import glob
 import inspect
 import fnmatch
 import pathlib
+import traceback
 
 import metadata
 import update_koapi_send
@@ -48,6 +49,7 @@ class DEP:
         self.fits_hdr = None
         self.extra_meta = {}
         self.errors = []
+        self.warnings = []
         self.stage_file = None
         self.ofname = None
         self.utdatedir = None
@@ -67,40 +69,46 @@ class DEP:
     def process(self):
         '''Run all prcessing steps required for archiving end to end'''
 
-        ok = True
-        if ok: ok = self.check_status_db_entry()
-        if ok: ok = self.load_fits()
-        if ok: ok = self.set_koaid()
-        if ok: ok = self.processing_init()
-        if ok: ok = self.check_koaid_db_entry()
-        if ok: ok = self.validate_fits()
-        if ok: ok = self.run_psfr()
-        if ok: ok = self.run_dqa()
-        if ok: ok = self.write_lev0_fits_file() 
-        if ok:      self.make_jpg()
-        if ok: ok = self.create_meta()
-        if ok:      self.create_ext_meta()
-        if ok: ok = self.run_drp()
-        if ok:      self.check_koapi_send()
-        if ok: ok = self.create_readme()
-        if ok: ok = self.update_dep_stats()
-        if ok: ok = self.transfer_ipac()
-        if ok:      self.add_header_to_db()
-        if ok:      self.copy_raw_fits()  
+        try:
+            ok = True
+            if ok: ok = self.check_status_db_entry()
+            if ok: ok = self.load_fits()
+            if ok: ok = self.set_koaid()
+            if ok: ok = self.processing_init()
+            if ok: ok = self.check_koaid_db_entry()
+            if ok: ok = self.validate_fits()
+            if ok: ok = self.run_psfr()
+            if ok: ok = self.run_dqa()
+            if ok: ok = self.write_lev0_fits_file() 
+            if ok:      self.make_jpg()
+            if ok: ok = self.create_meta()
+            if ok:      self.create_ext_meta()
+            if ok: ok = self.run_drp()
+            if ok:      self.check_koapi_send()
+            if ok: ok = self.create_readme()
+            if ok: ok = self.update_dep_stats()
+            if ok: ok = self.transfer_ipac()
+            if ok:      self.add_header_to_db()
+            if ok:      self.copy_raw_fits()  
+        except Exception as e:
+            ok = False
+            self.log_error('ERROR', 'CODE_ERROR', traceback.format_exc())
 
-        #If any of these steps return false then copy to udf
-        if not ok: 
-            self.handle_dep_error()
-        else:
-            pass
+        #todo: What about condition of ok=False but log_error was not used?
+        self.handle_dep_errors()
         return ok
 
 
     def log_error(self, status, errcode, text=''):
+        status = status.upper()
         caller = inspect.stack()[1][3]
-        log.error(f"func: {caller}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
-        errdata = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        self.errors.append(errdata)
+        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
+        if status == 'WARN':
+            log.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+            self.warnings.append(data)
+        else:
+            log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+            self.errors.append(data)
 
 
     def check_status_db_entry(self):
@@ -603,38 +611,51 @@ class DEP:
         return True
 
 
-    def handle_dep_error(self):
+    def handle_dep_errors(self):
 
-        #if for some reason we didn't record the error
-        status = "ERROR"
-        errcode = "UNKNOWN"
-        text = ''
+        #if not errors or warnings, return
+        if not self.errors and not self.warnings:
+            log.info("No DEP errors or warnings")
+            return
 
-        #get last of errors logged for this koaid
+        #If errors, those will trump any warnings
         if self.errors:
             error = self.errors[-1]
             status  = error['status']
             errcode = error['errcode']
-            text = str(self.errors)
 
-        #log
-        log.error(f'Status: {status}, Code: {errcode}, DBID: {self.dbid}, KOAID: {self.koaid}, File:{self.filepath}')
-        if text: log.error(text)
+            #update by dbid
+            if self.dbid:
+                query = (f"update dep_status set status='{status}', status_code='{errcode}' "
+                         f" where id={self.dbid}")
+                log.info(query)
+                result = self.db.query('koa', query)
+                if result is False: 
+                    #todo: what can we do if THIS fails??  Email admins direct?
+                    log.error(f'ERROR STATUS QUERY FAILED: {query}')
+                    return False
 
-        #update by dbid
-        if self.dbid:
-            query = (f"update dep_status set status='{status}', status_code='{errcode}' "
-                     f" where id={self.dbid}")
-            log.info(query)
-            result = self.db.query('koa', query)
-            if result is False: 
-                #todo: what can we do if THIS fails??  Email admins direct?
-                log.error(f'ERROR STATUS QUERY FAILED: {query}')
-                return False
+            #Copy to anc if INVALID
+            if status == 'INVALID':
+                self.copy_raw_fits(invalid=True)
 
-        #Copy to anc if INVALID
-        if status == 'INVALID':
-            self.copy_raw_fits(invalid=True)
+        #Else, if it is just warnings, just update status code
+        elif self.warnings:
+            error = self.warnings[-1]
+            status  = error['status']
+            errcode = error['errcode']
+
+            #update by dbid
+            if self.dbid:
+                query = (f"update dep_status set status_code='{errcode}' "
+                         f" where id={self.dbid}")
+                log.info(query)
+                result = self.db.query('koa', query)
+                if result is False: 
+                    #todo: what can we do if THIS fails??  Email admins direct?
+                    log.error(f'ERROR STATUS QUERY FAILED: {query}')
+                    return False
+
 
 
     def copy_bad_file(self):

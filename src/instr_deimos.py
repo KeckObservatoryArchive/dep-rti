@@ -68,34 +68,35 @@ class Deimos(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA check unique to this instrument'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_fcs_date_time()
-        if ok: ok = self.set_ut()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_fcskoaid()
-        if ok: ok = self.set_ofName()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_dqa_date()
-        if ok: ok = self.set_camera()
-        if ok: ok = self.set_filter()
-        if ok: ok = self.set_mjd()
-        if ok: ok = self.set_obsmode()
-        if ok: ok = self.set_nexten()
-        if ok: ok = self.set_detsec()
-        if ok: ok = self.set_npixsat(satVal=65535.0)
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_spatscal()
-        if ok: ok = self.set_dispscal()
-        if ok: ok = self.set_specres()
-
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',        'crit': True},
+            {'name':'set_fcs_date_time','crit': True},
+            {'name':'set_ut',           'crit': True},
+            {'name':'set_koaimtyp',     'crit': True},
+            {'name':'set_fcskoaid',     'crit': True},
+            {'name':'set_ofName',       'crit': True},
+            {'name':'set_semester',     'crit': True},
+            {'name':'set_prog_info',    'crit': True},
+            {'name':'set_propint',      'crit': True},
+            {'name':'set_weather',      'crit': True},
+            {'name':'set_oa',           'crit': True},
+            {'name':'set_camera',       'crit': True},
+            {'name':'set_filter',       'crit': True},
+            {'name':'set_mjd',          'crit': False},
+            {'name':'set_obsmode',      'crit': False},
+            {'name':'set_nexten',       'crit': False},
+            {'name':'set_detsec',       'crit': False},
+            {'name':'set_npixsat',      'crit': False,  'args': {'satVal':65535.0}},
+            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_spatscal',     'crit': False},
+            {'name':'set_dispscal',     'crit': False},
+            {'name':'set_specres',      'crit': False},
+            {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+            {'name':'set_dqa_vers',     'crit': False},
+            {'name':'set_dqa_date',     'crit': False},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     def get_dir_list(self):

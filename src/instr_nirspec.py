@@ -25,31 +25,32 @@ class Nirspec(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_dqa_date()
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_ut()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_elaptime()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_frameno()
-        if ok: ok = self.set_ofName()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_isao()
-        if ok: ok = self.set_dispers()
-        if ok: ok = self.set_slit_values()
-        if ok: ok = self.set_filter()
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_image_stats_keywords()
-        if ok: ok = self.set_gain_and_readnoise()
-        if ok: ok = self.set_npixsat(self.get_keyword('COADDS') * 25000)
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',        'crit': True},
+            {'name':'set_dqa_date',     'crit': True},
+            {'name':'set_dqa_vers',     'crit': True},
+            {'name':'set_ut',           'crit': True},
+            {'name':'set_elaptime',     'crit': True},
+            {'name':'set_koaimtyp',     'crit': True},
+            {'name':'set_frameno',      'crit': True},
+            {'name':'set_ofName',       'crit': True},
+            {'name':'set_semester',     'crit': True},
+            {'name':'set_prog_info',    'crit': True},
+            {'name':'set_propint',      'crit': True},
+            {'name':'set_isao',         'crit': False},
+            {'name':'set_dispers',      'crit': False},
+            {'name':'set_slit_values',  'crit': False},
+            {'name':'set_filter',       'crit': False},
+            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_weather',      'crit': False},
+            {'name':'set_image_stats',  'crit': False},
+            {'name':'set_gain_and_rn',  'crit': False},
+            {'name':'set_npixsat',      'crit': False},
+            {'name':'set_oa',           'crit': False},
+            {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     def get_dir_list(self):
@@ -270,6 +271,11 @@ class Nirspec(instrument.Instrument):
         return True
 
 
+    def set_npixsat(self):
+        satVal = self.get_keyword('COADDS') * 25000
+        return super().set_npixsat(satVal=satVal)
+
+
     def set_wavelengths(self):
         '''
         Sets WAVEBLUE, CNTR, RED based on FILTER value
@@ -443,7 +449,7 @@ class Nirspec(instrument.Instrument):
         return True
 
 
-    def set_gain_and_readnoise(self):
+    def set_gain_and_rn(self):
         '''
         Sets the measured values for gain and read noise
 
