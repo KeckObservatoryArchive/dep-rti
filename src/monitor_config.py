@@ -39,7 +39,7 @@ instr_keymap = {
             'fp_info'  :  ['LASTFILE'],
             'format'   :  lambda vals: f"{vals['LASTFILE']}",
             'heartbeat':  'STATUS'
-        },
+        }
     ],
     'DEIMOS': [
         {
@@ -77,7 +77,7 @@ instr_keymap = {
             'fp_info'  :  ['OUTDIR','OUTFILE','LFRAMENO'],
             'format'   :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits",
             'heartbeat':  'INFOMCLK'
-        },
+        }
     ],
     'LRIS': [
         {
@@ -152,5 +152,5 @@ instr_keymap = {
             'format'   :  lambda vals: f"{vals['SLASTFILE']}",
             'heartbeat':  'LASTALIVE'
         }
-    ],
+    ]
 }
