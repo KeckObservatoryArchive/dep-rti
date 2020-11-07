@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `instrument`          varchar(15)   NOT NULL      COMMENT 'Instrument name',
   `utdatetime`          datetime                    COMMENT 'DATE-OBS UTC',
   `status`              varchar(15)                 COMMENT 'Current status of archive process [QUEUED, PROCESSING, COMPLETE, INVALID, ERROR]',
-  `status_code`         varchar(25)                 COMMENT 'Status code of archive process [NULL, DUPLICATE, EMPTY, UNREADABLE, etc]',
+  `status_code`         varchar(30)                 COMMENT 'Status code of archive process [NULL, DUPLICATE, EMPTY, UNREADABLE, etc]',
   `ofname`              varchar(255)                COMMENT 'Full path to original file (sdata location)',
   `stage_file`          varchar(255)                COMMENT 'Full path the staged original raw file',
   `archive_dir`         varchar(255)                COMMENT 'Directory file is archived',
@@ -19,14 +19,15 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `stage_time`          datetime                    COMMENT 'Date and time that original file copied to stage directory',
   `filesize_mb`         double                      COMMENT 'FITS file size in megabytes',
   `archsize_mb`         double                      COMMENT 'Size of complete FITS dataset in megabytes',
-  `koaimtyp`            varchar(20)                 COMMENT 'Image type of the FITS file',
-  `semid`               varchar(15)                 COMMENT 'SEMID of FITS file association',
+  `koaimtyp`            varchar(25)                 COMMENT 'Image type of the FITS file',
+  `semid`               varchar(25)                 COMMENT 'SEMID of FITS file association',
   `last_mod`            timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
 
 CREATE TABLE `dep_status_history` like `dep_status`;
 ALTER TABLE  `dep_status_history` drop index `koaid`;
+ALTER TABLE  `dep_status_history` DROP PRIMARY KEY, CHANGE id id int(11);
 
 
 CREATE TABLE IF NOT EXISTS `headers` (

@@ -13,12 +13,13 @@ log = logging.getLogger('koa_dep')
 
 class Esi(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, config, db, reprocess, transfer):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx)
+        super().__init__(instr, filepath, config, db, reprocess, transfer)
 
         # Set any unique keyword index values here
-        self.keymap['UTC']       = 'UT'        
+        self.keymap['UTC']      = 'UT'        
+        self.keymap['OFNAME']   = 'OUTFILE'
 
         # Other vars that subclass can overwrite
         self.keyskips   = ['PMFM', 'RECNO', 'CHECKSUM', 'DATASUM']
@@ -30,7 +31,7 @@ class Esi(instrument.Instrument):
         ok = True
         if ok: ok = super().run_dqa()
         if ok: ok = self.set_filter()
-        self.get_obsmode(update=True)
+        if ok:      self.get_obsmode(update=True)
         if ok: ok = self.set_camera()
         if ok: ok = self.set_koaimtyp()
         if ok: ok = self.set_ut()
@@ -40,8 +41,8 @@ class Esi(instrument.Instrument):
         if ok: ok = self.set_prog_info()
         if ok: ok = self.set_propint()
         if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_image_stats_keywords()
-        if ok: ok = self.set_weather_keywords()
+        if ok: ok = self.set_image_stats()
+        if ok: ok = self.set_weather()
         if ok: ok = self.set_oa()
         if ok: ok = self.set_npixsat(65535)
 

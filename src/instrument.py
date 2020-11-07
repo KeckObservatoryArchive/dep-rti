@@ -15,6 +15,7 @@ import json
 import numpy as np
 import re
 import math
+import traceback
 
 import db_conn
 import dep
@@ -33,22 +34,21 @@ log = logging.getLogger('koa_dep')
 
 class Instrument(dep.DEP):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx, dbid=None):
+    def __init__(self, instr, filepath, config, db, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx, dbid)
+        super().__init__(instr, filepath, config, db, reprocess, transfer, dbid)
 
-        # Keyword values to be used with a FITS file during runtime
-        # NOTE: array may be used to denote an ordered list of possible keywords to look for.
-        # NOTE: these may be overwritten by instr_*.py
+        # Common keywords used in code that can be mapped to actual keyword per instrument 
+        # so a call to get_keyword can be used generically.  Overwrite values in instr_[instr].py
+        # NOTE: An array may be used to denote an ordered list of possible keywords to look for.
         self.keymap = {}
         self.keymap['INSTRUME'] = 'INSTRUME'
         self.keymap['UTC']      = 'UTC'
         self.keymap['DATE-OBS'] = 'DATE-OBS'
         self.keymap['SEMESTER'] = 'SEMESTER'
-        self.keymap['OFNAME']   = 'OUTFILE'
+        self.keymap['OFNAME']   = 'OFNAME'
         self.keymap['FRAMENO']  = 'FRAMENO'
         self.keymap['OUTDIR']   = 'OUTDIR'
-        self.keymap['FTYPE']    = 'INSTR'       # For instruments with two file types
 
         # Values to be populated by subclass
         self.prefix    = ''
@@ -61,10 +61,25 @@ class Instrument(dep.DEP):
     def set_koaimtyp(self) : raise NotImplementedError("Abstract method not implemented!")
 
 
-    def run_dqa(self):
-        '''Common run_dqa functions.  Call at beginning of instr subclass run_dqa'''
-        ok = True
-        if ok: ok = self.set_telnr()
+    def run_dqa_funcs(self, funcs):
+        '''
+        Run a list of functions by name.  If the function returns False or throws exception,
+        check if it is a critical function before breaking processing.
+        '''
+#todo: put 'set_telnr' in all instr_ run_dqa up front
+        for f in funcs:
+            name = f.get('name')
+            crit = f.get('crit')
+            args = f.get('args', {})
+            try: 
+                print('run: ', name)
+                ok = getattr(self, name)(**args)
+            except Exception as e: 
+                etype = 'ERROR' if crit else 'WARN'
+                self.log_error(etype, 'CODE_ERROR', traceback.format_exc())
+                ok = False
+            if not ok and crit:
+                return False
         return True
 
 
@@ -167,7 +182,6 @@ class Instrument(dep.DEP):
         return True
 
 
-
     def make_koaid(self):
         """
         Function to create the KOAID for the current loaded FITS file
@@ -181,11 +195,11 @@ class Instrument(dep.DEP):
 
         # Extract the UTC time and date observed from the header
         self.set_utc()
-        utc = self.get_keyword('UTC')
+        utc = self.get_keyword('UTC', useMap=False)
         if utc == None: return False
 
         self.set_dateObs()
-        dateobs = self.get_keyword('DATE-OBS')
+        dateobs = self.get_keyword('DATE-OBS', useMap=False)
         if dateobs == None: return False
 
         # Create a timedate object using the string from the header
@@ -306,7 +320,6 @@ class Instrument(dep.DEP):
             dateObs = str(dateObs) #NOTE: sometimes we can get a number
             dateObs = dateObs.strip()
             valid = re.search('^\d\d\d\d[-]\d\d[-]\d\d', dateObs)
-
             #fix slashes?
             if not valid and '/' in dateObs:
                 orig = dateObs
@@ -588,11 +601,11 @@ class Instrument(dep.DEP):
         return True
 
 
-    def set_datlevel(self, datlevel):
+    def set_datlevel(self, level):
         '''
         Adds "DATLEVEL" keyword to header
         '''
-        self.set_keyword('DATLEVEL' , datlevel, 'KOA: Data reduction level')
+        self.set_keyword('DATLEVEL' , level, 'KOA: Data reduction level')
         return True
 
 
@@ -614,12 +627,12 @@ class Instrument(dep.DEP):
         return True
 
 
-    def set_image_stats_keywords(self):
+    def set_image_stats(self):
         '''
         Adds mean, median, std keywords to header
         '''
 
-        # log.info('set_image_stats_keywords: setting image statistics keyword values')
+        # log.info('set_image_stats: setting image statistics keyword values')
 
         image = self.fits_hdu[0].data     
         imageStd    = float("%0.2f" % np.std(image))
@@ -691,7 +704,7 @@ class Instrument(dep.DEP):
         return True
 
 
-    def set_weather_keywords(self):
+    def set_weather(self):
         '''
         Adds all weather related keywords to header.
         NOTE: DEP should not exit if weather files are not found

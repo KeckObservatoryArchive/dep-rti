@@ -1,13 +1,17 @@
 #!/kroot/rel/default/bin/kpython3
 '''
-Desc: Daemon to monitor for new FITS files to archive and call DEP appropriately.
-Run this per instrument for archiving new FITS files.  Will monitor KTL keywords
-to find new files for archiving.  Uses the database as its queue so the queue is not
-in memory.  Keeps a list of spawned processes so as to manage how many concurrent 
-processes can run at once.
+Desc: Daemon to monitor for new FITS files and send to DEP for archiving.
+Monitors KTL keywords to find new files for archiving.  Uses the database as its queue 
+so the queue is not in memory.  Keeps a list of spawned processes to manage how many 
+concurrent processes can run at once.  Can run as single or multiple instruments.
 
 Usage: 
-    python monitor.py [instr]
+    python monitor.py [instr list]
+    python monitor.py hires
+    python monitor.py kcwi nires
+
+Reference:
+    http://spg.ucolick.org/KTLPython/index.html
 
 '''
 import sys
@@ -32,166 +36,25 @@ import logging
 import re
 
 from archive import Archive
+import monitor_config
 
 
 #module globals
 last_email_times = None
-
-
-#Define instrument keywords to monitor that indicate a new datafile was written.
-#'trigger' value indicates which keyword to monitor that will trigger processing.
-#If 'val' is defined, trigger must equal val to initiate processing.
-#If 'format' is defined, all keywords in curlies will be replaced by that keyword value.
-#If format is not defined, the value of the trigger will be used.
-#If zfill is defined, then left pad those keyword vals (assuming with '0')
-#todo: Finish mapping all instrs
-#todo: This could be put in each of the instr subclasses.
-instr_keys = {
-    'KCWI': [
-        {
-            'service':  'kfcs',
-            'trigger':  'LASTFILE',
-            'val'    :  None,
-            'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"{vals['LASTFILE']}"
-        },
-        {
-            'service':   'kbds',
-            'trigger':  'LOUTFILE',
-            'val'    :  None,
-            'fp_info':  ['LOUTFILE'],
-            'format' :  lambda vals: f"{vals['LOUTFILE']}"
-        }
-    ],
-    'NIRES': [
-        {
-            'service':  'nids',
-            'trigger':  'LASTFILE',
-            'val'    :  None,
-            'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"{LASTFILE}"
-        },
-        {
-            'service':  'nsds',
-            'trigger':  'LASTFILE',
-            'val'    :  None,
-            'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"/s{LASTFILE}"
-        }
-    ],
-    'DEIMOS': [
-        {
-            'service':  'deimosplus',
-            'trigger':  'LASTCCD',
-            'val'    :  None,
-            'fp_info':  ['LASTCCD'],
-            'format' :  lambda vals: f"/s{LASTCCD}"
-        },
-        {
-            'service':  'deimosplus',
-            'trigger':  'LASTFCS',
-            'val'    :  None,
-            'fp_info':  ['LASTFCS'],
-            'format' :  lambda vals: f"/s{LASTFCS}"
-        }
-    ],
-    'ESI': [
-        {
-            'service':  'esi',
-            'trigger':  'WDISK',
-            'val'    :  'false',
-            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
-            'format' :  lambda vals: f"/s{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
-        }
-    ],
-    'HIRES': [
-        {
-            'service':  'hiccd',
-            'trigger':  'WDISK',
-            'val'    :  'false',
-            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
-            'format' :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
-        }
-    ],
-    'LRIS': [
-        {
-            'service':  'lris',
-            'trigger':  'WDISK',
-            'val'    :  'false',
-            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
-            'format' :  lambda vals: f"/s{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
-        },
-        {
-            'service':  'lrisblue',
-            'trigger':  'WDISK',
-            'val'    :  'false',
-            'fp_info':  ['OUTDIR','OUTFILE','LFRAMENO'],
-            'format' :  lambda vals: f"/s{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits"
-        }
-    ],
-    'MOSFIRE': [
-        {
-            'service':  'mosfire',
-            'trigger':  'LASTFILE',
-            'val'    :  None,
-            'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"{LASTFILE}"
-        }
-    ],
-    'NIRC2': [
-        {
-            'service':  'alad',
-            'trigger':  'LASTFILE', # could alternatively be FILERDY with val==0
-            'val'    :  None,
-            'fp_info':  ['OUTDIR', 'LASTFILE'],
-            'format' :  lambda vals: f"/s{OUTDIR}{LASTFILE}"
-        }
-    ],
-    'NIRSPEC': [
-        {
-            'service':  'nspec',
-            'trigger':  'LASTFILE',
-            'val'    :  None,
-            'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"/s{LASTFILE}"
-        },
-        {
-            'service':  'nscam',
-            'trigger':  'LASTFILE',
-            'val'    :  None,
-            'fp_info':  ['LASTFILE'],
-            'format' :  lambda vals: f"/s{LASTFILE}"
-        }
-    ],
-    'OSIRIS': [
-        {
-            'service':  'osiris',
-            'trigger':  'ILASTFILE',
-            'val'    :  None,
-            'fp_info':  ['ILASTFILE'],
-            'format' :  lambda vals: f"{ILASTFILE}"
-        },
-        {
-            'service':  'osiris',
-            'trigger':  'SLASTFILE',
-            'val'    :  None,
-            'fp_info':  ['SLASTFILE'],
-            'format' :  lambda vals: f"{SLASTFILE}"
-        }
-    ]
-}
+PROC_CHECK_SEC = 1.0
+KTL_START_RETRY_SEC = 60.0
+SERVICE_CHECK_SEC = 60.0
 
 
 def main():
+    '''Handle command line args and create one monitor object per instrument.'''
 
-    # Define arg parser
+    # Arg parser
     parser = argparse.ArgumentParser()
     parser.add_argument('instruments', nargs='+', default=[], help='Keck instruments list to monitor')
-
-    #parse args
     args = parser.parse_args()    
 
-    #run monitor and catch any unhandled error for email to admin
+    #run monitors and catch any unhandled error for email to admin
     try:
         monitors = []
         for instr in args.instruments:
@@ -205,7 +68,7 @@ def main():
         try:
             time.sleep(300)
             for m in monitors:
-                m.log.debug('Monitor here just saying hi every 5 minutes')
+                m.log.debug('Monitor saying hi every 5 minutes')
         except:
             break
     for m in monitors:
@@ -214,8 +77,8 @@ def main():
 
 class Monitor():
     '''
-    Class to monitor all keywords that indicate a new file is written.  
-    When a new file is detected, will insert a record into DB.
+    Class to monitor KTL keywords for an instrument to find new files to archive.  
+    When a new file is detected via KTL, will insert a record into DB.
     Monitors DB queue and spawns new DEP archive processes per datafile.
     '''
     def __init__(self, instr):
@@ -227,6 +90,7 @@ class Monitor():
         self.queue = []
         self.procs = []
         self.max_procs = 10
+        self.last_email_times = {}
 
         #cd to script dir so relative paths work
         os.chdir(sys.path[0])
@@ -257,7 +121,7 @@ class Monitor():
         #run KTL monitor for each group defined for instr
         #NOTE: We must keep all our monitors in an array to prevent garbage collection
         self.monitors = []
-        for keys in instr_keys[self.instr]:
+        for keys in monitor_config.instr_keymap[self.instr]:
             ktlmon = KtlMonitor(self.instr, keys, self, self.log)
             ktlmon.start()
             self.monitors.append(ktlmon)
@@ -271,7 +135,6 @@ class Monitor():
 
         #Loop procs and remove from list if complete
         #NOTE: looping in reverse so we can delete without messing up looping
-        #self.log.debug(f"Checking processes. Size is {len(self.procs)}")
         removed = 0
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
@@ -284,20 +147,12 @@ class Monitor():
         if removed: self.check_queue()
 
         #call this function every N seconds
-        #todo: we could do this faster
-        threading.Timer(1.0, self.process_monitor).start()
+        #NOTE: we could do this faster
+        threading.Timer(PROC_CHECK_SEC, self.process_monitor).start()
 
 
     def add_to_queue(self, filepath):
         '''Add a file to queue for processing'''
-
-        #todo: test: change to test file for now
-        #filepath = '/usr/local/home/koarti/test/sdata/sdata1400/kcwi1/2020oct07/kf201007_000001.fits'
-
-        ok = self.check_koa_db_entry(filepath)
-        if not ok:
-            handle_error('DUPLICATE_FILEPATH', filepath)
-            return
 
         #Do insert record
         self.log.info(f'Adding to queue: {filepath}')
@@ -305,30 +160,15 @@ class Monitor():
                 f"   instrument='{self.instr}' "
                 f" , ofname='{filepath}' "
                 f" , status='QUEUED' "
-                f" , creation_time=NOW() ")
+                f" , creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
         self.log.info(query)
         result = self.db.query('koa', query)
         if result is False:
-            handle_error('QUEUE_INSERT_ERROR', f'{__name__} failed: {query}')
+            self.handle_error('DATABASE_ERROR', query)
             return
 
         #check queue
         self.check_queue()
-
-
-    def check_koa_db_entry(self, filepath):
-
-        # See if entry exists
-        query = (f"select count(*) as num from dep_status where "
-                f" instrument='{self.instr}' "
-                f" and ofname='{filepath}' ")
-        check = self.db.query('koa', query, getOne=True)
-        if check is False:
-            handle_error('DATABASE_ERROR', f'{__name__}: Could not query {query}')
-            return False
-        if int(check['num']) > 0:
-            return False
-        return True
 
 
     def check_queue(self):
@@ -336,28 +176,33 @@ class Monitor():
         query = (f"select * from dep_status where "
                 f" status='QUEUED' "
                 f" and instrument='{self.instr}' "
-                f" order by creation_time desc limit 1")
+                f" order by creation_time asc limit 1")
         row = self.db.query('koa', query, getOne=True)
         if row is False:
-            handle_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
+            self.handle_error('DATABASE_ERROR', query)
             return False
         if len(row) == 0:
             return 
 
         #check that we have not exceeded max num procs
+        #todo: do we want to notify admins of this condition?
         if len(self.procs) >= self.max_procs:
-            self.log.warning(f'MAX {self.max_procs} concurrent processes exceeded.')
+            self.handle_error('MAX_PROCESSES', self.max_procs)
             return
 
         #set status to PROCESSING
         query = f"update dep_status set status='PROCESSING' where id={row['id']}"
         res = self.db.query('koa', query)
         if row is False:
-            handle_error('DATABASE_ERROR', f'{__name__}: Could not query: {query}')
+            self.handle_error('DATABASE_ERROR', query)
             return False
 
         #pop from queue and process it
-        self.process_file(row['id'])
+        self.log.debug(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
+        try:
+            self.process_file(row['id'])
+        except Exception as e:
+            self.handle_error('PROCESS_ERROR', f"ID={row['id']}, filepath={row['ofname']}\n, {traceback.format_exc()}")
 
 
     def process_file(self, id):
@@ -367,12 +212,12 @@ class Monitor():
         proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, id))
         proc.start()
         self.procs.append(proc)
-        self.log.debug(f'Started as process ID: {proc.pid}')
+        self.log.debug(f'DEP started as system process ID: {proc.pid}')
 
 
     def spawn_processing(self, instr, dbid):
         '''Call archiving for a single file by DB ID.'''
-        obj = Archive(self.instr, dbid=dbid)
+        obj = Archive(self.instr, dbid=dbid, transfer=True)
 
 
     def create_logger(self, name, rootdir, instr):
@@ -411,6 +256,13 @@ class Monitor():
         log.info(f'logger created for {name} {instr} at {logFile}')
         return log
 
+    def handle_error(self, errcode, text=None, check_time=True):
+        '''Email admins the error but only if we haven't sent one recently.'''
+
+        #always log/print
+        self.log.error(f'{errcode}: {text}')
+        handle_error(errcode, text, self.instr, check_time)
+
 
 class KtlMonitor():
     '''
@@ -429,7 +281,10 @@ class KtlMonitor():
         self.instr = instr
         self.keys = keys
         self.queue_mgr = queue_mgr
+        self.service = None
+        self.restart = False
         self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
+
 
     def start(self):
         '''Start monitoring 'trigger' keyword for new files.'''
@@ -437,13 +292,17 @@ class KtlMonitor():
         #These cache calls can throw exceptions (if instr server is down for example)
         #So, we should catch and retry until successful.  Be careful not to multi-register the callback
         try:
+            #delete service if exists
+            if self.service:
+                del self.service
+                self.service = None
+
             #create service object for easy reads later
             keys = self.keys
-            filepath_keys = keys['fp_info']
-
             self.service = ktl.cache(keys['service'])
 
             # monitor keys for services that don't have a lastfile equivalent
+            filepath_keys = keys['fp_info']
             for key in filepath_keys:
                 keyword = ktl.cache(keys['service'], key)
                 keyword.monitor()
@@ -459,78 +318,97 @@ class KtlMonitor():
                 kw.monitor()
 
         except Exception as e:
-            handle_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
-            threading.Timer(60.0, self.start).start()
+            self.queue_mgr.handle_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
+            threading.Timer(KTL_START_RETRY_SEC, self.start).start()
             return
+
+        #Start an interval timer to periodically check that this service is running.
+        threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
+
+
+    def check_service(self):
+        '''
+        Try to read heartbeat keyword from service.  If all ok, then check again in 1 minute.
+        If we can't get a value, restart service monitoring.  
+        '''
+        heartbeat = self.keys.get('heartbeat')
+        if not heartbeat: return
+
+        try:
+            val = self.service[heartbeat].read()
+        except Exception as e:
+            self.log.debug(f"KTL read exception: {str(e)}")
+            val = None
+
+        if not val:
+            self.queue_mgr.handle_error('KTL_CHECK_ERROR', f"KTL service '{self.keys['service']}' is NOT running.  Restarting service.")
+            self.restart = True
+            self.start()
+        else:
+            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 
 
     def on_new_file(self, keyword):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
-        keys = self.keys
-        reqval = keys['val']
         try:
+            #todo: Why is this multi logging if more than one KtlMonitor per instr(ie KCWI)?
+            self.log.debug(f'on_new_file: {keyword.name}={keyword.ascii}')
+
             if keyword['populated'] == False:
                 self.log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
 
             #assuming first read is old
             #NOTE: I don't think we could rely on a timestamp check vs now?
-            if len(keyword.history) <= 1:
-                self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+            if len(keyword.history) <= 1 or self.restart:
+               self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+               self.restart = False
+               return
+
+            #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
+            keys = self.keys
+            reqval = keys['val']
+            if reqval is not None and reqval != keyword.ascii:
+                self.log.info(f'Trigger val of {keyword.ascii} != {reqval}')
                 return
 
-            if reqval is None or keyword.ascii==reqval:
-                # construct the filepath from the keywords(s)
-                filepath_keys = keys['fp_info']
-                filepath_info = {}
+            # construct the filepath from the keywords(s)
+            filepath_info = {}
+            filepath_keys = keys['fp_info']
+            for key in filepath_keys:
+                kw = self.service[key]
+                filepath_info[kw.name] = kw.ascii
+                self.log.debug(f'on_new_file: {kw.name}={kw.ascii}')
+            filepath = keys['format'](filepath_info)
 
-                for key in filepath_keys:
-                    keyword = self.service[key]
-                    filepath_info[keyword.name] = keyword.ascii
+            #check for blank filepath
+            if not filepath or not filepath.strip():
+                self.log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
+                return
 
-                filepath = keys['format'](filepath_info)
+            #Some filepaths do not add the /s/ to the path which we need
+            if not filepath.startswith('/s/'):
+                filepath = f'/s{filepath}' 
 
-                #check for blank filepath
-                if not filepath or not filepath.strip():
-                    self.log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
-                    return
-            else:
-                self.log.info(f'Trigger val of {keys["trigger"]} != {reqval}')
+            #check for invalid filepath
+            if '/sdata' not in filepath:
+                self.log.error(f"INVALID FILEPATH (no 'sdata')\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
 
         except Exception as e:
-            handle_error('KTL_READ_ERROR', traceback.format_exc())
+            self.queue_mgr.handle_error('KTL_READ_ERROR', traceback.format_exc())
             return
 
         #send back to queue manager
         self.queue_mgr.add_to_queue(filepath)
 
 
-    def get_formatted_filepath(self, format, zfill):
-        '''
-        Construct filepath from multiple KTL keywords. See instr_keys module global defined above.
-        Parameters:
-            format (str): Path formatting containing keywords in curlies to replace with KTL values
-            zfill (dict): Map KTL keywords to '0' zfill.
-        '''
-        filepath = format
-        matches = re.findall("{.*?}", format)
-        for key in matches:
-            key = key[1:-1]
-            val = self.service[key].read()
-            pad = zfill.get(key, None)
-            if pad is not None:
-                val = val.zfill(pad)
-            filepath = filepath.replace('{'+key+'}', val)
-        return filepath
-
-
-def handle_error(errcode, text=None, check_time=True):
+def handle_error(errcode, text=None, instr='', check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
+    #todo: Should last time be checked on a per instrument basis? (ie move this into class)
 
     #always log/print
-    if log: log.error(f'{errcode}: {text}')
-    else: print(text)
+    print(f'{errcode}: {text}')
 
     #Only send if we haven't sent one of same errcode recently
     if check_time:
@@ -538,7 +416,7 @@ def handle_error(errcode, text=None, check_time=True):
         if not last_email_times: last_email_times = {}
         last_time = last_email_times.get(errcode)
         now = dt.datetime.now()
-        if last_time and last_time + dt.timedelta(hours=1) > now:
+        if last_time and last_time + dt.timedelta(minutes=60) > now:
             return
         last_email_times[errcode] = now
 
@@ -549,7 +427,7 @@ def handle_error(errcode, text=None, check_time=True):
     
     # Construct email message
     body = f'{errcode}\n{text}'
-    subj = f'KOA ERROR: ({os.path.basename(__file__)}) {errcode}'
+    subj = f'KOA MONITOR ERROR: [{instr}] {errcode}'
     msg = MIMEText(body)
     msg['Subject'] = subj
     msg['To']      = adminEmail
@@ -557,7 +435,6 @@ def handle_error(errcode, text=None, check_time=True):
     s = smtplib.SMTP('localhost')
     s.send_message(msg)
     s.quit()
-
 
 #--------------------------------------------------------------------------------
 # main command line entry

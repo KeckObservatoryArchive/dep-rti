@@ -16,42 +16,43 @@ log = logging.getLogger('koa_dep')
 
 class Nirc2(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, config, db, reprocess, transfer):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx)
+        super().__init__(instr, filepath, config, db, reprocess, transfer)
 
         # Set any unique keyword index values here
-        # NIRC2 uses ROOTNAME instead of OUTDIR
-        self.ofName = 'FILENAME'
+        self.keymap['OFNAME'] = 'FILENAME'
 
 
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        ok=True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_dqa_date()
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_ut() # may need to delete duplicate UTC?
-        if ok: ok = self.set_koaimtyp() # imagetyp
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_detdisp()
-        if ok: ok = self.set_wcs()
-        if ok: ok = self.set_elaptime()
-        if ok: ok = self.set_ofname()
-        if ok: ok = self.set_instrument_status() # inststat
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_image_stats_keywords() # IM* and PST*, imagestat
-        if ok: ok = self.set_npixsat(satVal = self.get_keyword('COADDS')*18000.0) # npixsat
-        if ok: ok = self.set_nlinear(satVal = self.get_keyword('COADDS')*5000.0)
-        if ok: ok = self.set_sig2nois()
-        if ok: ok = self.set_isao()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',        'crit': True},
+            {'name':'set_ut',           'crit': True}, # may need to delete duplicate UTC?
+            {'name':'set_koaimtyp',     'crit': True}, # imagetyp
+            {'name':'set_semester',     'crit': True},
+            {'name':'set_prog_info',    'crit': True},
+            {'name':'set_propint',      'crit': True},
+            {'name':'set_ofname',       'crit': True},
+            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_detdisp',      'crit': False},
+            {'name':'set_wcs',          'crit': False},
+            {'name':'set_elaptime',     'crit': False},
+            {'name':'set_instr_status', 'crit': False}, # inststat
+            {'name':'set_weather',      'crit': False},
+            {'name':'set_image_stats',  'crit': False}, # IM* and PST*, imagestat
+            {'name':'set_npixsat',      'crit': False}, 
+            {'name':'set_nlinear',      'crit': False},
+            {'name':'set_sig2nois',     'crit': False},
+            {'name':'set_isao',         'crit': False},
+            {'name':'set_oa',           'crit': False},
+            {'name':'set_dqa_date',     'crit': False},
+            {'name':'set_dqa_vers',     'crit': False},
+            {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     def get_dir_list(self):
@@ -391,7 +392,7 @@ class Nirc2(instrument.Instrument):
 
         return True
 
-    def set_instrument_status(self):
+    def set_instr_status(self):
         ''' 
         Sets instrument status
         '''
@@ -419,6 +420,12 @@ class Nirc2(instrument.Instrument):
         self.set_keyword('ISAO','yes','KOA: AO status')
         return True
 
+
+    def set_npixsat(self):
+        satVal = self.get_keyword('COADDS')*18000.0
+        return super().set_npixsat(satVal=satVal)
+
+
     def set_nlinear(self, satVal=None):
         '''
         Determines number of saturated pixels above linearity, adds NLINEAR to header
@@ -426,7 +433,8 @@ class Nirc2(instrument.Instrument):
         log.info('set_nlinear: setting number of pixels above linearity keyword value')
 
         if satVal == None:
-            satVal = self.get_keyword('SATURATE')
+            satVal = self.get_keyword('COADDS')*5000.0
+            #satVal = self.get_keyword('SATURATE')
             
         if satVal == None:
             log.warning("set_nlinear: Could not find SATURATE keyword")

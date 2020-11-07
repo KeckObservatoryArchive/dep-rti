@@ -16,6 +16,10 @@ from astropy.io import fits
 import datetime as dt
 import shutil
 import glob
+import inspect
+import fnmatch
+import pathlib
+import traceback
 
 import metadata
 import update_koapi_send
@@ -28,15 +32,15 @@ log = logging.getLogger('koa_dep')
 
 class DEP:
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx, dbid=None):
+    def __init__(self, instr, filepath, config, db, reprocess, transfer, dbid=None):
 
         #class inputs
-        self.instr     = instr
+        self.instr     = instr.upper()
         self.filepath  = filepath
         self.config    = config
         self.db        = db
         self.reprocess = reprocess
-        self.tpx       = tpx
+        self.transfer  = transfer
         self.dbid      = dbid
 
         #init other vars
@@ -44,6 +48,14 @@ class DEP:
         self.fits_hdu = None
         self.fits_hdr = None
         self.extra_meta = {}
+        self.errors = []
+        self.warnings = []
+        self.stage_file = None
+        self.ofname = None
+        self.utdatedir = None
+        self.utc = None
+        self.utdate = None
+        self.dirs = None
 
         #other helpful vars
         self.rootdir = self.config[self.instr]['ROOTDIR']
@@ -57,64 +69,90 @@ class DEP:
     def process(self):
         '''Run all prcessing steps required for archiving end to end'''
 
-        ok = True
-        if ok: ok = self.check_status_db_entry()
-        if ok: ok = self.load_fits()
-        if ok: ok = self.set_koaid()
-        if ok: ok = self.processing_init()
-        if ok: ok = self.check_koaid_db_entry()
-        if ok: ok = self.validate_fits()
-        if ok: ok = self.run_psfr()
-        if ok: ok = self.run_dqa()
-        if ok: ok = self.write_lev0_fits_file() 
-        if ok:      self.make_jpg()
-        if ok: ok = self.create_meta()
-        if ok:      self.create_ext_meta()
-        if ok: ok = self.run_drp()
-        if ok: ok = self.check_koapi_send()
-        if ok: ok = self.copy_raw_fits()  
-        if ok: ok = self.update_dep_stats()
-        # if ok: ok = self.xfr_ipac()
+        try:
+            ok = True
+            if ok: ok = self.check_status_db_entry()
+            if ok: ok = self.load_fits()
+            if ok: ok = self.set_koaid()
+            if ok: ok = self.processing_init()
+            if ok: ok = self.check_koaid_db_entry()
+            if ok: ok = self.validate_fits()
+            if ok: ok = self.run_psfr()
+            if ok: ok = self.run_dqa()
+            if ok: ok = self.write_lev0_fits_file() 
+            if ok:      self.make_jpg()
+            if ok: ok = self.create_meta()
+            if ok:      self.create_ext_meta()
+            if ok: ok = self.run_drp()
+            if ok:      self.check_koapi_send()
+            if ok: ok = self.create_readme()
+            if ok: ok = self.update_dep_stats()
+            if ok: ok = self.transfer_ipac()
+            if ok:      self.add_header_to_db()
+            if ok:      self.copy_raw_fits()  
+        except Exception as e:
+            ok = False
+            self.log_error('ERROR', 'CODE_ERROR', traceback.format_exc())
 
-        #If any of these steps return false then copy to udf
-        if not ok: 
-            self.copy_bad_file(self.instr, self.filepath, 'Failed DQA')
-        else:
-            #todo: do we wanta dep_status.status here (ie "IPAC")
-            pass
+        #todo: What about condition of ok=False but log_error was not used?
+        self.handle_dep_errors()
         return ok
+
+
+    def log_error(self, status, errcode, text=''):
+        status = status.upper()
+        caller = inspect.stack()[1][3]
+        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
+        if status == 'WARN':
+            log.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+            self.warnings.append(data)
+        else:
+            log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+            self.errors.append(data)
 
 
     def check_status_db_entry(self):
 
-        #If we are processing an existing record, query for it and get filepath
-        if self.dbid:
-            log.info(f"Processing record ID: {self.dbid}")
-            query = f"select * from dep_status where id={self.dbid}"
-            row = self.db.query('koa', query, getOne=True)
-            if not row:
-                log.error(f"Unable to find DB record with ID={self.dbid}")
-                return False
-            #todo: Is this correct logic on filepath?
-            self.filepath = row['stage_file'] if row['stage_file'] else row['ofname']
-
-        #else if we didn't pass in a DB ID, insert a new dep_status record and get ID
-        else:
+        #If we didn't pass in a DB ID, we must have filepath 
+        #so insert a new dep_status record and get ID
+        if not self.dbid:
             query = ("insert into dep_status set "
                     f"   instrument='{self.instr}' "
                     f" , ofname='{self.filepath}' "
                     f" , status='PROCESSING' "
-                    f" , creation_time=NOW() ")
+                    f" , creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
             log.info(query)
             result = self.db.query('koa', query, getInsertId=True)
             if result is False: 
-                log.error(f'{__name__} failed')
+                self.log_error('ERROR', 'QUERY_ERROR', query)
                 return False
             self.dbid = result
 
+        #Now query for it by ID (typically we are given a DB ID)
+        log.info(f"Processing record ID: {self.dbid}")
+        query = f"select * from dep_status where id={self.dbid}"
+        row = self.db.query('koa', query, getOne=True)
+        if not row:
+            self.log_error('INVALID', 'DB_ID_NOT_FOUND', query)
+            return False
+
+        #If stage file is defined, use that for filepath if it exists
+        self.ofname = row.get('ofname')
+        self.stage_file = row.get('stage_file')
+        self.filepath = row['ofname']
+        if self.stage_file and os.path.isfile(self.stage_file):
+            self.filepath = self.stage_file
+
+        #if reprocessing, copy record to history and clear status columns
+        if self.reprocess:
+            log.info(f"Reprocessing ID# {self.dbid} with filepath {self.filepath}")
+            self.copy_old_status_entry(self.dbid)
+            self.reset_status_record(self.dbid)
+
         #update dep_status
         if not self.update_dep_status('status', 'PROCESSING'): return False
-        if not self.update_dep_status('dep_start_time', dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')): return False
+        if not self.update_dep_status('status_code', ''): return False
+        if not self.update_dep_status('dep_start_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')): return False
 
         return True
 
@@ -122,26 +160,23 @@ class DEP:
     def check_koaid_db_entry(self):
 
         #Query for existing KOAID record
-        query = (f'select *from dep_status '
-                f' where koaid="{self.koaid}"')
+        query = (f"select * from dep_status "
+                 f" where koaid='{self.koaid}'")
         rows = self.db.query('koa', query)
         if rows is False:
-            log.error(f'Could not query dep_status for: {self.instr}, {self.koaid}')
+            self.log_error('ERROR', 'QUERY_ERROR', query)
             return False
 
         #If entry exists and we are not reprocessing, return error
         if len(rows) > 0 and not self.reprocess:
-            log.error(f"Record already exists for {self.instr} {self.koaid}.  Rerun with --reprocess to override.")
+            self.log_error('INVALID', 'DUPLICATE_KOAID')
             return False
 
-        #if entry exists and reprocessing, delete record
-        #todo: this delete strategy needs to change (mv to dep_status_history?)
-        if len(rows) > 0 and self.reprocess:
-            log.info(f"Reprocessing {self.instr} {self.koaid}")
-            self.move_old_status_entries(rows)
+        #if reprocessing, delete local files by KOAID
+        if self.reprocess:
             self.delete_local_files(self.instr, self.koaid)
 
-        #update koaid in status
+        #Now that KOAID check is passed, update dep_status.koaid
         if not self.update_dep_status('koaid', self.koaid): return False
 
         return True
@@ -152,15 +187,15 @@ class DEP:
         Perform specific initialization tasks for DEP processing.
         '''
 
-        #define some handy utdate vars here after loading fits
-        self.utdate = self.get_keyword('DATE-OBS')
+        #define some handy utdate vars here after loading fits (dependent on set_koaid())
+        self.utdate = self.get_keyword('DATE-OBS', useMap=False)
         self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
         hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
         self.hstdate = hstdate.strftime('%Y-%m-%d')
-        self.utc = self.get_keyword('UTC')
+        self.utc = self.get_keyword('UTC', useMap=False)
         self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
 
-        #check and create dirs
+        #create output dirs (this is dependent on utdatedir above)
         self.init_dirs()
 
         #Update some details for this record
@@ -176,12 +211,11 @@ class DEP:
         self.set_root_dirs()
 
         # Create the output directories, if they don't already exist.
-        # Unless this is a full pyDEP run, in which case we exit with warning
         for key, dir in self.dirs.items():
             if not os.path.isdir(dir):
                 log.info(f'Creating output directory: {dir}')
                 try:
-                    os.makedirs(dir)
+                    pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
                 except:
                     raise Exception(f'instrument.py: could not create directory: {dir}')
 
@@ -190,17 +224,16 @@ class DEP:
         """Sets the various rootdir subdirectories of interest"""
 
         rootdir = self.rootdir
-        instr = self.instr.upper()
+        instr = self.instr
         ymd = self.utdatedir
 
-        dirs = {}
-        dirs['process'] = ''.join((rootdir, '/', instr))
-        dirs['output']  = ''.join((rootdir, '/', instr, '/', ymd))
-        dirs['lev0']    = ''.join((rootdir, '/', instr, '/', ymd, '/lev0'))
-        dirs['lev1']    = ''.join((rootdir, '/', instr, '/', ymd, '/lev1'))
-        dirs['anc']     = ''.join((rootdir, '/', instr, '/', ymd, '/anc'))
-        dirs['udf']     = ''.join((dirs['anc'], '/udf'))
-        self.dirs = dirs
+        self.dirs = {}
+        self.dirs['process'] = f"{rootdir}/{instr}"
+        self.dirs['output']  = f"{rootdir}/{instr}/{ymd}"
+        self.dirs['lev0']    = f"{rootdir}/{instr}/{ymd}/lev0"
+        self.dirs['lev1']    = f"{rootdir}/{instr}/{ymd}/lev1"
+        self.dirs['stage']   = f"{rootdir}/{instr}/stage"
+        self.dirs['udf']     = f"{rootdir}/{instr}/stage/udf"
 
 
     def load_fits(self):
@@ -208,54 +241,111 @@ class DEP:
         Loads the fits file
         '''
         if not os.path.isfile(self.filepath):
-            log.error(f"FITS filepath does not exist: {self.filepath}")
+            self.log_error('ERROR', 'FITS_NOT_FOUND')
             return False
+        if (os.path.getsize(self.filepath) == 0):
+            self.log_error('INVALID', 'EMPTY_FILE')
+            return False
+
         try:
             self.fits_hdu = fits.open(self.filepath, ignore_missing_end=True)
             self.fits_hdr = self.fits_hdu[0].header
         except:
-            log.error(f"Could not read FITS file: {self.filepath}")
+            self.log_error('INVALID', 'UNREADABLE_FITS')
             return False
         return True
 
 
-    def move_old_status_entries(self, rows):
+    def copy_old_status_entry(self, id):
 
-        #move to history table and delete record
-        for row in rows:
-            id = row['id']
-            query = (f"INSERT INTO dep_status_history "
-                    f" SELECT ds.* FROM dep_status as ds " 
-                    f" WHERE id = {id}")
-            log.info(query)
-            result = self.db.query('koa', query)
-            if result is False: 
-                log.error(f'{__name__} failed')
-                return False
+        #move to history table 
+        query = (f"INSERT INTO dep_status_history "
+                f" SELECT ds.* FROM dep_status as ds " 
+                f" WHERE id = {id}")
+        log.info(query)
+        result = self.db.query('koa', query)
+        if result is False: 
+            self.log_error('ERROR', 'QUERY_ERROR', query)
+            return False
+        return True
 
-            query = f"delete from dep_status where id='{id}' "
-            log.info(query)
-            result = self.db.query('koa', query)
-            if result is False: 
-                log.error(f'{__name__} failed')
-                return False
+
+    def reset_status_record(self, id):
+        '''When reprocessing a record, we need to reset most columns to default.'''
+        query = (f"update dep_status set "
+                 f" status_code        = NULL, " 
+                 f" archive_dir        = NULL, "
+                 f" creation_time      = NULL, "
+                 f" dep_start_time     = NULL, "
+                 f" dep_end_time       = NULL, "
+                 f" xfr_start_time     = NULL, "
+                 f" xfr_end_time       = NULL, "
+                 f" ipac_notify_time   = NULL, "
+                 f" ipac_response_time = NULL, "
+                 f" stage_time         = NULL, "
+                 f" filesize_mb        = NULL, "
+                 f" archsize_mb        = NULL, "
+                 f" koaimtyp           = NULL, "
+                 f" semid              = NULL "
+                 f" where id = {id} ")
+        log.info(query)
+        result = self.db.query('koa', query)
+        if result is False: 
+            self.log_error('ERROR', 'QUERY_ERROR', query)
+            return False
+        return True
+
+
+    def copy_raw_fits(self, invalid=False):
+        '''
+        Copy raw fits file so we have a copy at Keck before summit disks get wiped.
+        NOTE: Stage is sort of a misnomer here since we are doing this at the end
+        of processing and we don't use it except for reprocessing.  But since
+        the copy can take a while, we do it at the end after ipac transfer.
+        NOTE: We could move this just after processing_init() if we don't care about delay.
+        '''
+
+        #if record already has stage_file defined and it exists, no copy needed
+        if self.stage_file and os.path.isfile(self.stage_file):
+            log.info('Stage file defined and exists.  No copy needed.')
+            return True        
+
+        if invalid and not self.ofname:
+            log.info('No raw fits file to copy.')
             return True
 
-
-    def copy_raw_fits(self):
-        '''Make a permanent read-only copy of the FITS file on Keck storageserver'''
-
         #form filepath and copy
-        #todo: set to readonly
-        #todo: should failure here hold up archiving to ipac?
-        outfile = self.get_raw_filepath()
-        outdir = os.path.dirname(outfile)
+        if invalid: 
+            if self.dirs: outfile = f"{self.dirs['udf']}/{self.utdatedir}{self.ofname}"
+            else:         outfile = f"{self.rootdir}/{self.instr}/stage/udf/{self.ofname}"
+        else:       
+            outfile = f"{self.dirs['stage']}/{self.utdatedir}{self.ofname}"
+        if outfile == self.filepath:
+            return True
+
+        #if outfile exists, we attach KOAID to filename
+        #(This is for rare case where observer deletes file and recreates it)
+        if os.path.isfile(outfile):
+            log.warning(f'Stage file already exists.  Renaming with version.')
+            outdir = os.path.dirname(outfile)
+            base = os.path.basename(outfile)
+            for i in range(2,20):
+                idx = base.rfind('.')
+                if idx >= 0: newbase = f"{base[:idx]}_ver{i}{base[idx:]}"
+                else:        newbase = f"{base}_ver{i}"
+                outfile = f"{outdir}/{newbase}"
+                if not os.path.isfile(outfile):
+                    break
+
+        #copy file
         log.info(f'Copying raw fits to {outfile}')
         try:
-            os.makedirs(outdir, exist_ok=True)
+            outdir = os.path.dirname(outfile)
+            pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
             shutil.copy(self.filepath, outfile)  
         except Exception as e:
-            log.error(f"Could not copy raw fits to: {outfile}")
+            self.log_error('ERROR', 'FILE_COPY_ERROR', outfile)
+            return False
       
         #update dep_status.savepath
         self.update_dep_status('stage_file', outfile)
@@ -266,7 +356,7 @@ class DEP:
         filename = os.path.basename(self.filepath)
         outdir = self.dirs['output']
         outdir = outdir.replace(self.rootdir, '')
-        outfile = f"{self.config['DIRS']['STORAGEDIR']}{outdir}/{filename}"
+        outfile = f"{self.config[self.instr]['ROOTDIR']}{outdir}/{filename}"
         return outfile
 
 
@@ -275,7 +365,7 @@ class DEP:
         #todo: should we be saving a copy of old files?
 
         if not self.koaid or len(self.koaid) < 20:
-            log.error(f"Cannot delete local files.  KOAID is invalid: {self.koaid}")
+            self.log_error('ERROR', 'INVALID_KOAID')
             return False
 
         #delete files matching KOAID*
@@ -287,6 +377,7 @@ class DEP:
                 log.info(f"removing file: {f}")
                 os.remove(f)
         except Exception as e:
+            self.log_error('ERROR', 'FILE_DELETE_ERROR')
             log.error(f"Could not delete local files for: {match}")
             return False
         return True
@@ -296,11 +387,12 @@ class DEP:
         """Sends command to update KOA dep_status."""
 
         #todo: test failure case if record does not exist.
-        query = f"update dep_status set {column}='{value}' where id='{self.dbid}'"
+        if value is None: query = f"update dep_status set {column}=NULL where id='{self.dbid}'"
+        else:             query = f"update dep_status set {column}='{value}' where id='{self.dbid}'"
         log.info(query)
         result = self.db.query('koa', query)
         if result is False:
-            log.error(f'{__name__} failed')
+            self.log_error('ERROR', 'QUERY_ERROR', query)
             return False
         return True
 
@@ -315,14 +407,8 @@ class DEP:
         rejects = ['mira', 'savier-protected', 'SPEC/ORP', '/subtracted', 'idf']
         for reject in rejects:
             if reject in self.filepath:
-                self.copy_bad_file(self.instr, self.filepath, f"Filepath contains '{reject}'")
+                self.log_error('INVALID', 'FILEPATH_REJECT')
                 return False
-
-        # check for empty file
-        if (os.path.getsize(self.filepath) == 0):
-            self.copy_bad_file(self.instr, self.filepath, "Empty file")
-            log.error(f"Empty file: {self.filepath}")
-            return False
 
         # Get fits header (check for bad header)
         try:
@@ -332,21 +418,21 @@ class DEP:
             else:
               header0 = fits.getheader(self.filepath)
         except:
-            self.copy_bad_file(self.instr, self.filepath, "Unreadable header")
+            self.log_error('INVALID', 'UNREADABLE_FITS')
             return False
 
         # Construct the original file name
-        filename, ok = self.construct_filename(self.instr, self.filepath, header0)
-        if not ok:
-          self.copy_bad_file(self.instr, self.filepath, 'Bad Header')
-          return False
+        filename, stat = self.construct_filename(self.instr, self.filepath, header0)
+        if stat is not True:
+            self.log_error('INVALID', stat)
+            return False
 
         # Make sure constructed filename matches basename.
         basename = os.path.basename(self.filepath)
         basename = basename.replace(".fits.gz", ".fits")
         if filename != basename:
-          copy_bad_file(self.instr, self.filepath, 'Mismatched filename')
-          return False
+            self.log_error('INVALID', 'MISMATCHED_FILENAME', f"{filename} != {basename}")
+            return False
 
         return True
 
@@ -364,15 +450,13 @@ class DEP:
                     outfile = ''.join((outfile, '.fits'))
                 return outfile, True
             except KeyError:
-                copy_bad_file(instr, fitsFile, 'Bad Outfile')
-                return '', False
+                return '', 'BAD_OUTFILE'
         elif instr in ['KCWI']:
             try:
                 outfile = keywords['OFNAME']
                 return outfile, True
             except KeyError:
-                copy_bad_file(instr, fitsFile, 'Bad Outfile')
-                return '', False
+                return '', 'BAD_OUTFILE'
         else:
             try:
                 outfile = keywords['OUTFILE']
@@ -383,8 +467,7 @@ class DEP:
                     try:
                         outfile = keywords['FILENAME']
                     except KeyError:
-                        copy_bad_file(instr, fitsFile, 'Bad Outfile')
-                        return '', False
+                        return '', 'BAD_OUTFILE'
 
         # Get the frame number of the file
         if outfile[:2] == 'kf':   frameno = keywords['IMGNUM']
@@ -400,8 +483,7 @@ class DEP:
                     try:
                         frameno = keywords['FILENUM2']
                     except KeyError:
-                        copy_bad_file(instr, fitsFile, 'Bad Frameno')
-                        return '', False
+                        return '', 'BAD_FRAMENO'
 
         #Pad frameno and construct filename
         frameno = str(frameno).strip().zfill(4)
@@ -430,7 +512,7 @@ class DEP:
         '''
         #todo: put in warnings for empty ext headers
 
-        if self.instr.upper() in ('KCWI'):
+        if self.instr in ('KCWI'):
             return True
         log.info(f'Making FITS extension metadata files for: {self.koaid}')
 
@@ -496,9 +578,10 @@ class DEP:
                 make_dir_md5_table(outDir, None, md5Outfile, regex=f"{self.koaid}.ext\d")
 
             except:
+                #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
                 log.error(f'Could not create extended header table for ext header index {i} for file {filename}!')
+                return False
 
-        #NOTE: This should not hold up archiving
         return True
 
 
@@ -520,16 +603,74 @@ class DEP:
         log.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
         ok = update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
         if not ok:
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error('check_koapi_send failed')
+            return False
 
         #NOTE: This should not hold up archiving
         return True
 
 
-    def copy_bad_file(self, instr, filepath, reason):
-        #todo: What are we doing with bad files?
-        log.error(f"Invalid FITS.  Reason: {reason}.  File: {filepath}")
-        pass
+    def handle_dep_errors(self):
+
+        #if not errors or warnings, return
+        if not self.errors and not self.warnings:
+            log.info("No DEP errors or warnings")
+            return
+
+        #If errors, those will trump any warnings
+        if self.errors:
+            error = self.errors[-1]
+            status  = error['status']
+            errcode = error['errcode']
+
+            #update by dbid
+            if self.dbid:
+                query = (f"update dep_status set status='{status}', status_code='{errcode}' "
+                         f" where id={self.dbid}")
+                log.info(query)
+                result = self.db.query('koa', query)
+                if result is False: 
+                    #todo: what can we do if THIS fails??  Email admins direct?
+                    log.error(f'ERROR STATUS QUERY FAILED: {query}')
+                    return False
+
+            #Copy to anc if INVALID
+            if status == 'INVALID':
+                self.copy_raw_fits(invalid=True)
+
+        #Else, if it is just warnings, just update status code
+        elif self.warnings:
+            error = self.warnings[-1]
+            status  = error['status']
+            errcode = error['errcode']
+
+            #update by dbid
+            if self.dbid:
+                query = (f"update dep_status set status_code='{errcode}' "
+                         f" where id={self.dbid}")
+                log.info(query)
+                result = self.db.query('koa', query)
+                if result is False: 
+                    #todo: what can we do if THIS fails??  Email admins direct?
+                    log.error(f'ERROR STATUS QUERY FAILED: {query}')
+                    return False
+
+
+
+    def copy_bad_file(self):
+        #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
+        if not self.filepath:
+            log.error('No filepath to copy to ANC folder')
+            return False
+        try:
+            outdir = self.dirs['udf']
+            shutil.copy(self.filepath, outdir)  
+            log.info(f"Copied invalid fits {self.filepath} to {outdir}")
+        except Exception as e:
+            log.error(f"Could not copy invalid fits {self.filepath} to {outdir}")
+            return False
+        return True
 
 
     def verify_date(self, date=''):
@@ -602,6 +743,7 @@ class DEP:
         url = api + 'ktn='+semid+'&cmd=getAllocInst&json=True'
         data = self.get_api_data(url)
         if not data or not data.get('success'):
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error('Unable to query API: ' + url)
             return default
         else:
@@ -616,6 +758,7 @@ class DEP:
                  f' where p.semid="{semid}" and p.piID=pi.piID')
         data = self.db.query('koa', query, getOne=True)
         if not data or 'pi_lastname' not in data:
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error(f'Unable to get PI name for semid {semid}')
             return default
         else:
@@ -628,10 +771,24 @@ class DEP:
         query = f'select progtitl from koa_program where semid="{semid}"'
         data = self.db.query('koa', query, getOne=True)
         if not data or 'progtitl' not in data:
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
             log.error(f'Unable to get title for semid {semid}')
             return default
         else:
             return data['progtitl']
+
+
+    def create_readme(self):
+        '''Create a text file that indicates some meta about KOAID product delivery'''
+        try:
+            filepath = f"{self.dirs['lev0']}/{self.koaid}.txt"
+            with open(filepath, 'w') as f:
+                path = self.dirs['output']
+                f.write(path + '\n')
+        except Exception as e:
+            self.log_error('ERROR', 'FILE_IO', filepath)
+            return False
+        return True
 
 
     def update_dep_stats(self):
@@ -651,7 +808,7 @@ class DEP:
         koaimtyp = self.get_keyword('KOAIMTYP')
         if not self.update_dep_status('koaimtyp', koaimtyp): return False
 
-        now = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_dep_status('dep_end_time', now): return False
 
         return True
@@ -686,4 +843,114 @@ class DEP:
             return data
         except Exception as e:
             return None
+
+
+    def transfer_ipac(self):
+        """
+        Transfers the data set for koaid located in the output directory to its
+        final archive destination.  After successful transfer of data set, 
+        ingestion API (KOAXFR:INGESTAPI) is called to trigger the archiving process.
+        """
+
+        if not self.transfer:
+            log.info('NOT TRANSFERRING TO IPAC.  Use --transfer flag.')
+            return True
+
+        # shorthand vars
+        fromDir = self.dirs['lev0']
+
+        # Verify that this dataset should be transferred
+        query = f'select * from dep_status where id={self.dbid} and xfr_start_time is null'
+        row = self.db.query('koa', query, getOne=True)
+        if not row:
+            log.error(f'dep_status entry not ready to transfer for {self.koaid} and dbid={self.dbid}')
+            return False
+
+        # Verify that there is a dataset to transfer
+        if not os.path.isdir(fromDir):
+            self.log_error('ERROR', 'NO_TRANSFER_DIR', fromDir)
+            return False
+
+        pattern = f'{self.koaid}*'
+        koaidList = [f for f in fnmatch.filter(os.listdir(fromDir), pattern) if os.path.isfile(os.path.join(fromDir, f))]
+        if len(koaidList) == 0:
+            self.log_error('ERROR', 'NO_TRANSFER_FILES', fromDir)
+            return False
+
+        # xfr config parameters
+        server = self.config['KOAXFR']['SERVER']
+        account = self.config['KOAXFR']['ACCOUNT']
+        toDir = self.config['KOAXFR']['DIR']
+        api = self.config['KOAXFR']['INGESTAPI']
+
+        # Configure the transfer command
+        toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}'
+        log.info(f'transferring directory {fromDir} to {toLocation}')
+        log.info(f'rsync -avz --include="{pattern}" {fromDir} {toLocation}')
+
+        # Transfer the data
+        import subprocess as sp
+        cmd = f'rsync -avz --include="*/" --include="{pattern}" --exclude="*" {fromDir} {toLocation}'
+        xfrCmd = sp.Popen([cmd], stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
+        utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        if not self.update_dep_status('xfr_start_time', utstring): return False
+        if not self.update_dep_status('status', 'TRANSFERRING'): return False
+
+        output, error = xfrCmd.communicate()
+
+        # Transfer success
+        if not error:
+            utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            if not self.update_dep_status('xfr_end_time', utstring): return False
+            if not self.update_dep_status('status', 'TRANSFERRED'): return False
+
+            # Send API request to archive the data set
+            apiUrl = f'{api}instrument={self.instr}&utdate={self.utdate}&koaid={self.koaid}&ingesttype=lev0'
+            if self.reprocess:
+                apiUrl = f'{apiUrl}&reingest=true'
+            log.info(f'sending ingest API call {apiUrl}')
+            utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            if not self.update_dep_status('ipac_notify_time', utstring): return False
+# Need to uncomment the following when API is ready
+#            apiData = self.get_api_data(apiUrl)
+#            if not apiData or not data.get('apiStatus'):
+#                log.error(f'error calling IPAC API {apiUrl}')
+#                self.update_dep_status('status', 'ERROR')
+#                self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
+#                return False
+            return True
+        # Transfer error
+        else:
+            # Update dep_status
+            self.update_dep_status('xfr_start_time', None)
+            self.log_error('ERROR', 'TRANSFER_ERROR')
+            return False
+
+
+    def add_header_to_db(self):
+        '''
+        Converts the primary header into a dictionary and inserts that 
+        data into the json column of the headers database table.
+        '''
+
+        d = {}
+        for key in self.fits_hdr.keys():
+            if key == 'COMMENT' or key == '' or key in d.keys():
+                continue
+            d[key] = {}
+            d[key]['value'] = self.get_keyword(key)
+            d[key]['comment'] = self.fits_hdr.comments[key]
+
+        query = 'insert into headers set koaid=%s, header=%s'
+        vals = (self.koaid, json.dumps(d),)
+        if self.reprocess:
+            query = 'update headers set header=%s where koaid=%s'
+            vals = (json.dumps(d), self.koaid,)
+        result = self.db.query('koa', query, values=vals)
+        if result is False: 
+            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
+            log.error(f'header table insert failed')
+            return False
+
+        return True
 
