@@ -51,11 +51,11 @@ instr_keymap = {
             'heartbeat':  'UPTIME'
         },
         {
-            'service'  :  'deimosplus',
-            'trigger'  :  'LASTFCS',
+            'service'  :  'deifcs',
+            'trigger'  :  'FCSIMGFI',
             'val'      :  None,
-            'fp_info'  :  ['LASTFCS'],
-            'format'   :  lambda vals: f"{vals['LASTFCS']}",
+            'fp_info'  :  ['FCSIMGFI'],
+            'format'   :  lambda vals: f"{vals['FCSIMGFI']}",
             'heartbeat':  'UPTIME'
         }
     ],
