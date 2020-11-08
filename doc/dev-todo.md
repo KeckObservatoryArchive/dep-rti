@@ -5,6 +5,7 @@
   - (JM) All non-null keywords in config file
 - Create a log file per KOAID?
 - Cleanup dep.validate_fits() and dep.construct_filename()
+  - (JM) We no longer need these since the monitor is giving us the full path and we know it is an instrument FITS file.
 - Create independent DEP error monitoring script.
 - monitor: Change monitor email time check to be per instrument
 - monitor: Throttle max DEP processes based on server resources instead of hardcoded max=10?
