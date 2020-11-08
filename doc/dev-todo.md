@@ -2,6 +2,7 @@
 - monitor: bug in check_queue order by!
 - Handle remaining errors/warns in dep/instrument/instr_[instr].
 - More try/except to ensure processing finishes without crashing (ie set_koaimtyp) What is critical/needed on IPAC end?  Ask Anastasia.
+  - (JM) All non-null keywords in config file
 - Create a log file per KOAID?
 - Cleanup dep.validate_fits() and dep.construct_filename()
 - Create independent DEP error monitoring script.
