@@ -40,6 +40,7 @@
 - Improve logging, email reporting and error handling.
 - Change keyword metadata defs to database tables?  Coordinate with IPAC.
 - How do we keep track of new sdata dirs?  A: Added by Jchock and we aren't necessarily notified.  Need better system.
+  - (JM) Not needed for RTI since we're monitoring keywords
 - See instr_lris.py for examples of condensed or streamlined functions that we can either apply to other instr_* files or create shared functions.
 
 
