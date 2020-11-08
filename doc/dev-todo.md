@@ -14,9 +14,11 @@
 - monitor: don't send error on KTL start/restarts if instr is not online
 - Add .fits to KOAID in DB?
 - Implement basic missing program assignment
+  - (JM) Let's focus on instruments with PROGNAME (KCWI, NIRES, DEIMOS, OSIRIS) and revisit this when/if needed
 - PyMysql is not thread safe: https://stackoverflow.com/questions/45535594/pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
 - Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
 - DEIMOS FCS archive trigger (see old/dep_locate.py where some header keyword points to another file to archive)
+  - (JM) FCS files will have a KTL monitor
 
  
 ## LOW PRIORITY
