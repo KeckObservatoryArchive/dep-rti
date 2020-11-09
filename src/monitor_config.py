@@ -56,7 +56,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['FCSIMGFI'],
             'format'   :  lambda vals: f"{vals['FCSIMGFI']}",
-            'heartbeat':  'UPTIME'
+            'heartbeat':  'INFOMCLK'
         }
     ],
     'ESI': [
