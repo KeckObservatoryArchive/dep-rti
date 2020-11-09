@@ -8,6 +8,15 @@
 - Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
 - What about PSFR (NIRC2) and DRP (NIRC2, OSIRIS) hooks?
 
+
+## MONITOR
+- Fix ktl service restart so we don't keep getting RPC error messages.
+- Don't send error on KTL start/restarts if instr is offline
+- Change monitor email time check to be per instrument?
+- How will we recover if monitor is down and filepaths are not logged or inserted?  Should execution client always append outfile + progid to a log file?
+- PyMysql is not thread safe: https://stackoverflow.com/questions/45535594/, pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
+- Throttle max DEP processes based on server resources instead of hardcoded max=10?
+
  
 ## LOW PRIORITY
 - Search TODOs in code
