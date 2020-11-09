@@ -1,36 +1,33 @@
-## HIGH PRIORITY
-- monitor: bug in check_queue order by!
-- Handle remaining errors/warns in dep/instrument/instr_[instr].
-- More try/except to ensure processing finishes without crashing (ie set_koaimtyp) What is critical/needed on IPAC end?  Ask Anastasia.
-- Create a log file per KOAID?
+## DEP
+- Convert remaining instr_[instr].py errors/warns to use custom log_error function.
+- Correcty mark critical functions in instr classes run_dqa()function.
+- Create DEP error monitoring script to look at dep_status for errors to email.
+- Implement basic missing program assignment.
 - Cleanup dep.validate_fits() and dep.construct_filename()
-- Create independent DEP error monitoring script.
-- monitor: Change monitor email time check to be per instrument
-- monitor: Throttle max DEP processes based on server resources instead of hardcoded max=10?
-- monitor: How will we recover if monitor is down and filepaths are not logged or inserted?
-- monitor: max procs should send error
-- monitor: don't send error on KTL start/restarts if instr is not online
-- Add .fits to KOAID in DB?
-- Implement basic missing program assignment
-- PyMysql is not thread safe: https://stackoverflow.com/questions/45535594/pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
+- Create a log file per KOAID?
 - Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
 - DEIMOS FCS archive trigger (see old/dep_locate.py where some header keyword points to another file to archive)
+- What about PSFR (NIRC2) and DRP (NIRC2, OSIRIS) hooks?
 
+## MONITOR
+- Fix ktl service restart so we don't keep getting RPC error messages.
+- Don't send error on KTL start/restarts if instr is offline
+- Change monitor email time check to be per instrument?
+- How will we recover if monitor is down and filepaths are not logged or inserted?  Should execution client always append outfile + progid to a log file?
+- PyMysql is not thread safe: https://stackoverflow.com/questions/45535594/, pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
+- Throttle max DEP processes based on server resources instead of hardcoded max=10?
  
 ## LOW PRIORITY
 - Search TODOs in code
+- Add .fits to KOAID in DB?
 - Look at old DEP on github and ensure we got all hotfixes and changes since mid Sept
-- Test PSFR (NIRC2)
-- Test DRP (NIRC2, OSIRIS)
 - Improve documentation
-- Move common to processing base class and maybe get rid of common.py?
+- Move remaining common.py to processing base class.
 - Speed test caching importlib.  
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.
 - Is there a fast gzip option?  Do a speed test vs internet speed.
-- Design such that koa daemon can recieve code updates in realtime without restart.
 - Do we want to merge archive.py and dep.py?
-- Got this error once to stderr: "?RPC: Unable to send: monitor_server(kbds) __server_down__?."  Not sure if we can detect and log.
 - Review usage of instrument.keymap and see if it needs improvement.
 - Add "duplicate metadata keyword" check.  What to do? (ok if same val, otherwise ?)
 - Improve logging, email reporting and error handling.
