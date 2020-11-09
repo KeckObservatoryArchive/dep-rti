@@ -20,6 +20,7 @@ import inspect
 import fnmatch
 import pathlib
 import traceback
+import subprocess
 
 import metadata
 import update_koapi_send
@@ -50,6 +51,7 @@ class DEP:
         self.extra_meta = {}
         self.errors = []
         self.warnings = []
+        self.invalids = []
         self.stage_file = None
         self.ofname = None
         self.utdatedir = None
@@ -92,23 +94,34 @@ class DEP:
             if ok:      self.copy_raw_fits()  
         except Exception as e:
             ok = False
-            self.log_error('ERROR', 'CODE_ERROR', traceback.format_exc())
+            self.log_error('CODE_ERROR', traceback.format_exc())
 
         #todo: What about condition of ok=False but log_error was not used?
+        #error monitoring script would catch it?
         self.handle_dep_errors()
         return ok
 
 
-    def log_error(self, status, errcode, text=''):
-        status = status.upper()
+    def log_warn(self, errcode, text=''):
+        status = 'WARN'
         caller = inspect.stack()[1][3]
         data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        if status == 'WARN':
-            log.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
-            self.warnings.append(data)
-        else:
-            log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
-            self.errors.append(data)
+        log.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        self.warnings.append(data)
+
+    def log_error(self, errcode, text=''):
+        status = 'ERROR'
+        caller = inspect.stack()[1][3]
+        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
+        log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        self.errors.append(data)
+
+    def log_invalid(self, errcode, text=''):
+        status = 'INVALID'
+        caller = inspect.stack()[1][3]
+        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
+        log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        self.invalids.append(data)
 
 
     def check_status_db_entry(self):
@@ -124,7 +137,7 @@ class DEP:
             log.info(query)
             result = self.db.query('koa', query, getInsertId=True)
             if result is False: 
-                self.log_error('ERROR', 'QUERY_ERROR', query)
+                self.log_error('QUERY_ERROR', query)
                 return False
             self.dbid = result
 
@@ -133,7 +146,7 @@ class DEP:
         query = f"select * from dep_status where id={self.dbid}"
         row = self.db.query('koa', query, getOne=True)
         if not row:
-            self.log_error('INVALID', 'DB_ID_NOT_FOUND', query)
+            self.log_invalid('DB_ID_NOT_FOUND', query)
             return False
 
         #If stage file is defined, use that for filepath if it exists
@@ -164,12 +177,12 @@ class DEP:
                  f" where koaid='{self.koaid}'")
         rows = self.db.query('koa', query)
         if rows is False:
-            self.log_error('ERROR', 'QUERY_ERROR', query)
+            self.log_error('QUERY_ERROR', query)
             return False
 
         #If entry exists and we are not reprocessing, return error
         if len(rows) > 0 and not self.reprocess:
-            self.log_error('INVALID', 'DUPLICATE_KOAID')
+            self.log_invalid('DUPLICATE_KOAID')
             return False
 
         #if reprocessing, delete local files by KOAID
@@ -240,18 +253,28 @@ class DEP:
         '''
         Loads the fits file
         '''
-        if not os.path.isfile(self.filepath):
-            self.log_error('ERROR', 'FITS_NOT_FOUND')
-            return False
-        if (os.path.getsize(self.filepath) == 0):
-            self.log_error('INVALID', 'EMPTY_FILE')
+        #If mount is broken/hung, isfile() hangs indefinitely, so we first do 
+        #a check_call to make catch mount issues
+        try:
+            subprocess.check_call(['test', '-f', self.filepath], timeout=0.5)
+        except:
+            self.log_error('FITS_NOT_FOUND')
             return False
 
+        #check file not found and file empty
+        if not os.path.isfile(self.filepath):
+            self.log_error('FITS_NOT_FOUND')
+            return False
+        if (os.path.getsize(self.filepath) == 0):
+            self.log_invalid('EMPTY_FILE')
+            return False
+
+        #fits load
         try:
             self.fits_hdu = fits.open(self.filepath, ignore_missing_end=True)
             self.fits_hdr = self.fits_hdu[0].header
         except:
-            self.log_error('INVALID', 'UNREADABLE_FITS')
+            self.log_invalid('UNREADABLE_FITS')
             return False
         return True
 
@@ -265,7 +288,7 @@ class DEP:
         log.info(query)
         result = self.db.query('koa', query)
         if result is False: 
-            self.log_error('ERROR', 'QUERY_ERROR', query)
+            self.log_error('QUERY_ERROR', query)
             return False
         return True
 
@@ -291,7 +314,7 @@ class DEP:
         log.info(query)
         result = self.db.query('koa', query)
         if result is False: 
-            self.log_error('ERROR', 'QUERY_ERROR', query)
+            self.log_error('QUERY_ERROR', query)
             return False
         return True
 
@@ -344,7 +367,7 @@ class DEP:
             pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
             shutil.copy(self.filepath, outfile)  
         except Exception as e:
-            self.log_error('ERROR', 'FILE_COPY_ERROR', outfile)
+            self.log_error('FILE_COPY_ERROR', outfile)
             return False
       
         #update dep_status.savepath
@@ -365,7 +388,7 @@ class DEP:
         #todo: should we be saving a copy of old files?
 
         if not self.koaid or len(self.koaid) < 20:
-            self.log_error('ERROR', 'INVALID_KOAID')
+            self.log_error('INVALID_KOAID')
             return False
 
         #delete files matching KOAID*
@@ -377,7 +400,7 @@ class DEP:
                 log.info(f"removing file: {f}")
                 os.remove(f)
         except Exception as e:
-            self.log_error('ERROR', 'FILE_DELETE_ERROR')
+            self.log_error('FILE_DELETE_ERROR')
             log.error(f"Could not delete local files for: {match}")
             return False
         return True
@@ -392,7 +415,7 @@ class DEP:
         log.info(query)
         result = self.db.query('koa', query)
         if result is False:
-            self.log_error('ERROR', 'QUERY_ERROR', query)
+            self.log_error('QUERY_ERROR', query)
             return False
         return True
 
@@ -407,7 +430,7 @@ class DEP:
         rejects = ['mira', 'savier-protected', 'SPEC/ORP', '/subtracted', 'idf']
         for reject in rejects:
             if reject in self.filepath:
-                self.log_error('INVALID', 'FILEPATH_REJECT')
+                self.log_invalid('FILEPATH_REJECT')
                 return False
 
         # Get fits header (check for bad header)
@@ -418,20 +441,20 @@ class DEP:
             else:
               header0 = fits.getheader(self.filepath)
         except:
-            self.log_error('INVALID', 'UNREADABLE_FITS')
+            self.log_invalid('UNREADABLE_FITS')
             return False
 
         # Construct the original file name
         filename, stat = self.construct_filename(self.instr, self.filepath, header0)
         if stat is not True:
-            self.log_error('INVALID', stat)
+            self.log_invalid(stat)
             return False
 
         # Make sure constructed filename matches basename.
         basename = os.path.basename(self.filepath)
         basename = basename.replace(".fits.gz", ".fits")
         if filename != basename:
-            self.log_error('INVALID', 'MISMATCHED_FILENAME', f"{filename} != {basename}")
+            self.log_invalid('MISMATCHED_FILENAME', f"{filename} != {basename}")
             return False
 
         return True
@@ -614,48 +637,33 @@ class DEP:
     def handle_dep_errors(self):
 
         #if not errors or warnings, return
-        if not self.errors and not self.warnings:
+        if not self.invalids and not self.errors and not self.warnings:
             log.info("No DEP errors or warnings")
             return
 
         #If errors, those will trump any warnings
-        if self.errors:
-            error = self.errors[-1]
-            status  = error['status']
-            errcode = error['errcode']
+        if   self.invalids: data = self.invalids[-1]
+        elif self.errors:   data = self.errors[-1]
+        elif self.warnings: data = self.warnings[-1]
+        status  = data['status']
+        errcode = data['errcode']
 
-            #update by dbid
-            if self.dbid:
-                query = (f"update dep_status set status='{status}', status_code='{errcode}' "
-                         f" where id={self.dbid}")
-                log.info(query)
-                result = self.db.query('koa', query)
-                if result is False: 
-                    #todo: what can we do if THIS fails??  Email admins direct?
-                    log.error(f'ERROR STATUS QUERY FAILED: {query}')
-                    return False
+        #update by dbid
+        #NOTE: WARN only status does not change dep_status.status
+        if self.dbid:
+            query =  f"update dep_status set status_code='{errcode}' "
+            if status != 'WARN': query += f", status='{status}' "
+            query += f" where id={self.dbid}"
+            log.info(query)
+            result = self.db.query('koa', query)
+            if result is False: 
+                #todo: what can we do if THIS fails??  Email admins direct?
+                log.error(f'STATUS QUERY FAILED: {query}')
+                return False
 
-            #Copy to anc if INVALID
-            if status == 'INVALID':
-                self.copy_raw_fits(invalid=True)
-
-        #Else, if it is just warnings, just update status code
-        elif self.warnings:
-            error = self.warnings[-1]
-            status  = error['status']
-            errcode = error['errcode']
-
-            #update by dbid
-            if self.dbid:
-                query = (f"update dep_status set status_code='{errcode}' "
-                         f" where id={self.dbid}")
-                log.info(query)
-                result = self.db.query('koa', query)
-                if result is False: 
-                    #todo: what can we do if THIS fails??  Email admins direct?
-                    log.error(f'ERROR STATUS QUERY FAILED: {query}')
-                    return False
-
+        #Copy to anc if INVALID
+        if status == 'INVALID':
+            self.copy_raw_fits(invalid=True)
 
 
     def copy_bad_file(self):
@@ -786,7 +794,7 @@ class DEP:
                 path = self.dirs['output']
                 f.write(path + '\n')
         except Exception as e:
-            self.log_error('ERROR', 'FILE_IO', filepath)
+            self.log_error('FILE_IO', filepath)
             return False
         return True
 
@@ -868,13 +876,13 @@ class DEP:
 
         # Verify that there is a dataset to transfer
         if not os.path.isdir(fromDir):
-            self.log_error('ERROR', 'NO_TRANSFER_DIR', fromDir)
+            self.log_error('NO_TRANSFER_DIR', fromDir)
             return False
 
         pattern = f'{self.koaid}*'
         koaidList = [f for f in fnmatch.filter(os.listdir(fromDir), pattern) if os.path.isfile(os.path.join(fromDir, f))]
         if len(koaidList) == 0:
-            self.log_error('ERROR', 'NO_TRANSFER_FILES', fromDir)
+            self.log_error('NO_TRANSFER_FILES', fromDir)
             return False
 
         # xfr config parameters
@@ -923,7 +931,7 @@ class DEP:
         else:
             # Update dep_status
             self.update_dep_status('xfr_start_time', None)
-            self.log_error('ERROR', 'TRANSFER_ERROR')
+            self.log_error('TRANSFER_ERROR')
             return False
 
 
