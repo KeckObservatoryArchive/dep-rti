@@ -1,21 +1,13 @@
 ## DEP
 - Convert remaining instr_[instr].py errors/warns to use custom log_error function.
-- Correcty mark critical functions in instr classes run_dqa()function.
+- Correcty mark critical functions in instr classes run_dqa()function. (JM: All non-null keywords in config file.)
 - Create DEP error monitoring script to look at dep_status for errors to email.
 - Implement basic missing program assignment.
-- Cleanup dep.validate_fits() and dep.construct_filename()
+- Cleanup dep.validate_fits() and dep.construct_filename() (JM: No no longer need these since the monitor is giving us the full path and we know it is an instrument FITS file)
 - Create a log file per KOAID?
 - Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
-- DEIMOS FCS archive trigger (see old/dep_locate.py where some header keyword points to another file to archive)
 - What about PSFR (NIRC2) and DRP (NIRC2, OSIRIS) hooks?
 
-## MONITOR
-- Fix ktl service restart so we don't keep getting RPC error messages.
-- Don't send error on KTL start/restarts if instr is offline
-- Change monitor email time check to be per instrument?
-- How will we recover if monitor is down and filepaths are not logged or inserted?  Should execution client always append outfile + progid to a log file?
-- PyMysql is not thread safe: https://stackoverflow.com/questions/45535594/, pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
-- Throttle max DEP processes based on server resources instead of hardcoded max=10?
  
 ## LOW PRIORITY
 - Search TODOs in code
@@ -24,6 +16,7 @@
 - Improve documentation
 - Move remaining common.py to processing base class.
 - Speed test caching importlib.  
+- Implement basic missing program assignment (revisit when execution client/etc worked out)
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.
 - Is there a fast gzip option?  Do a speed test vs internet speed.
@@ -32,7 +25,6 @@
 - Add "duplicate metadata keyword" check.  What to do? (ok if same val, otherwise ?)
 - Improve logging, email reporting and error handling.
 - Change keyword metadata defs to database tables?  Coordinate with IPAC.
-- How do we keep track of new sdata dirs?  A: Added by Jchock and we aren't necessarily notified.  Need better system.
 - See instr_lris.py for examples of condensed or streamlined functions that we can either apply to other instr_* files or create shared functions.
 
 
