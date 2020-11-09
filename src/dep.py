@@ -541,8 +541,8 @@ class DEP:
 
         #read extensions and write to file
         #todo: do we need to fits.open here again?
-        filename = os.path.basename(self.filepath)
-        hdus = fits.open(self.filepath)
+        filename = os.path.basename(self.outfile)
+        hdus = fits.open(self.outfile)
         for i in range(0, len(hdus)):
             #wrap in try since some ext headers have been found to be corrupted
             try:
@@ -588,11 +588,12 @@ class DEP:
                     dataStr += "\n"
 
                 #write to outfile
-                outDir = os.path.dirname(self.filepath)
-                outFile = filename.replace(endsWith, '.ext' + str(i) + '.' + hdu.name + '.tbl')
+                outDir = os.path.dirname(self.outfile)
+                outFile = filename.replace('fits', '.ext' + str(i) + '.' + hdu.name + '.tbl')
                 outFilepath = outDir + outFile
                 with open(outFilepath, 'w') as f:
                     f.write(dataStr)
+
 
                 #Create ext.md5sum.table
                 md5Prepend = self.utdatedir+'.'
