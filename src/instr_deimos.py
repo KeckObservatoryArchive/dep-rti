@@ -23,9 +23,9 @@ log = logging.getLogger('koa_dep')
 
 class Deimos(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, transfer):
+    def __init__(self, instr, filepath, config, db, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, transfer)
+        super().__init__(instr, filepath, config, db, reprocess, transfer, dbid)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']   = 'OUTFILE'
@@ -654,35 +654,13 @@ class Deimos(instrument.Instrument):
             return [x1, x2, y1, y2]
 
 
-    def create_fcs_list(self, locateFile):
-        '''
-        Creates self.fcsFiles for use in set_fcskoaid()
-        '''
-
-        self.fcsFiles = {}
-        with open(locateFile, 'r') as lf:
-            for line in lf:
-                file = line.strip()
-                self.set_fits_file(file)
-                self.set_utc()
-                self.set_dateObs()
-                koaid = self.make_koaid()
-                if koaid and koaid.startswith('DF'):
-                    self.fcsFiles[file.split('/')[-1]] = koaid
-
-
     def set_fcskoaid(self):
         '''
         Populates FCSKOAID with the associated FCS file
         '''
-
         fcs = self.get_keyword('FCSIMGFI', default='')
-        fcs = fcs.split('/')[-1]
+        #todo: look up KOAID by ofname in dep_status?
         fcskoaid = ''
-        if fcs in self.fcsFiles.keys():
-            fcskoaid = self.fcsFiles[fcs]
         self.set_keyword('FCSKOAID', fcskoaid, 'KOA: associated fcs file')
-
-
         return True
 
