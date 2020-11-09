@@ -72,7 +72,6 @@ class Instrument(dep.DEP):
             crit = f.get('crit')
             args = f.get('args', {})
             try: 
-                print('run: ', name)
                 ok = getattr(self, name)(**args)
             except Exception as e: 
                 etype = 'ERROR' if crit else 'WARN'
