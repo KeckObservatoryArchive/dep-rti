@@ -374,7 +374,7 @@ class Nirc2(instrument.Instrument):
         coadds = self.get_keyword('COADDS')
         #if exposure time or # of exposures doesn't exist, throw error
         if (itime == None or coadds == None):
-            log.error('set_elaptime: ITIME and COADDS values needed to set ELAPTIME')
+            self.log_warn("SET_ELAPTIME_ERROR")
             return False
 
         #update elaptime val (seconds)
@@ -544,7 +544,7 @@ class Nirc2(instrument.Instrument):
         try:
             psfr = self.config[self.instr]['PSFR']
         except:
-            log.error('run_psfr: PSFR config item is not defined')
+            self.log_error('RUN_PSFR_CONFIG_ERROR')
             return False
 
         cmd = []

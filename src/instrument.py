@@ -66,7 +66,6 @@ class Instrument(dep.DEP):
         Run a list of functions by name.  If the function returns False or throws exception,
         check if it is a critical function before breaking processing.
         '''
-#todo: put 'set_telnr' in all instr_ run_dqa up front
         for f in funcs:
             name = f.get('name')
             crit = f.get('crit')
@@ -133,31 +132,11 @@ class Instrument(dep.DEP):
 
         #handle infinite value
         if value == math.inf:
-            log.error(f'set_keyword: ERROR: keyword {keyword} value is infinite.  Setting to null.')
+            log.warning(f'set_keyword: keyword {keyword} value is infinite.  Setting to null.')
             return None
 
         #ok now we can update
         (self.fits_hdu[ext].header).update({keyword : (value, comment)})
-
-
-    def is_fits_valid(self):
-        '''
-        Basic checks that the fits file is valid.
-        '''
-
-        #check no data
-        if len(self.fits_hdu) == 0:
-            log.error('is_fits_valid: No HDUs.')
-            return False
-
-        #any corrupted HDUs?
-        for hdu in self.fits_hdu:
-            hdu_type = str(type(hdu))
-            if 'CorruptedHDU' in hdu_type:
-                log.error('is_fits_valid: Corrupted HDU found.')
-                return False
-
-        return True
 
 
     def set_koaid(self):
@@ -171,7 +150,7 @@ class Instrument(dep.DEP):
         #make it
         koaid = self.make_koaid()
         if not koaid: 
-            log.error('set_koaid: Could not create KOAID.')
+            self.log_error("KOAID_CREATE_FAIL")
             return False
 
         #save it
@@ -298,7 +277,7 @@ class Instrument(dep.DEP):
 
         #log err
         if (not ok):
-            log.warning('set_instr: cannot determine if file is from ' + self.instr + '.  UDF!')
+            self.log_error('SET_INSTR_ERROR')
 
         return ok
 
@@ -393,7 +372,7 @@ class Instrument(dep.DEP):
         #get utc from header
         utc = self.get_keyword('UTC')
         if utc == None: 
-            log.warning('set_ut: Could not get UTC value.  UDF!')
+            self.log_warn("SET_UT_ERROR")
             return False
 
         #copy to UT
@@ -477,7 +456,7 @@ class Instrument(dep.DEP):
             dateObs = self.get_keyword('DATE-OBS')
             utc     = self.get_keyword('UTC')
             if not dateObs or not utc:
-                log.error('set_semester: Could not parse DATE-OBS and UTC')
+                self.log_error('SET_SEMESTER_FAIL')
                 return False
 
             #Slightly unintuitive, but get utc datetime obj and subtract 10 hours to convert to HST
@@ -522,7 +501,7 @@ class Instrument(dep.DEP):
         #todo: Make sure we are getting the full semid with underscore
         valid = self.is_progid_valid(progid)
         if not valid:
-            log.error('Invalid PROGID: ' + str(progid))
+            self.log_warn('INVALID_PROGID', str(progid))
         else:
             progid = progid.strip().upper()
 
@@ -631,8 +610,6 @@ class Instrument(dep.DEP):
         Adds mean, median, std keywords to header
         '''
 
-        # log.info('set_image_stats: setting image statistics keyword values')
-
         image = self.fits_hdu[0].data     
         imageStd    = float("%0.2f" % np.std(image))
         imageMean   = float("%0.2f" % np.mean(image))
@@ -678,7 +655,7 @@ class Instrument(dep.DEP):
                     if entry['Type'] == 'oa' or entry['Type'] == 'oar':
                         oa = entry['Alias']
         if oa == 'None':
-            log.warning("set_oa: Could not find OA data")
+            self.log_warn("SET_OA_ERROR", url)
         else:
             self.set_keyword('OA', oa, 'KOA: Observing Assistant name')
         return True
@@ -692,7 +669,7 @@ class Instrument(dep.DEP):
         #get value
         ofName = self.get_keyword('OFNAME')
         if (ofName == None): 
-            log.error('set_ofName: cannot find value for OFNAME')
+            self.log_warn('SET_OFNAME_FAIL')
             return False
 
         #add *.fits to output if it does not exist (to fix old files)
@@ -716,10 +693,10 @@ class Instrument(dep.DEP):
         #get data but continue even if there were errors for certain keywords
         data, errors, warns = envlog(self.telnr, dateobs, utc)
         if type(data) is not dict: 
-            log.error(f"Could not get weather data for {dateobs} {utc}")
+            self.log_warn('WEATHER_DATA_FAIL')
             return True
         if len(errors) > 0:
-            log.error(f"EPICS archiver error for {dateobs} {utc}: {str(errors)}")
+            self.log_warn('EPICS_ARCHIVER_ERROR', str(errors))
         if len(warns) > 0:
             log.info(f"EPICS archiver warn {dateobs} {utc}: {str(warns)}")
 
@@ -747,29 +724,18 @@ class Instrument(dep.DEP):
         data = self.get_api_data(url, getOne=True)
         self.telnr = int(data['TelNr'])
         if self.telnr not in [1, 2]:
-            log.error(f'telNr "{telNr}" not allowed')
+            self.log_error('TELNR_VALUE_ERROR', telNr)
             return False
         return True
 
 
     def write_lev0_fits_file(self):
 
-        #make sure we have a koaid
-        koaid = self.get_keyword('KOAID')
-        if (not koaid):
-            log.error('write_lev0_fits_file: Could not find KOAID for output filename.')
-            return False
-
         #build outfile path and save as class var for reference later
         self.outfile = f"{self.dirs['lev0']}/{koaid}"
 
         #write out new fits file with altered header
         try:
-            #already exists?
-            #todo: only allow skip if not fullRun
-            # if os.path.isfile(self.outfile):
-            #     log.warning('write_lev0_fits_file: file already exists. SKIPPING')
-            #     return True
             self.fits_hdu.writeto(self.outfile)
             log.info('write_lev0_fits_file: output file is ' + self.outfile)
         except:
@@ -777,8 +743,7 @@ class Instrument(dep.DEP):
                 self.fits_hdu.writeto(self.outfile, output_verify='ignore')
                 log.info('write_lev0_fits_file: Forced to write FITS using output_verify="ignore". May want to inspect:' + self.outfile)                
             except Exception as e:
-                log.error('write_lev0_fits_file: Could not write out lev0 FITS file to ' + self.outfile)
-                log.info(str(e))
+                self.log_error('WRITE_FITS_ERROR', str(e))
                 if os.path.isfile(self.outfile):
                     os.remove(self.outfile)
                 return False
@@ -804,7 +769,7 @@ class Instrument(dep.DEP):
             if koaid in files:
                 fits_filepath = f'{root}/{koaid}'
         if not fits_filepath:
-            log.error(f'make_jpg: Could not find KOAID: {koaid}')
+            self.log_warn('MAKE_JPG_FITS_ERROR', koaid)
             return False
         outdir = os.path.dirname(fits_filepath)
 
@@ -813,8 +778,7 @@ class Instrument(dep.DEP):
             log.info(f'make_jpg: Creating jpg from: {fits_filepath}')
             self.create_jpg_from_fits(fits_filepath, outdir)
         except Exception as e:
-            log.error(f'make_jpg: Could not create JPG from: {fits_filepath}')
-            log.error(e)
+            self.log_warn('MAKE_JPG_ERROR', str(e))
             return False
 
         return True
@@ -908,7 +872,7 @@ class Instrument(dep.DEP):
 
             datafile = self.get_keyword('DATAFILE')
             if (datafile == None): 
-                log.error('set_frameno: cannot find value for FRAMENO')
+                self.log_warn("SET_FRAMENO_ERROR")
                 return False
 
             frameno = datafile.replace('.fits', '')

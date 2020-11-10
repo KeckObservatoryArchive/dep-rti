@@ -74,13 +74,13 @@ class Deimos(instrument.Instrument):
             {'name':'set_fcs_date_time','crit': True},
             {'name':'set_ut',           'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
-            {'name':'set_fcskoaid',     'crit': True},
+            {'name':'set_fcskoaid',     'crit': False},
             {'name':'set_ofName',       'crit': True},
             {'name':'set_semester',     'crit': True},
             {'name':'set_prog_info',    'crit': True},
             {'name':'set_propint',      'crit': True},
-            {'name':'set_weather',      'crit': True},
-            {'name':'set_oa',           'crit': True},
+            {'name':'set_weather',      'crit': False},
+            {'name':'set_oa',           'crit': False},
             {'name':'set_camera',       'crit': True},
             {'name':'set_filter',       'crit': True},
             {'name':'set_mjd',          'crit': False},
@@ -659,7 +659,7 @@ class Deimos(instrument.Instrument):
         Populates FCSKOAID with the associated FCS file
         '''
         fcs = self.get_keyword('FCSIMGFI', default='')
-        #todo: look up KOAID by ofname in dep_status?
+        #todo: look up KOAID by ofname in dep_status or bring back code that calcs KOAID.
         fcskoaid = ''
         self.set_keyword('FCSKOAID', fcskoaid, 'KOA: associated fcs file')
         return True

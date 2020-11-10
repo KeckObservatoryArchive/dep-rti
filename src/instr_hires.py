@@ -848,45 +848,41 @@ class Hires(instrument.Instrument):
         for root, dirs, files in os.walk(self.dirs['lev0']):
             if koaid in files:
                 filePath = ''.join((root, '/', koaid))
-        if not filePath:
-            log.error('make_jpg: Could not find KOAID: ' + koaid)
+        if not filePath or not os.path.isfile(filePath):
+            self.log_warn('MAKE_JPG_FITS_ERROR')
             return False
         log.info('make_jpg: converting {} to jpeg format'.format(filePath))
 
         koaid = filePath.replace('.fits', '')
-
-        if os.path.isfile(filePath):
-            for ext in range(1, len(self.fits_hdu)):
-                try:
-                    ext2 = str(ext)
-                    pngFile = koaid+'_CCD'+ext2+'_HDU'+ext2.zfill(2)+'.png'
-                    jpgFile = pngFile.replace('.png', '.jpg')
-                    # image data to convert
-                    image = self.fits_hdu[ext].data
-                    interval = ZScaleInterval()
-                    vmin, vmax = interval.get_limits(image)
-                    norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=AsinhStretch())
-                    fig = plt.figure()
-                    ax = plt.axes([0, 0, 1, 1])
-                    ax.get_xaxis().set_visible(False)
-                    ax.get_yaxis().set_visible(False)
-                    plt.imshow(np.rot90(image), cmap='gray', origin='lower', norm=norm)
-                    plt.axis('off')
-                    # save as png, then convert to jpg
-                    plt.savefig(pngFile, bbox_inches='tight', pad_inches=0)
-                    img = Image.open(pngFile).convert('RGB')
-                    basewidth = int(len(image)/2)
-                    wpercent = basewidth/float(img.size[0])
-                    hsize = int((float(img.size[1]) * float(wpercent)))
-                    img = img.resize((basewidth, hsize), Image.ANTIALIAS)
-                    img.save(jpgFile)
-                    os.remove(pngFile)
-                    plt.close()
-                except:
-                    log.error('make_jpg: Could not create JPG: ' + jpgFile)
-        else:
-            log.error('make_jpg: file does not exist {}'.format(filePath))
-            return False
+        for ext in range(1, len(self.fits_hdu)):
+            try:
+                ext2 = str(ext)
+                pngFile = koaid+'_CCD'+ext2+'_HDU'+ext2.zfill(2)+'.png'
+                jpgFile = pngFile.replace('.png', '.jpg')
+                # image data to convert
+                image = self.fits_hdu[ext].data
+                interval = ZScaleInterval()
+                vmin, vmax = interval.get_limits(image)
+                norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=AsinhStretch())
+                fig = plt.figure()
+                ax = plt.axes([0, 0, 1, 1])
+                ax.get_xaxis().set_visible(False)
+                ax.get_yaxis().set_visible(False)
+                plt.imshow(np.rot90(image), cmap='gray', origin='lower', norm=norm)
+                plt.axis('off')
+                # save as png, then convert to jpg
+                plt.savefig(pngFile, bbox_inches='tight', pad_inches=0)
+                img = Image.open(pngFile).convert('RGB')
+                basewidth = int(len(image)/2)
+                wpercent = basewidth/float(img.size[0])
+                hsize = int((float(img.size[1]) * float(wpercent)))
+                img = img.resize((basewidth, hsize), Image.ANTIALIAS)
+                img.save(jpgFile)
+                os.remove(pngFile)
+                plt.close()
+            except:
+                self.log_error("MAKE_JPG_ERROR", jpgFile)
+                return False
 
         return True
 

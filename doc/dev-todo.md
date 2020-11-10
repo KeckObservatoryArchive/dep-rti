@@ -20,11 +20,13 @@
 - Correcty mark critical functions in instr classes run_dqa()function. 
 - Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
 - Look at old DEP on github and ensure we got all hotfixes and changes since mid Sept
+- Log errors and warnings to database?
 - Improve documentation
 - Move remaining common.py to processing base class.
 - Speed test caching importlib.  
 - Cleanup dep.validate_fits() and dep.construct_filename() (JM: No no longer need these since the monitor is giving us the full path and we know it is an instrument FITS file) What about manual reprocessing runs?  Feasible to make mistake here?
 - Implement basic missing program assignment (revisit when execution client/etc worked out)
+- Get rid of truncation warnings.
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.
 - Is there a fast gzip option?  Do a speed test vs internet speed.

@@ -420,7 +420,17 @@ class DEP:
     def validate_fits(self):
         '''Basic checks for valid FITS before proceeding with archiving'''
 
-        #todo: There was some special logic in dep_locate for DEIMOS having a 'FCSIMGFI' keyword. See if we still need it.
+        #check no data
+        if len(self.fits_hdu) == 0:
+            self.log_invalid('NO_FITS_HDUS')
+            return False
+
+        #any corrupted HDUs?
+        for hdu in self.fits_hdu:
+            hdu_type = str(type(hdu))
+            if 'CorruptedHDU' in hdu_type:
+                log.error('CORRUPTED_HDU')
+                return False
 
         #certain text in filepath is indication that it should not be archived.
         #TODO: review this logic with Jeff
@@ -642,6 +652,7 @@ class DEP:
         elif self.warnings: data = self.warnings[-1]
         status  = data['status']
         errcode = data['errcode']
+        log.warning(f"Found {len(self.errors)} errors and {len(self.warnings)} warnings.")
 
         #update by dbid
         #NOTE: WARN only status does not change dep_status.status
@@ -852,7 +863,7 @@ class DEP:
         """
 
         if not self.transfer:
-            log.info('NOT TRANSFERRING TO IPAC.  Use --transfer flag.')
+            log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag.')
             return True
 
         # shorthand vars

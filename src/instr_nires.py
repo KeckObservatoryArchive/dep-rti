@@ -99,7 +99,7 @@ class Nires(instrument.Instrument):
         itime  = self.get_keyword('ITIME')
         coadds = self.get_keyword('COADDS')
         if (itime == None or coadds == None):
-            log.error('set_elaptime: ITIME and COADDS values needed to set ELAPTIME')
+            self.log_warn("SET_ELAPTIME_ERROR")
             return False
 
         #update val

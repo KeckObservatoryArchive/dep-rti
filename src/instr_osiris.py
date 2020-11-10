@@ -98,7 +98,6 @@ class Osiris(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword
         '''
-        log.info('set_elaptime: determining ELAPTIME from TRUITIME')
 
         #skip it it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
@@ -108,7 +107,7 @@ class Osiris(instrument.Instrument):
         coadds = self.get_keyword('COADDS')
         #if exposure time or # of exposures doesn't exist, throw error
         if (itime == None or coadds == None):
-            log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
+            self.log_warn("SET_ELAPTIME_ERROR")
             return False
 
         #update elaptime val (seconds)
@@ -121,11 +120,7 @@ class Osiris(instrument.Instrument):
         '''
         Assuming instrument is OSIRIS since INSTRUME not provided in header
         '''
-
-        log.info('set_instr: setting INSTRUME to OSIRIS')
-        #update instrument
         self.set_keyword('INSTRUME', 'OSIRIS', 'KOA: Instrument')
-        
         return True
         
 
@@ -133,8 +128,6 @@ class Osiris(instrument.Instrument):
         '''
         Adds KOAIMTYP keyword
         '''
-        log.info('set_koaimtyp: setting KOAIMTYP keyword from algorithm')
-
         koaimtyp = 'undefined'
         ifilter = self.get_keyword('IFILTER', default='')
         sfilter = self.get_keyword('SFILTER', default='')

@@ -120,8 +120,6 @@ class Nirspec(instrument.Instrument):
         Fixes missing ELAPTIME keyword
         '''
 
-        log.info('set_elaptime: determining ELAPTIME from TRUITIME')
-
         #skip it it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
 
@@ -129,7 +127,7 @@ class Nirspec(instrument.Instrument):
         itime  = self.get_keyword('TRUITIME')
         coadds = self.get_keyword('COADDS')
         if (itime == None or coadds == None):
-            log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
+            self.log_warn("SET_ELAPTIME_ERROR")
             return False
 
         #update val
@@ -147,12 +145,10 @@ class Nirspec(instrument.Instrument):
         #OFNAME was added as a native NIRSPEC keyword around 20190405
         if self.get_keyword('OFNAME', False) != None: return True
 
-        log.info('set_ofName: setting OFNAME keyword value')
-
         #get value
         ofName = self.get_keyword('OFNAME')
         if (ofName == None):
-            log.error('set_ofName: cannot find value for OFNAME')
+            self.log_warn("SET_OFNAME_ERROR")
             return False
 
         #add *.fits to output if it does not exist (to fix old files)
@@ -168,8 +164,6 @@ class Nirspec(instrument.Instrument):
         Fixes missing KOAIMTYP keyword.
         This is derived from OBSTYPE keyword.
         '''
-
-        log.info('set_koaimtyp: setting KOAIMTYP keyword value from OBSTYPE')
 
         #get obstype value
         obstype = self.get_keyword('OBSTYPE')

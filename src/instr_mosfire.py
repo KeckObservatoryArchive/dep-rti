@@ -91,7 +91,7 @@ class Mosfire(instrument.Instrument):
         itime  = self.get_keyword('TRUITIME')
         coadds = self.get_keyword('COADDS')
         if (itime == None or coadds == None):
-            log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
+            self.log_warn('SET_ELAPTIME_ERROR')
             return False
 
         #update val

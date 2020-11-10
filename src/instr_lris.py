@@ -116,7 +116,7 @@ class Lris(instrument.Instrument):
         if instrume in ('LRIS', 'LRISBLUE'):
             ok = True
         if (not ok):
-            log.error('set_instr: cannot determine if file is from ' + self.instr + '.  UDF!')
+            self.log_error("SET_INSTR_ERROR", instrume)
         return ok
 
 
