@@ -732,6 +732,7 @@ class Instrument(dep.DEP):
     def write_lev0_fits_file(self):
 
         #build outfile path and save as class var for reference later
+        koaid = self.get_keyword('KOAID')
         self.outfile = f"{self.dirs['lev0']}/{koaid}"
 
         #write out new fits file with altered header
