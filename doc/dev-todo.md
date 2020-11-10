@@ -1,11 +1,7 @@
 ## DEP
 - Convert remaining instr_[instr].py errors/warns to use custom log_error function.
-- Correcty mark critical functions in instr classes run_dqa()function. (JM: All non-null keywords in config file.)
 - Create DEP error monitoring script to look at dep_status for errors to email.
-- Implement basic missing program assignment.
-- Cleanup dep.validate_fits() and dep.construct_filename() (JM: No no longer need these since the monitor is giving us the full path and we know it is an instrument FITS file)
 - Create a log file per KOAID?
-- Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
 - What about PSFR (NIRC2) and DRP (NIRC2, OSIRIS) hooks?
 
 
@@ -21,10 +17,13 @@
 ## LOW PRIORITY
 - Search TODOs in code
 - Add .fits to KOAID in DB?
+- Correcty mark critical functions in instr classes run_dqa()function. 
+- Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
 - Look at old DEP on github and ensure we got all hotfixes and changes since mid Sept
 - Improve documentation
 - Move remaining common.py to processing base class.
 - Speed test caching importlib.  
+- Cleanup dep.validate_fits() and dep.construct_filename() (JM: No no longer need these since the monitor is giving us the full path and we know it is an instrument FITS file) What about manual reprocessing runs?  Feasible to make mistake here?
 - Implement basic missing program assignment (revisit when execution client/etc worked out)
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.

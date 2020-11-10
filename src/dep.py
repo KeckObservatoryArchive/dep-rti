@@ -385,14 +385,12 @@ class DEP:
 
     def delete_local_files(self, instr, koaid):
         '''Delete local archived output files.  This is important if we are reprocessing data.'''
-        #todo: should we be saving a copy of old files?
 
         if not self.koaid or len(self.koaid) < 20:
             self.log_error('INVALID_KOAID')
             return False
 
         #delete files matching KOAID*
-        #todo: other files/anc/raw?
         try:
             match = f"{self.dirs['lev0']}/{self.koaid}*"
             log.info(f'Deleting local files for: {match}')
@@ -400,8 +398,7 @@ class DEP:
                 log.info(f"removing file: {f}")
                 os.remove(f)
         except Exception as e:
-            self.log_error('FILE_DELETE_ERROR')
-            log.error(f"Could not delete local files for: {match}")
+            self.log_error('FILE_DELETE_ERROR', match)
             return False
         return True
 
@@ -529,7 +526,6 @@ class DEP:
 
 
     def create_ext_meta(self):
-#TODO: TEST THIS!
         '''
         Creates IPAC ASCII formatted data files for any extended header data found.
         '''
@@ -602,8 +598,7 @@ class DEP:
                 make_dir_md5_table(outDir, None, md5Outfile, regex=f"{self.koaid}.ext\d")
 
             except:
-                #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
-                log.error(f'Could not create extended header table for ext header index {i} for file {filename}!')
+                self.log_warn('EXT_HEADER_FILE', f' HDU index {i}')
                 return False
 
         return True
@@ -627,8 +622,7 @@ class DEP:
         log.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
         ok = update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
         if not ok:
-            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
-            log.error('check_koapi_send failed')
+            self.log_warn('CHECK_KOAPI_SEND', f"{self.utdate}, {semid}, {self.instr}")
             return False
 
         #NOTE: This should not hold up archiving
@@ -670,14 +664,13 @@ class DEP:
     def copy_bad_file(self):
         #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
         if not self.filepath:
-            log.error('No filepath to copy to ANC folder')
             return False
         try:
+            log.info(f"Copying invalid fits {self.filepath} to {outdir}")
             outdir = self.dirs['udf']
             shutil.copy(self.filepath, outdir)  
-            log.info(f"Copied invalid fits {self.filepath} to {outdir}")
         except Exception as e:
-            log.error(f"Could not copy invalid fits {self.filepath} to {outdir}")
+            self.log_warn("FILE_COPY_ERROR")
             return False
         return True
 
@@ -752,8 +745,7 @@ class DEP:
         url = api + 'ktn='+semid+'&cmd=getAllocInst&json=True'
         data = self.get_api_data(url)
         if not data or not data.get('success'):
-            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
-            log.error('Unable to query API: ' + url)
+            self.log_warn('API_ERROR', url)
             return default
         else:
             val = data.get('data', {}).get('AllocInst', default)
@@ -767,8 +759,7 @@ class DEP:
                  f' where p.semid="{semid}" and p.piID=pi.piID')
         data = self.db.query('koa', query, getOne=True)
         if not data or 'pi_lastname' not in data:
-            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
-            log.error(f'Unable to get PI name for semid {semid}')
+            self.log_warn('QUERY_ERROR', query)
             return default
         else:
             val = data['pi_lastname'].replace(' ','')
@@ -780,8 +771,7 @@ class DEP:
         query = f'select progtitl from koa_program where semid="{semid}"'
         data = self.db.query('koa', query, getOne=True)
         if not data or 'progtitl' not in data:
-            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
-            log.error(f'Unable to get title for semid {semid}')
+            self.log_warn('QUERY_ERROR', query)
             return default
         else:
             return data['progtitl']
@@ -872,7 +862,7 @@ class DEP:
         query = f'select * from dep_status where id={self.dbid} and xfr_start_time is null'
         row = self.db.query('koa', query, getOne=True)
         if not row:
-            log.error(f'dep_status entry not ready to transfer for {self.koaid} and dbid={self.dbid}')
+            self.log_error('TRANSFER_BAD_STATUS')
             return False
 
         # Verify that there is a dataset to transfer
@@ -923,7 +913,7 @@ class DEP:
 # Need to uncomment the following when API is ready
 #            apiData = self.get_api_data(apiUrl)
 #            if not apiData or not data.get('apiStatus'):
-#                log.error(f'error calling IPAC API {apiUrl}')
+#                self.log_error('IPAC_API_ERROR', apiUrl)
 #                self.update_dep_status('status', 'ERROR')
 #                self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
 #                return False
@@ -957,8 +947,7 @@ class DEP:
             vals = (json.dumps(d), self.koaid,)
         result = self.db.query('koa', query, values=vals)
         if result is False: 
-            #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
-            log.error(f'header table insert failed')
+            self.log_warn('HEADER_TABLE_INSERT_FAIL', query)
             return False
 
         return True
