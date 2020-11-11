@@ -755,7 +755,7 @@ class DEP:
 
 
     def get_prog_inst(self, semid, default=None, isToO=False):
-        '''Query the proposalsAPI and get the program institution'''
+        '''Query for the program institution'''
         api = self.config.get('API', {}).get('PROPAPI')
         url = api + 'ktn='+semid+'&cmd=getAllocInst&json=True'
         data = self.get_api_data(url)
@@ -769,27 +769,30 @@ class DEP:
 
     def get_prog_pi(self, semid, default=None):
         '''Query for program's PI last name'''
-        query = ( 'select pi.pi_lastname, pi.pi_firstname '
-                  ' from koa_program as p, koa_pi as pi '
-                 f' where p.semid="{semid}" and p.piID=pi.piID')
-        data = self.db.query('koa', query, getOne=True)
-        if not data or 'pi_lastname' not in data:
-            self.log_warn('QUERY_ERROR', query)
+
+        api = self.config.get('API', {}).get('PROPAPI')
+        url = api + 'ktn='+semid+'&cmd=getPI&json=True'
+        data = self.get_api_data(url)
+        if not data or not data.get('success'):
+            self.log_warn('API_ERROR', url)
             return default
         else:
-            val = data['pi_lastname'].replace(' ','')
+            val = data.get('data', {}).get('LastName', default)
+            val = val.replace(' ', '')
             return val
 
 
     def get_prog_title(self, semid, default=None):
         '''Query the DB and get the program title'''
-        query = f'select progtitl from koa_program where semid="{semid}"'
-        data = self.db.query('koa', query, getOne=True)
-        if not data or 'progtitl' not in data:
-            self.log_warn('QUERY_ERROR', query)
+        api = self.config.get('API', {}).get('PROPAPI')
+        url = api + 'ktn='+semid+'&cmd=getTitle&json=True'
+        data = self.get_api_data(url)
+        if not data or not data.get('success'):
+            self.log_warn('API_ERROR', url)
             return default
         else:
-            return data['progtitl']
+            val = data.get('data', {}).get('ProgramTitle', default)
+            return val
 
 
     def create_readme(self):

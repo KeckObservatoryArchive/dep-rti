@@ -1,4 +1,6 @@
 ## DEP
+- Setup fake IPAC ingestion API
+- Change command line options to assume --reprocess and assume --transfer (keep confirm) So add --notransfer.
 - Create a log file per KOAID? (and/or mark all logs with dbid)
 - DEIMOS triggering same FCS image file which results in many duplicate IDs.
 - DEIMOS create_jpg_from_fits using up all memory. Allow only 1 DEIMOS DEP at once? Optimize function? Add more memory?  Don't create jpg? JPG turned off for now.
@@ -22,6 +24,7 @@
 - Improve documentation
 - Move remaining common.py to processing base class.
 - Speed test caching importlib.  
+- Create a new proposalsAPI call that gets all info in one API call?
 - Cleanup dep.validate_fits() and dep.construct_filename() (JM: No no longer need these since the monitor is giving us the full path and we know it is an instrument FITS file) What about manual reprocessing runs?  Feasible to make mistake here?
 - Implement basic missing program assignment (revisit when execution client/etc worked out)
 - What about PSFR (NIRC2) and DRP (NIRC2, OSIRIS) hooks?

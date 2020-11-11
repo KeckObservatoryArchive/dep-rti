@@ -564,14 +564,14 @@ class Instrument(dep.DEP):
         if progid == 'ENG':
             propint = 18
         else:
-            #create url and get data
-            query = f'select propmin from koa_ppp where semid="{semid}" and utdate="{self.utdate}"'
-            data = self.db.query('koa', query, getOne=True)
-            if not data:
-                log.info('set_propint: PROPINT not found for ' + semid + ' and ' + self.utdate + ', defaulting to 18 months')
+            api = self.config.get('API', {}).get('PROPAPI')
+            url = api + 'ktn='+semid+'&cmd=getApprovedPP&json=True'
+            data = self.get_api_data(url)
+            if not data or not data.get('success'):
+                self.log_warn('API_ERROR', url)
                 propint = 18
             else:
-                propint = int(data['propmin'])
+                propint = data.get('data', {}).get('ProprietaryPeriod', 18)
 
         #NOTE: PROPINT goes in metadata but not in header so we store in temp dict for later
         self.extra_meta['PROPINT'] = propint
@@ -779,7 +779,7 @@ class Instrument(dep.DEP):
             log.info(f'make_jpg: Creating jpg from: {fits_filepath}')
             self.create_jpg_from_fits(fits_filepath, outdir)
         except Exception as e:
-            self.log_warn('MAKE_JPG_ERROR', str(e))
+            self.log_warn('MAKE_JPG_ERROR', traceback.format_exc())
             return False
 
         return True
