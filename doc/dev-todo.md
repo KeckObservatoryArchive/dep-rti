@@ -1,9 +1,8 @@
 ## DEP
-- Convert remaining instr_[instr].py errors/warns to use custom log_error function.
 - Create DEP error monitoring script to look at dep_status for errors to email.
-- Create a log file per KOAID?
-- What about PSFR (NIRC2) and DRP (NIRC2, OSIRIS) hooks?
-
+- Create a log file per KOAID? (and/or mark all logs with dbid)
+- DEIMOS triggering same FCS image file which results in many duplicate IDs.
+- DEIMOS create_jpg_from_fits using up all memory. Allow only 1 DEIMOS DEP at once? Optimize function? Add more memory?  Don't create jpg.
 
 ## MONITOR
 - Fix ktl service restart so we don't keep getting RPC error messages.
@@ -26,6 +25,7 @@
 - Speed test caching importlib.  
 - Cleanup dep.validate_fits() and dep.construct_filename() (JM: No no longer need these since the monitor is giving us the full path and we know it is an instrument FITS file) What about manual reprocessing runs?  Feasible to make mistake here?
 - Implement basic missing program assignment (revisit when execution client/etc worked out)
+- What about PSFR (NIRC2) and DRP (NIRC2, OSIRIS) hooks?
 - Get rid of truncation warnings.
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.

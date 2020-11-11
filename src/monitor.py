@@ -139,7 +139,7 @@ class Monitor():
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
             if p.exitcode is not None:
-                self.log.debug(f'---Removing completed process PID: {p.pid}')
+                self.log.debug(f'---Removing completed process PID={p.pid}, exitcode={p.exitcode}')
                 del self.procs[i]
                 removed += 1
 

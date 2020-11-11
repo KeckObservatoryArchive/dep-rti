@@ -497,7 +497,11 @@ class Deimos(instrument.Instrument):
         Tile images horizontally in order from left to right.
         Use DETSEC keyword to figure out data order/position
         '''
-
+######################################################################################
+### TODO: Disabling for now until we figure out VM memory usage issue for DEIMOS jpgs
+######################################################################################
+        return True
+        
         #open
         hdus = fits.open(fits_filepath, ignore_missing_end=True)
 
