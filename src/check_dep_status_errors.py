@@ -33,8 +33,7 @@ def main(instr=None, dev=False):
         now = dt.datetime.now()
         diff = now-lasttime
         if diff.seconds < MAX_EMAIL_SEC:
-            pass
-            #return
+            return
 
     #query for all errors
     q = ("select instrument, count(*) as count, status_code from dep_status "
@@ -44,13 +43,17 @@ def main(instr=None, dev=False):
 
     #query for any records that have blank status but have status code.
     q = ("select instrument, count(*) as count, status_code from dep_status "
-         " where status='COMPLETE' and status_code is not NULL and status_code != '' "
+#todo: include TRANSFERRED until IPAC has working API
+#         " where status='COMPLETE' and status_code is not NULL and status_code != '' "
+         " where status in ('COMPLETE', 'TRANSFERRED') and status_code is not NULL and status_code != '' "
          " group by instrument, status_code order by instrument asc")
     warns = db.query('koa', q)
 
     #query for any records that are > X minutes old and status in (PROCESSING, TRANSFERRED, etc)
     q = ("select instrument, count(*) as count from dep_status "
-         " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED') "
+#todo: exclude TRANSFERRED until IPAC has working API
+#         " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED') "
+         " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING') "
          " and creation_time < NOW() - INTERVAL 15 MINUTE "
          " group by instrument order by instrument asc")
     stuck = db.query('koa', q)
@@ -69,6 +72,7 @@ def main(instr=None, dev=False):
         msg += gen_table_report('stuck', stuck)
 
     #email and insert new record
+    #if dev: print(msg)
     email_admin(msg, dev=dev)
     db.query('koa', 'insert into dep_error_notify set email_time=NOW()')
 
