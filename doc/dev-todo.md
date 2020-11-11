@@ -1,8 +1,7 @@
 ## DEP
-- Create DEP error monitoring script to look at dep_status for errors to email.
 - Create a log file per KOAID? (and/or mark all logs with dbid)
 - DEIMOS triggering same FCS image file which results in many duplicate IDs.
-- DEIMOS create_jpg_from_fits using up all memory. Allow only 1 DEIMOS DEP at once? Optimize function? Add more memory?  Don't create jpg.
+- DEIMOS create_jpg_from_fits using up all memory. Allow only 1 DEIMOS DEP at once? Optimize function? Add more memory?  Don't create jpg? JPG turned off for now.
 
 ## MONITOR
 - Fix ktl service restart so we don't keep getting RPC error messages.

@@ -35,3 +35,10 @@ CREATE TABLE IF NOT EXISTS `headers` (
   `header`        json          DEFAULT NULL        COMMENT 'Store all FITS header info as json',    
   `last_mod`      timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
+
+CREATE TABLE IF NOT EXISTS `dep_error_notify` (
+  `id`            int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
+  `instr`         varchar(15)   DEFAULT NULL            COMMENT 'Instrument name',
+  `email_time`    datetime      DEFAULT NULL        COMMENT 'Time last admin error email sent for this instrument.'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;

@@ -26,6 +26,7 @@ import metadata
 import update_koapi_send
 from common import *
 from envlog import *
+import check_dep_status_errors
 
 import logging
 log = logging.getLogger('koa_dep')
@@ -670,6 +671,9 @@ class DEP:
         #Copy to anc if INVALID
         if status == 'INVALID':
             self.copy_raw_fits(invalid=True)
+
+        #call check_dep_status_errors
+        check_dep_status_errors.main(dev=True)
 
 
     def copy_bad_file(self):
