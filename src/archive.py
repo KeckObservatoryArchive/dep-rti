@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--endtime' , type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--status' , type=str, default=None, help='Status to query for reprocessing.')
+    parser.add_argument('--statuscode' , type=str, default=None, help='Status code to (like) query for reprocessing.')
     parser.add_argument('--ofname' , type=str, default=None, help='OFNAME match to query for reprocessing.')
     parser.add_argument('--confirm', dest="confirm", default=False, action="store_true", help='Confirm query results.')
     parser.add_argument('--transfer' , default=False, action='store_true', help='Transfer to IPAC and trigger IPAC API.  Else, create files only.')
@@ -44,15 +45,15 @@ def main():
     #run it 
     archive = Archive(args.instr, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
               starttime=args.starttime, endtime=args.endtime,
-              status=args.status, ofname=args.ofname,
+              status=args.status, statuscode=args.statuscode, ofname=args.ofname,
               confirm=args.confirm, transfer=args.transfer)
 
 
 class Archive():
 
     def __init__(self, instr, filepath=None, dbid=None, reprocess=False, 
-                 starttime=None, endtime=None, status=None, ofname=None, 
-                 confirm=False, transfer=False):
+                 starttime=None, endtime=None, status=None, statuscode=None,
+                 ofname=None, confirm=False, transfer=False):
 
         #inputs
         self.instr = instr.upper()
@@ -62,6 +63,7 @@ class Archive():
         self.starttime = starttime
         self.endtime = endtime
         self.status = status
+        self.statuscode = statuscode
         self.ofname = ofname
         self.confirm = confirm
         self.transfer = transfer
@@ -99,7 +101,7 @@ class Archive():
             self.process_file(filepath=self.filepath)
         elif self.dbid:
             self.process_file(dbid=self.dbid)
-        elif self.starttime or self.endtime or self.status or self.ofname:
+        elif self.starttime or self.endtime or self.status or self.statuscode or self.ofname:
             self.reprocess_by_query()
         else:
             log.error("Cannot run DEP.  Unable to decipher inputs.")
@@ -175,6 +177,8 @@ class Archive():
                  f" instrument = '{self.instr}' ")
         if self.status: 
             query += f" and status = '{self.status}' "
+        if self.statuscode: 
+            query += f" and status_code = '{self.statuscode}' "
         if self.ofname: 
             query += f" and ofname like '%{self.ofname}%' "
         if self.starttime: 
@@ -190,7 +194,7 @@ class Archive():
             print(f"\n{query}\n")
             print("--------------------")
             for row in rows:
-                print(f"{row['id']}\t{row['status']}\t{row['utdatetime']}\t{row['koaid']}\t{row['ofname']}")
+                print(f"{row['id']}\t{row['status']}\t{row['status_code']}\t{row['utdatetime']}\t{row['koaid']}\t{row['ofname']}")
             print("--------------------")
             print(f"{len(rows)} records found.  Use --confirm option to process these records.\n")
         else:
