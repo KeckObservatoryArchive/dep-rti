@@ -5,7 +5,7 @@ import time
 from urllib.request import urlopen
 import json
 import math
-
+import traceback
 
 def envlog(telnr, dateObs, utc):
     '''
@@ -55,13 +55,20 @@ def envlog(telnr, dateObs, utc):
             sendUrl = f'{url}pv={pv}&from={dt1}&to={dt2}'
             d = urlopen(sendUrl).read().decode('utf8')
             d = json.loads(d)
-            if len(d) == 0:
+            if not d or len(d) == 0:
+                warns.append(f"No data for {pv}")
+                continue
+            d = d[0].get('data')
+            if not d:
                 warns.append(f"No records for {pv}")
                 continue
 
             #find closest entry in time
             ts_utc = utDatetime.replace(tzinfo=dt.timezone.utc).timestamp()
-            entry = find_closest_entry(d[0]['data'], ts_utc)
+            entry = find_closest_entry(d, ts_utc)
+            if entry is None:
+                warns.append(f"No recent records found for {pv}")
+                continue
             data[kw] = entry['val']
 
             #tack on decimal seconds from nanos
@@ -78,7 +85,8 @@ def envlog(telnr, dateObs, utc):
                     mn = diff
 
         except Exception as e:
-            errors.append(f"{pv}:{str(e)}")
+            errors.append(f"{pv}:{traceback.format_exc()}")
+            #errors.append(f"{pv}:{str(e)}")
 
     return data, errors, warns
 
