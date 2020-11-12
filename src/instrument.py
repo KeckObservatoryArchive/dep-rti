@@ -197,6 +197,42 @@ class Instrument(dep.DEP):
         return koaid
 
 
+    def is_engineering(self):
+        '''Check for indicators that this is definitely engineering data.'''
+            
+        #keyword values that indicate ENG
+        keyvals = {
+            'PROGNAME': [
+                'eng'
+            ],
+            'OUTDIR': [
+                'kcwieng', 
+                'kcwirun', 
+                'hireseng',
+                'nspeceng', 
+                'nirc2eng', 
+                'dmoseng', 
+                'lriseng', 
+                'esieng',
+                'nireseng', 
+                'osrseng',
+                'osiriseng',                            
+                'moseng'   
+            ],
+            'OBSERVER': [
+                'keck ipdm',
+                #'engineering',
+                'nirspec'
+            ]
+        }
+        for kw, vals in keyvals.items():
+            hdrval = self.get_keyword(kw, default='')
+            for val in vals:
+                if val in hdrval:
+                    return True
+        return False
+
+
     def get_instr(self):
         """
         Method to extract the name of the instrument from the INSTRUME keyword value
@@ -501,7 +537,10 @@ class Instrument(dep.DEP):
         #todo: Make sure we are getting the full semid with underscore
         valid = self.is_progid_valid(progid)
         if not valid:
-            self.log_warn('INVALID_PROGID', str(progid))
+            if self.is_engineering():
+                progid = 'ENG'
+            else:
+                self.log_warn('INVALID_PROGID', str(progid))
         else:
             progid = progid.strip().upper()
 
@@ -513,10 +552,12 @@ class Instrument(dep.DEP):
             prog = progid
 
         #try to assign PROG* keywords from progname
-        progpi   = 'NONE'
-        proginst = 'NONE'
-        progtitl = ''
-        if valid:
+        if not valid:
+            progid   = 'NONE'
+            progpi   = 'NONE'
+            proginst = 'NONE'
+            progtitl = ''
+        else:
             progid = progid.strip().upper()
             if progid == 'ENG':
                 proginst = 'KECK'
@@ -555,15 +596,14 @@ class Instrument(dep.DEP):
         NOTE: This must come after set_prog_info and set_semester is called
         '''
 
-        #create semid
-        semid = self.get_semid()
-        assert (semid != None), 'set_propint: Could not create SEMID.'
-
-        # Default to 18 for ENG data (***verify with SAs***)
+        # Lookup PROP value via API (default to 18 otherwise)
         progid = self.fits_hdr.get('PROGID').upper()
-        if progid == 'ENG':
+        if not progid or progid == 'NONE':
+            propint = 18
+        elif progid == 'ENG':
             propint = 18
         else:
+            semid = self.get_semid()
             api = self.config.get('API', {}).get('PROPAPI')
             url = api + 'ktn='+semid+'&cmd=getApprovedPP&json=True'
             data = self.get_api_data(url)
