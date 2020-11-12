@@ -257,14 +257,14 @@ class DEP:
         #If mount is broken/hung, isfile() hangs indefinitely, so we first do 
         #a check_call to make catch mount issues
         try:
-            subprocess.check_call(['test', '-f', self.filepath], timeout=0.5)
-        except:
-            self.log_error('FITS_NOT_FOUND')
+            subprocess.check_call(['test', '-f', self.filepath], timeout=2)
+        except Exception as e:
+            self.log_error('FITS_FILE_TYPE_ERROR', str(e))
             return False
 
         #check file not found and file empty
         if not os.path.isfile(self.filepath):
-            self.log_error('FITS_NOT_FOUND')
+            self.log_error('FITS_NOT_FOUND', self.filepath)
             return False
         if (os.path.getsize(self.filepath) == 0):
             self.log_invalid('EMPTY_FILE')
