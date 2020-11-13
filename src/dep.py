@@ -142,8 +142,10 @@ class DEP:
                 return False
             self.dbid = result
 
+        if self.reprocess: log.info(f"Reprocessing ID# {self.dbid}")
+        else:              log.info(f"Processing ID# {self.dbid}")
+
         #Now query for it by ID (typically we are given a DB ID)
-        log.info(f"Processing record ID: {self.dbid}")
         query = f"select * from dep_status where id={self.dbid}"
         row = self.db.query('koa', query, getOne=True)
         if not row:
@@ -156,10 +158,10 @@ class DEP:
         self.filepath = row['ofname']
         if self.stage_file and os.path.isfile(self.stage_file):
             self.filepath = self.stage_file
+        log.info(f"Input fits filepath: {self.filepath}")
 
         #if reprocessing, copy record to history and clear status columns
         if self.reprocess:
-            log.info(f"Reprocessing ID# {self.dbid} with filepath {self.filepath}")
             self.copy_old_status_entry(self.dbid)
             self.reset_status_record(self.dbid)
 
@@ -737,7 +739,7 @@ class DEP:
         Check if progid is valid.
         NOTE: We allow the old style of progid without semester thru this check.
         '''
-        if not progid: return False
+        if not progid or progid == 'NONE': return False
 
         #get valid parts
         if   progid.count('_') > 1 : return False    

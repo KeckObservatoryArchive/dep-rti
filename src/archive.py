@@ -91,7 +91,7 @@ class Archive():
         #create logger first
         global log
         log = self.create_logger('koa_dep', self.config[self.instr]['ROOTDIR'], self.instr)
-        log.info("Starting DEP: " + ' '.join(sys.argv[0:]))
+        log.info("Starting DEP")
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
