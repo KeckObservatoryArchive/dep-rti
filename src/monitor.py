@@ -181,13 +181,14 @@ class Monitor():
 
     def is_duplicate_file(self, filepath):
         '''
-        Check dep_status for a record with same ofname and non null state_file.
-        If file contents/hash are same, the we will skip this file.
-        NOTE: This is get around unsolved duplicate trigger broadcast issue.
+        Check dep_status for most recent record with same ofname.
+        If staged and file contents/hash are same, the we will skip this file.
+        If not staged and (queued or processing) then it is definitely a duplicate.
+        NOTE: This is to get around unsolved duplicate trigger broadcast issue.
         '''
-        q = ('select id, stage_file from dep_status where '
-            f" ofname='{filepath}' "
-            f" and stage_file is not NULL and stage_file != '' ")
+        q = ("select * from dep_status "
+            f" where ofname='{filepath}' "
+             " order by id desc limit 1")
         row = self.db.query('koa', q, getOne=True)
         if row is False:
             self.handle_error('DATABASE_ERROR', query)
@@ -195,15 +196,22 @@ class Monitor():
         if len(row) == 0:
             return False
         stage_file = row['stage_file']
+        status = row['status']
+
+        #check for back to back duplicate broadcast (catch race condition)
+        if not stage_file and status in ('QUEUED', 'PROCESSING'):
+            self.log.warning(f"Filepath '{filepath}' duplicate broadcast same as {row['id']}. Skipping.")
+            return True            
 
         #check files exists (stage_file could be moved)
         if not os.path.isfile(stage_file) or not os.path.isfile(filepath):
             return False
 
+        #compare md5s
         md5_stage = self.get_file_md5(stage_file)
         md5_new   = self.get_file_md5(filepath)
         if md5_stage == md5_new: 
-            self.log.warning(f"Filepath '{filepath}' is same filepath and hash of DB ID {row['id']}. Skipping.")
+            self.log.warning(f"Filepath '{filepath}' is same hash as staged_file for DB ID {row['id']}. Skipping.")
             return True
         else:
             return False
