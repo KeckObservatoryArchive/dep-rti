@@ -69,7 +69,7 @@ def main():
         try:
             time.sleep(300)
             for m in monitors:
-                m.log.debug('Monitor saying hi every 5 minutes')
+                m.log.debug(f'Monitor saying hi every 5 minutes ({m.instr})')
         except:
             break
     for m in monitors:
@@ -353,16 +353,17 @@ class KtlMonitor():
 
             #create service object for easy reads later
             keys = self.keys
-            self.service = ktl.cache(keys['service'])
+            self.service = ktl.Service(keys['service'])
 
-            # monitor keys for services that don't have a lastfile equivalent
+            # monitor keys for services that construct filepath from other keywords
             filepath_keys = keys['fp_info']
             for key in filepath_keys:
-                keyword = ktl.cache(keys['service'], key)
-                keyword.monitor()
+                if key == keys['trigger']: continue
+                kw = self.service[key]
+                kw.monitor()
 
             #monitor keyword that indicates new file
-            kw = ktl.cache(keys['service'], keys['trigger'])
+            kw = self.service[keys['trigger']]
             kw.callback(self.on_new_file)
 
             # Prime callback to ensure it gets called at least once with current val
@@ -405,7 +406,6 @@ class KtlMonitor():
     def on_new_file(self, keyword):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
         try:
-            #todo: Why is this multi logging if more than one KtlMonitor per instr(ie KCWI)?
             self.log.debug(f'on_new_file: {keyword.name}={keyword.ascii}')
 
             if keyword['populated'] == False:
@@ -414,10 +414,10 @@ class KtlMonitor():
 
             #assuming first read is old
             #NOTE: I don't think we could rely on a timestamp check vs now?
-            if len(keyword.history) <= 1 or self.restart:
-               self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
-               self.restart = False
-               return
+            # if len(keyword.history) <= 1 or self.restart:
+            #    self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
+            #    self.restart = False
+            #    return
 
             #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
             keys = self.keys
@@ -426,13 +426,14 @@ class KtlMonitor():
                 self.log.info(f'Trigger val of {keyword.ascii} != {reqval}')
                 return
 
-            # construct the filepath from the keywords(s)
+            # construct filepath from keywords(s) using lambda defined in monitor_config.py
             filepath_info = {}
-            filepath_keys = keys['fp_info']
-            for key in filepath_keys:
+            filepath_info[keyword.name] = keyword.ascii
+            for key in keys['fp_info']:
+                if key == keys['trigger']: continue
                 kw = self.service[key]
                 filepath_info[kw.name] = kw.ascii
-                self.log.debug(f'on_new_file: {kw.name}={kw.ascii}')
+                self.log.debug(f"\t{kw.name}={kw.ascii}")
             filepath = keys['format'](filepath_info)
 
             #check for blank filepath
