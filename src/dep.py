@@ -598,21 +598,22 @@ class DEP:
 
                 #write to outfile
                 outDir = os.path.dirname(self.outfile)
-                outFile = filename.replace('fits', '.ext' + str(i) + '.' + hdu.name + '.tbl')
-                outFilepath = outDir + outFile
+                outFile = filename.replace('.fits', '.ext' + str(i) + '.' + hdu.name + '.tbl')
+                outFilepath = f"{outDir}/{outFile}"
+                log.info('Creating {}'.format(outFilepath))
                 with open(outFilepath, 'w') as f:
                     f.write(dataStr)
-
-
-                #Create ext.md5sum.table
-                md5Prepend = self.utdatedir+'.'
-                md5Outfile = f'{outDir}/{self.koaid}.ext.md5sum.table'
-                log.info('Creating {}'.format(md5Outfile))
-                make_dir_md5_table(outDir, None, md5Outfile, regex=f"{self.koaid}.ext\d")
 
             except:
                 self.log_warn('EXT_HEADER_FILE', f' HDU index {i}')
                 return False
+
+            #Create ext.md5sum.table
+            outdir = os.path.dirname(self.outfile)
+            md5Prepend = self.utdatedir+'.'
+            md5Outfile = f'{outdir}/{self.koaid}.ext.md5sum.table'
+            log.info('Creating {}'.format(md5Outfile))
+            make_dir_md5_table(outdir, None, md5Outfile, regex=f"{self.koaid}.ext\d")
 
         return True
 
