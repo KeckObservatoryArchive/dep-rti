@@ -675,7 +675,8 @@ class DEP:
             self.copy_raw_fits(invalid=True)
 
         #call check_dep_status_errors
-        check_dep_status_errors.main(dev=True)
+        if status == 'ERROR':
+            check_dep_status_errors.main(dev=True)
 
 
     def copy_bad_file(self):
