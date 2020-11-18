@@ -1,4 +1,6 @@
 ## DEP
+- Create new script (or mod check_dep_status_errors.py) to do a daily report which would include warnings and invalids.
+- Setup simple ktl logging with less noise for comparison?
 - Setup fake IPAC ingestion API
 - Change cmd line to assume --reprocess and --transfer (keep confirm). Add --notransfer?
 - Create a log file per KOAID? (and/or mark all logs with dbid)

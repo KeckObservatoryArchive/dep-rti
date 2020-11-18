@@ -160,6 +160,7 @@ class Monitor():
             if self.is_duplicate_file(filepath):
                 return
         except Exception as e:
+            self.log.error(traceback.format_exc())
             self.handle_error('DUPLICATE_FILE_CHECK_FAIL')
 
         #Do insert record
@@ -310,7 +311,7 @@ class Monitor():
         log.info(f'logger created for {name} {instr} at {logFile}')
         return log
 
-    def handle_error(self, errcode, text=None, check_time=True):
+    def handle_error(self, errcode, text='', check_time=True):
         '''Email admins the error but only if we haven't sent one recently.'''
 
         #always log/print
@@ -373,7 +374,9 @@ class KtlMonitor():
                 kw.monitor()
 
         except Exception as e:
-            self.queue_mgr.handle_error('KTL_START_ERROR', "Could not start KTL monitoring.  Retrying in 60 seconds.")
+            self.log.error(traceback.format_exc())
+            msg = f"Could not start KTL monitoring for {self.instr} '{keys['service']}'.  Retry in 60 seconds."
+            self.queue_mgr.handle_error('KTL_START_ERROR', msg)
             threading.Timer(KTL_START_RETRY_SEC, self.start).start()
             return
 
@@ -396,7 +399,8 @@ class KtlMonitor():
             val = None
 
         if not val:
-            self.queue_mgr.handle_error('KTL_CHECK_ERROR', f"KTL service '{self.keys['service']}' is NOT running.  Restarting service.")
+            msg = f"KTL service {self.instr} '{self.keys['service']}' is NOT running.  Restarting service."
+            self.queue_mgr.handle_error('KTL_CHECK_ERROR', msg)
             self.restart = True
             self.start()
         else:
@@ -458,7 +462,7 @@ class KtlMonitor():
         self.queue_mgr.add_to_queue(filepath)
 
 
-def handle_error(errcode, text=None, instr='', check_time=True):
+def handle_error(errcode, text='', instr='', check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
     #todo: Should last time be checked on a per instrument basis? (ie move this into class)
 
