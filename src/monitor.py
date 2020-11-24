@@ -192,7 +192,7 @@ class Monitor():
              " order by id desc limit 1")
         row = self.db.query('koa', q, getOne=True)
         if row is False:
-            self.handle_error('DATABASE_ERROR', query)
+            self.handle_error('DATABASE_ERROR', q)
             return False
         if len(row) == 0:
             return False
