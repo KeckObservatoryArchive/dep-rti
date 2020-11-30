@@ -259,7 +259,7 @@ class DEP:
         #If mount is broken/hung, isfile() hangs indefinitely, so we first do 
         #a check_call to make catch mount issues
         try:
-            subprocess.check_call(['test', '-f', self.filepath], timeout=2)
+            subprocess.check_call(['test', '-f', self.filepath], timeout=5)
         except Exception as e:
             self.log_error('FITS_FILE_TYPE_ERROR', str(e))
             return False
@@ -677,7 +677,7 @@ class DEP:
 
         #call check_dep_status_errors
         if status == 'ERROR':
-            check_dep_status_errors.main(dev=True)
+            check_dep_status_errors.main()
 
 
     def copy_bad_file(self):
