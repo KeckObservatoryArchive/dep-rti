@@ -15,17 +15,17 @@ import psutil
 import getpass
 
 
-def is_server_running(server, interpreter=None, port=None, report=False):
+def is_server_running(server, interpreter=None, port=None, extra=False, report=False):
     '''
     Returns PID if server is currently running (on same port), else 0
     '''
-
     matches = []
     current_user = getpass.getuser()
     list1 = []
-    if interpreter: list.append(interpreter)
     list1.append(server)
-    if port: list1.append(port)
+    if port:        list1.append(port)
+    if extra:       list1.append(extra)
+    if interpreter: list1.append(interpreter)
     for proc in psutil.process_iter():
         pinfo = proc.as_dict(attrs=['name', 'username', 'pid', 'cmdline'])
 
@@ -125,7 +125,7 @@ server = f'{dir}/{server}.py'
 assert os.path.isfile(server), print(f'server module {server} does not exist')
 
 # Check if server is running
-pid = is_server_running(server, interpreter=interpreter, port=port)
+pid = is_server_running(server, interpreter=interpreter, port=port, extra=extra)
 
 # Do the request
 if command == 'stop':
@@ -136,6 +136,6 @@ elif command == 'restart':
     pid = process_stop(pid)
     process_start(pid, server, interpreter=interpreter, port=port, extra=extra)
 elif command == 'check':
-    pid = is_server_running(server, interpreter=interpreter, port=port, report=True)
+    pid = is_server_running(server, interpreter=interpreter, port=port, extra=extra, report=True)
 
 exit()
