@@ -183,8 +183,8 @@ class Monitor():
     def is_duplicate_file(self, filepath):
         '''
         Check dep_status for most recent record with same ofname.
-        If staged and file contents/hash are same, the we will skip this file.
         If not staged and (queued or processing) then it is definitely a duplicate.
+        If staged and file contents/hash are same, the we will skip this file.
         NOTE: This is to get around unsolved duplicate trigger broadcast issue.
         '''
         q = ("select * from dep_status "
@@ -200,9 +200,13 @@ class Monitor():
         status = row['status']
 
         #check for back to back duplicate broadcast (catch race condition)
-        if not stage_file and status in ('QUEUED', 'PROCESSING'):
-            self.log.warning(f"Filepath '{filepath}' duplicate broadcast same as {row['id']}. Skipping.")
-            return True            
+        if not stage_file:
+            if status in ('QUEUED', 'PROCESSING'):
+                self.log.warning(f"Filepath '{filepath}' duplicate broadcast same as {row['id']}. Skipping.")
+                return True            
+            else:
+                #If it is in some other state (invalid, error), we want to process the current one
+                return False
 
         #check files exists (stage_file could be moved)
         if not os.path.isfile(stage_file) or not os.path.isfile(filepath):
