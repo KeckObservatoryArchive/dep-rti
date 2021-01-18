@@ -55,7 +55,6 @@ class KtlMonitor():
         self.restart = False
         print(f"KtlMonitor: instr: {instr}, service: {keys['service']}, keyword: {keys['keyword']}")
 
-
     def start(self):
         '''Start monitoring 'keyword' keyword for new files.'''
 
@@ -92,7 +91,6 @@ class KtlMonitor():
         #Start an interval timer to periodically check that this service is running.
         threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 
-
     def check_service(self):
         '''
         Try to read heartbeat keyword from service.  If all ok, then check again in 1 minute.
@@ -110,8 +108,7 @@ class KtlMonitor():
         if not val:
             msg = f"KTL service {self.instr} '{self.keys['service']}' is NOT running.  Restarting service."
             self.queue_mgr.handle_error('KTL_CHECK_ERROR', msg)
-            self.restart = True
-            self.start()
+            self.do_restart()
         else:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 

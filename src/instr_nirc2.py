@@ -16,9 +16,9 @@ log = logging.getLogger('koa_dep')
 
 class Nirc2(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, transfer):
+    def __init__(self, instr, filepath, reprocess, transfer):
 
-        super().__init__(instr, filepath, config, db, reprocess, transfer)
+        super().__init__(instr, filepath, reprocess, transfer)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME'] = 'FILENAME'

@@ -34,9 +34,9 @@ log = logging.getLogger('koa_dep')
 
 class Instrument(dep.DEP):
 
-    def __init__(self, instr, filepath, config, db, reprocess, transfer, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, transfer, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, dbid)
 
         # Common keywords used in code that can be mapped to actual keyword per instrument 
         # so a call to get_keyword can be used generically.  Overwrite values in instr_[instr].py
@@ -678,22 +678,27 @@ class Instrument(dep.DEP):
         return True
 
 
-    def set_oa(self):
-        '''
-        Adds observing assistant name to header
-        '''
-        url = f"{self.config['API']['TELAPI']}cmd=getNightStaff&date={self.hstdate}&telnr={self.telnr}"
+    def get_oa(self, hstdate, telnr):
+        '''Gets OA value from API for given date and telnr.'''
+
+        url = f"{self.config['API']['TELAPI']}cmd=getNightStaff&date={hstdate}&telnr={telnr}"
         log.info(f'retrieving night staff info: {url}')
         data = self.get_api_data(url)
         oa = 'None'
         if data:
             if isinstance(data, dict):
-                if ('Alias' in data):
-                    oa = data['Alias']
-            else:
-                for entry in data:
-                    if entry['Type'] == 'oa' or entry['Type'] == 'oar':
-                        oa = entry['Alias']
+                data = [data]
+            for entry in data:
+                if entry['Type'] == 'oa' or entry['Type'] == 'oar':
+                    oa = entry['Alias']
+        return oa
+
+
+    def set_oa(self):
+        '''
+        Adds observing assistant name to header
+        '''
+        oa = self.get_oa(self.hstdate, self.telnr)
         if oa == 'None':
             self.log_warn("SET_OA_ERROR", url)
         else:

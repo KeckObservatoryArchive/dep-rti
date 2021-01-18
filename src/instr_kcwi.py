@@ -20,9 +20,9 @@ log = logging.getLogger('koa_dep')
 
 class Kcwi(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, transfer, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, transfer, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, dbid)
 
         # Set any unique keyword index values here
         self.keymap['UTC'] = 'UT'

@@ -34,12 +34,11 @@ log = logging.getLogger('koa_dep')
 
 class DEP:
 
-    def __init__(self, instr, filepath, config, db, reprocess, transfer, dbid=None):
+    def __init__(self, instr, filepath, db, reprocess, transfer, dbid=None):
 
         #class inputs
         self.instr     = instr.upper()
         self.filepath  = filepath
-        self.config    = config
         self.db        = db
         self.reprocess = reprocess
         self.transfer  = transfer
@@ -59,10 +58,15 @@ class DEP:
         self.utc = None
         self.utdate = None
         self.dirs = None
+        self.rootdir = None
+        self.config = None
 
-        #other helpful vars
-        self.rootdir = self.config[self.instr]['ROOTDIR']
-        if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
+
+    def __del__(self):
+
+        #Close the database connection
+        if self.db:
+            self.db.close()
 
 
     #abstract methods that must be implemented by inheriting classes
@@ -74,6 +78,7 @@ class DEP:
 
         try:
             ok = True
+            if ok: ok = self.init()
             if ok: ok = self.check_status_db_entry()
             if ok: ok = self.load_fits()
             if ok: ok = self.set_koaid()
@@ -103,26 +108,22 @@ class DEP:
         return ok
 
 
-    def log_warn(self, errcode, text=''):
-        status = 'WARN'
-        caller = inspect.stack()[1][3]
-        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        log.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
-        self.warnings.append(data)
+    def init(self):
 
-    def log_error(self, errcode, text=''):
-        status = 'ERROR'
-        caller = inspect.stack()[1][3]
-        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
-        self.errors.append(data)
+        #cd to script dir so relative paths work
+        scriptpath = os.path.dirname(os.path.realpath(__file__))
+        os.chdir(scriptpath)
 
-    def log_invalid(self, errcode, text=''):
-        status = 'INVALID'
-        caller = inspect.stack()[1][3]
-        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
-        self.invalids.append(data)
+        #load config file
+        with open('config.live.ini') as f: 
+            self.config = yaml.safe_load(f)
+
+        #other helpful vars
+        self.rootdir = self.config[self.instr]['ROOTDIR']
+        if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
+
+        # Establish database connection 
+        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
 
 
     def check_status_db_entry(self):
@@ -973,4 +974,26 @@ class DEP:
             return False
 
         return True
+
+
+    def log_warn(self, errcode, text=''):
+        status = 'WARN'
+        caller = inspect.stack()[1][3]
+        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
+        log.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        self.warnings.append(data)
+
+    def log_error(self, errcode, text=''):
+        status = 'ERROR'
+        caller = inspect.stack()[1][3]
+        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
+        log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        self.errors.append(data)
+
+    def log_invalid(self, errcode, text=''):
+        status = 'INVALID'
+        caller = inspect.stack()[1][3]
+        data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
+        log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        self.invalids.append(data)
 

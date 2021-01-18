@@ -160,8 +160,7 @@ class Archive():
         '''Creates instrument object by name and starts processing.'''
         module = importlib.import_module('instr_' + self.instr.lower())
         instr_class = getattr(module, self.instr.capitalize())
-        instr_obj = instr_class(self.instr, filepath, self.config, self.db, 
-                                self.reprocess, self.transfer, dbid=dbid)
+        instr_obj = instr_class(self.instr, filepath, self.reprocess, self.transfer, dbid=dbid)
 
         ok = instr_obj.process()
         if not ok:

@@ -13,9 +13,9 @@ log = logging.getLogger('koa_dep')
 
 class Nirspec(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, transfer):
+    def __init__(self, instr, filepath, reprocess, transfer):
 
-        super().__init__(instr, filepath, config, db, reprocess, transfer)
+        super().__init__(instr, filepath, reprocess, transfer)
 
         #set any unique keyword index values here
         self.keymap['OFNAME'] = 'DATAFILE'

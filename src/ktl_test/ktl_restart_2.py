@@ -21,6 +21,17 @@ I am under the impression it might have issues.  A direct read is perhaps a fail
 way to check the service is running?  I don't know how the heartbeat function works. Maybe
 it is doing the same thing?
 
+"
+All hearbeats are monitored by a background FirstResponder thread that wakes up according 
+to the most imminent expiration of any heartbeat's set period. If the heartbeat does not 
+update within period seconds, an external check will be made to see whether the service is 
+responding. If it is, and local broadcasts have not resumed, all Service instances 
+corresponding to the affected KTL service will be resuscitated.
+"
+
+From what I observed, the second check to see if the service is responding may not be happening,
+resulting in unnecessary resuscitation??
+
 '''
 import datetime as dt
 import ktl
