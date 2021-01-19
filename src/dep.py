@@ -34,12 +34,11 @@ log = logging.getLogger('koa_dep')
 
 class DEP:
 
-    def __init__(self, instr, filepath, db, reprocess, transfer, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
 
         #class inputs
         self.instr     = instr.upper()
         self.filepath  = filepath
-        self.db        = db
         self.reprocess = reprocess
         self.transfer  = transfer
         self.dbid      = dbid
@@ -124,6 +123,8 @@ class DEP:
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+
+        return True
 
 
     def check_status_db_entry(self):
