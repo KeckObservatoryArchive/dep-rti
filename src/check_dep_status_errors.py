@@ -72,9 +72,10 @@ def main(instr=None, dev=False):
         msg += gen_table_report('stuck', stuck)
 
     #email and insert new record
-    #if dev: print(msg)
-    email_admin(msg, dev=dev)
-    db.query('koa', 'insert into dep_error_notify set email_time=NOW()')
+    print(msg)
+    if not dev:
+        email_admin(msg, dev=dev)
+        db.query('koa', 'insert into dep_error_notify set email_time=NOW()')
 
 
 def gen_table_report(name, rows):
