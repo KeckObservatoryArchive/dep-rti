@@ -60,6 +60,7 @@ class DEP:
         self.rootdir = None
         self.config = None
         self.db = None
+        self.filesize_mb = 0.0
 
 
     def __del__(self):
@@ -89,6 +90,7 @@ class DEP:
             if ok: ok = self.run_dqa()
             if ok: ok = self.write_lev0_fits_file() 
             if ok:      self.make_jpg()
+            if ok:      self.set_filesize_mb()
             if ok: ok = self.create_meta()
             if ok:      self.create_ext_meta()
             if ok: ok = self.run_drp()
@@ -547,6 +549,7 @@ class DEP:
         extra_meta = {}
         koaid = self.get_keyword('KOAID')
         extra_meta[koaid] = self.extra_meta
+        extra_meta[koaid]['FILESIZE_MB'] = self.filesize_mb
 
         keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + self.instr
         metaoutfile =  self.dirs['lev0'] + '/' + self.koaid + '.metadata.table'
@@ -835,8 +838,7 @@ class DEP:
         #todo: add other column data like size, sdata_dir, etc
         if not self.update_dep_status('archive_dir', self.dirs['lev0']): return False
 
-        filesize_mb = self.get_filesize_mb()
-        if not self.update_dep_status('filesize_mb', filesize_mb): return False
+        if not self.update_dep_status('filesize_mb', self.filesize_mb): return False
 
         archsize_mb = self.get_archsize_mb()
         if not self.update_dep_status('archsize_mb', archsize_mb): return False
@@ -853,10 +855,10 @@ class DEP:
         return True
 
 
-    def get_filesize_mb(self):
+    def set_filesize_mb(self):
         """Returns the archived fits size in MB"""
         bytes = os.path.getsize(self.outfile)
-        return str(bytes/1e6)
+        self.filesize_mb = round(bytes/1e6, 4)
 
 
     def get_archsize_mb(self):

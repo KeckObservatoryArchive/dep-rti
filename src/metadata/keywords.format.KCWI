@@ -1,6 +1,7 @@
 keyword	dataType	colSize	allowNull
 KOAID	char	32	N
 PROPINT	integer	16	N
+FILESIZE_MB	double	16	Y
 TELESCOP	char	8	Y
 INSTRUME	char	68	N
 KOAIMTYP	char	32	N
