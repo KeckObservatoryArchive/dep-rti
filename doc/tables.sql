@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `archsize_mb`         double                      COMMENT 'Size of complete FITS dataset in megabytes',
   `koaimtyp`            varchar(25)                 COMMENT 'Image type of the FITS file',
   `semid`               varchar(25)                 COMMENT 'SEMID of FITS file association',
+  `ofname_deleted`      tinyint(1)                  COMMENT '0 file not deleted, 1 file deleted, 2 do not delete file.',
   `last_mod`            timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 

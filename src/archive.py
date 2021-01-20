@@ -15,6 +15,7 @@ import db_conn
 import importlib
 from pathlib import Path
 import logging
+import glob
 
 import dep
 import instrument
@@ -31,6 +32,7 @@ def main():
     parser = argparse.ArgumentParser(description='DEP input parameters')
     parser.add_argument('instr', help='Keck Instrument')
     parser.add_argument('--filepath' , type=str, default=None, help='Filepath to FITS file to archive.')
+    parser.add_argument('--files' , type=str, default=None, help='Directory path to FITS files.  Can use "glob" pattern match.')
     parser.add_argument('--dbid' , type=str, default=None, help='Database ID record to archive.')
     parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
     parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
@@ -43,21 +45,22 @@ def main():
     args = parser.parse_args()    
 
     #run it 
-    archive = Archive(args.instr, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
-              starttime=args.starttime, endtime=args.endtime,
+    archive = Archive(args.instr, filepath=args.filepath, files=args.files, dbid=args.dbid, 
+              reprocess=args.reprocess, starttime=args.starttime, endtime=args.endtime,
               status=args.status, statuscode=args.statuscode, ofname=args.ofname,
               confirm=args.confirm, transfer=args.transfer)
 
 
 class Archive():
 
-    def __init__(self, instr, filepath=None, dbid=None, reprocess=False, 
+    def __init__(self, instr, filepath=None, files=None, dbid=None, reprocess=False, 
                  starttime=None, endtime=None, status=None, statuscode=None,
                  ofname=None, confirm=False, transfer=False):
 
         #inputs
         self.instr = instr.upper()
         self.filepath = filepath
+        self.files = files
         self.dbid = dbid
         self.reprocess = reprocess
         self.starttime = starttime
@@ -99,6 +102,8 @@ class Archive():
         #routing
         if self.filepath:
             self.process_file(filepath=self.filepath)
+        elif self.files:
+            self.process_files(self.files)
         elif self.dbid:
             self.process_file(dbid=self.dbid)
         elif self.starttime or self.endtime or self.status or self.statuscode or self.ofname:
@@ -167,6 +172,26 @@ class Archive():
             self.handle_dep_error()
         else:
             log.info("DEP finished successfully!")
+
+
+    def process_files(self, pattern):
+        '''Search a directory for files to process.  Can use glob wildcard match.'''
+        if pattern.endswith('/'): pattern += '*'
+
+        files = []
+        for filepath in glob.glob(pattern):
+            files.append(filepath)
+
+        if not self.confirm:
+            print(f"\nSearching pattern: {pattern}\n")
+            print("--------------------")
+            for f in files: print(f)
+            print("--------------------")
+            print(f"{len(files)} files found.  Use --confirm option to process these files.\n")
+        else:
+            for f in files:
+                self.process_file(filepath=f)
+
 
 
     def reprocess_by_query(self):
