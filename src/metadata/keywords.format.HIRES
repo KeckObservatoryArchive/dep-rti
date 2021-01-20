@@ -1,5 +1,6 @@
 keyword	dataType	colSize	allowNull
 KOAID	char	30	N
+FILESIZE_MB	double	16	Y
 PROPINT1	integer	16	N
 PROPINT2	integer	16	N
 PROPINT3	integer	16	N
