@@ -1,5 +1,6 @@
 keyword	dataType	colSize	allowNull
 KOAID	char	32	N
+SEMID	char	21	N
 PROPINT	integer	16	N
 FILESIZE_MB	double	16	Y
 TELESCOP	char	8	Y
