@@ -1,5 +1,6 @@
 keyword	dataType	colSize	allowNull
 KOAID	char	32	N
+SEMID	char	21	N
 OFNAME	char	32	N
 FILESIZE_MB	double	16	Y
 PROGID	char	32	N
