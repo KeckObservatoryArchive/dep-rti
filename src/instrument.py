@@ -333,7 +333,7 @@ class Instrument(dep.DEP):
         if dateObs: 
             dateObs = str(dateObs) #NOTE: sometimes we can get a number
             dateObs = dateObs.strip()
-            valid = re.search('^\d\d\d\d[-]\d\d[-]\d\d', dateObs)
+            valid = re.search(r'^\d\d\d\d[-]\d\d[-]\d\d', dateObs)
             #fix slashes?
             if not valid and '/' in dateObs:
                 orig = dateObs

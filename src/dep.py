@@ -59,6 +59,7 @@ class DEP:
         self.dirs = None
         self.rootdir = None
         self.config = None
+        self.db = None
 
 
     def __del__(self):
@@ -120,6 +121,7 @@ class DEP:
         #other helpful vars
         self.rootdir = self.config[self.instr]['ROOTDIR']
         if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
+        self.dev = self.config['RUNTIME']['DEV']
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
@@ -129,9 +131,20 @@ class DEP:
 
     def check_status_db_entry(self):
 
+        #If we passed in a filepath and are reprocessing, look for existing record by ofname
+        if self.filepath and self.reprocess:
+            query = (f"select * from dep_status where "
+                     f" instrument='{self.instr}' and ofname='{self.filepath}' "
+                      " order by id desc")
+            log.info(query)
+            row = self.db.query('koa', query, getOne=True)
+            if row:
+                self.dbid = row['id']
+
         #If we didn't pass in a DB ID, we must have filepath 
         #so insert a new dep_status record and get ID
         if not self.dbid:
+
             query = ("insert into dep_status set "
                     f"   instrument='{self.instr}' "
                     f" , ofname='{self.filepath}' "
@@ -264,6 +277,8 @@ class DEP:
             subprocess.check_call(['test', '-f', self.filepath], timeout=5)
         except Exception as e:
             self.log_error('FITS_FILE_TYPE_ERROR', str(e))
+            if os.path.isfile(self.filepath):
+                log.error('Got a FITS_FILE_TYPE_ERROR, but os.path.isfile is OK.')
             return False
 
         #check file not found and file empty
@@ -344,14 +359,14 @@ class DEP:
 
         #form filepath and copy
         if invalid: 
-            if self.dirs: outfile = f"{self.dirs['udf']}/{self.utdatedir}{self.ofname}"
+            if self.dirs: outfile = f"{self.dirs['udf']}/{self.utdatedir}/{self.ofname}"
             else:         outfile = f"{self.rootdir}/{self.instr}/stage/udf/{self.ofname}"
         else:       
-            outfile = f"{self.dirs['stage']}/{self.utdatedir}{self.ofname}"
+            outfile = f"{self.dirs['stage']}/{self.utdatedir}/{self.ofname}"
         if outfile == self.filepath:
             return True
 
-        #if outfile exists, we attach KOAID to filename
+        #if outfile exists, we append version to filename
         #(This is for rare case where observer deletes file and recreates it)
         if os.path.isfile(outfile):
             log.warning(f'Stage file already exists.  Renaming with version.')
@@ -573,7 +588,7 @@ class DEP:
                     colWidths.append(colWidth)
 
                 #add hdu name as comment
-                dataStr += '\ Extended Header Name: ' + hdu.name + "\n"
+                dataStr += r'\ Extended Header Name: ' + hdu.name + "\n"
 
                 #add header
                 #TODO: NOTE: Found that all ext data is stored as strings regardless of type it seems to hardcoding to 'char' for now.
@@ -615,7 +630,8 @@ class DEP:
             md5Prepend = self.utdatedir+'.'
             md5Outfile = f'{outdir}/{self.koaid}.ext.md5sum.table'
             log.info('Creating {}'.format(md5Outfile))
-            make_dir_md5_table(outdir, None, md5Outfile, regex=f"{self.koaid}.ext\d")
+            regex = self.koaid + r'.ext\d'
+            make_dir_md5_table(outdir, None, md5Outfile, regex=regex)
 
         return True
 
@@ -678,7 +694,7 @@ class DEP:
             self.copy_raw_fits(invalid=True)
 
         #call check_dep_status_errors
-        if status == 'ERROR':
+        if status == 'ERROR' and not self.dev:
             check_dep_status_errors.main()
 
 
@@ -706,7 +722,7 @@ class DEP:
         #TODO: Do we need this function?
         # Verify correct format (yyyy-mm-dd or yyyy/mm/dd)
         assert date != '', 'date value is blank'
-        assert re.search('\d\d\d\d[-/]\d\d[-/]\d\d', date), 'unknown date format'
+        assert re.search(r'\d\d\d\d[-/]\d\d[-/]\d\d', date), 'unknown date format'
         
         # Switch to yyyy-mm-dd format and split into individual elements        
         date = date.replace('/', '-')
@@ -727,7 +743,7 @@ class DEP:
         """        
         # Verify correct format (hh:mm:ss[.ss])
         if not utc: return False
-        if not re.search('\d\d:\d\d:\d\d', utc): return False
+        if not re.search(r'\d\d:\d\d:\d\d', utc): return False
         
         # Check time components       
         hour, minute, second = utc.split(':')        
