@@ -550,6 +550,7 @@ class DEP:
         koaid = self.get_keyword('KOAID')
         extra_meta[koaid] = self.extra_meta
         extra_meta[koaid]['FILESIZE_MB'] = self.filesize_mb
+        extra_meta[koaid]['SEMID'] = self.get_semid()
 
         keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + self.instr
         metaoutfile =  self.dirs['lev0'] + '/' + self.koaid + '.metadata.table'

@@ -1,5 +1,7 @@
 keyword	dataType	colSize	allowNull
 KOAID	char	32	N
+SEMID	char	21	N
+FILESIZE_MB	double	16	Y
 AIRMASS	double	24	Y
 AXESTAT	char	24	Y
 AZ	double	24	Y
