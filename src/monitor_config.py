@@ -1,8 +1,11 @@
-#Define instrument keywords to monitor that indicate a new datafile was written.
-#'trigger' value indicates which keyword to monitor that will trigger processing.
-#If 'val' is defined, trigger must equal val to initiate processing.
-#'format' defines the filepath construction from other keywords defined in 'fp_info'
-#todo: Finish mapping all instrs
+'''
+Define instrument keywords to monitor that indicate a new datafile was written.
+- 'trigger' value indicates which keyword to monitor that will trigger processing.
+- If 'val' is defined, trigger must equal val to initiate processing.
+- 'format' defines the filepath construction from other keywords defined in 'fp_info'
+- 'probe' is the keyword to read with Keyword.probe() to check that service is alive
+  (NOTE: 'probe' must be a different keyword than 'trigger' b/c probe() read causes callback)
+'''
 #todo: This could be put in each of the instr subclasses.
 instr_keymap = {
     'KCWI': [
@@ -12,7 +15,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['LASTFILE'],
             'format'   :  lambda vals: f"{vals['LASTFILE']}",
-            'heartbeat':  'LASTALIVE'
+            'probe'    :  'UPTIME'
         },
         {
             'service'  :  'kbds',
@@ -20,7 +23,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['LOUTFILE'],
             'format'   :  lambda vals: f"{vals['LOUTFILE']}",
-            'heartbeat':  'LASTALIVE'
+            'probe'    : 'UPTIME'
         }
     ],
     'NIRES': [
@@ -30,7 +33,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['LASTFILE'],
             'format'   :  lambda vals: f"{vals['LASTFILE']}",
-            'heartbeat':  'LASTALIVE'
+            'probe'    :  'LASTALIVE'
         },
         {
             'service'  :  'nsds',
@@ -38,7 +41,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['LASTFILE'],
             'format'   :  lambda vals: f"{vals['LASTFILE']}",
-            'heartbeat':  'STATUS'
+            'probe'    :  'STATUS'
         }
     ],
     'DEIMOS': [
@@ -48,7 +51,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['LASTCCD'],
             'format'   :  lambda vals: f"{vals['LASTCCD']}",
-            'heartbeat':  'UPTIME'
+            'probe'    :  'UPTIME'
         },
         {
             'service'  :  'deifcs',
@@ -56,7 +59,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['FCSIMGFI'],
             'format'   :  lambda vals: f"{vals['FCSIMGFI']}",
-            'heartbeat':  'INFOMCLK'
+            'probe'    :  'INFOMCLK'
         }
     ],
     'ESI': [
@@ -66,7 +69,7 @@ instr_keymap = {
             'val'      :  'false',
             'fp_info'  :  ['OUTDIR','OUTFILE','LFRAMENO'],
             'format'   :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits",
-            'heartbeat':  '' # there is no keyword to track if the esi service is up
+            'probe'    :  '' # there is no keyword to track if the esi service is up
         }
     ],
     'HIRES': [
@@ -76,7 +79,7 @@ instr_keymap = {
             'val'      :  'false',
             'fp_info'  :  ['OUTDIR','OUTFILE','LFRAMENO'],
             'format'   :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits",
-            'heartbeat':  'INFOMCLK'
+            'probe'    :  'INFOMCLK'
         }
     ],
     'LRIS': [
@@ -86,7 +89,7 @@ instr_keymap = {
             'val'      :  'false',
             'fp_info'  :  ['OUTDIR','OUTFILE','LFRAMENO'],
             'format'   :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits",
-            'heartbeat':  '' # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+            'probe'    :  '' # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
         },
         {
             'service'  :  'lrisblue',
@@ -94,7 +97,7 @@ instr_keymap = {
             'val'      :  'false',
             'fp_info'  :  ['OUTDIR','OUTFILE','LFRAMENO'],
             'format'   :  lambda vals: f"{vals['OUTDIR']}/{vals['OUTFILE']}{vals['LFRAMENO']:0>4}.fits",
-            'heartbeat':  '' # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+            'probe':  '' # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
         }
     ],
     'MOSFIRE': [
@@ -104,7 +107,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['LASTFILE'],
             'format'   :  lambda vals: f"{vals['LASTFILE']}",
-            'heartbeat':  'LASTALIVE'
+            'probe'    :  'LASTALIVE'
         }
     ],
     'NIRC2': [
@@ -114,7 +117,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['OUTDIR', 'LASTFILE'],
             'format'   :  lambda vals: f"{vals['OUTDIR']}{vals['LASTFILE']}",
-            'heartbeat':  ''  # alad doesn't have any keyword to track how long it's been up
+            'probe'    :  ''  # alad doesn't have any keyword to track how long it's been up
         }
     ],
     'NIRSPEC': [
@@ -124,7 +127,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['LASTFILE'],
             'format'   :  lambda vals: f"{vals['LASTFILE']}",
-            'heartbeat':  'UPTIME'
+            'probe'    :  'UPTIME'
         },
         {
             'service'  :  'nscam',
@@ -132,7 +135,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['LASTFILE'],
             'format'   :  lambda vals: f"{vals['LASTFILE']}",
-            'heartbeat':  'UPTIME'
+            'probe'    :  'UPTIME'
         }
     ],
     'OSIRIS': [
@@ -142,7 +145,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['ILASTFILE'],
             'format'   :  lambda vals: f"{vals['ILASTFILE']}",
-            'heartbeat':  'LASTALIVE'
+            'probe'    :  'LASTALIVE'
         },
         {
             'service'  :  'osiris',
@@ -150,7 +153,7 @@ instr_keymap = {
             'val'      :  None,
             'fp_info'  :  ['SLASTFILE'],
             'format'   :  lambda vals: f"{vals['SLASTFILE']}",
-            'heartbeat':  'LASTALIVE'
+            'probe'    :  'LASTALIVE'
         }
     ]
 }

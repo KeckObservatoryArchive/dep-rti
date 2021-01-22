@@ -44,7 +44,8 @@ import monitor_config
 last_email_times = None
 PROC_CHECK_SEC = 1.0
 KTL_START_RETRY_SEC = 60.0
-SERVICE_CHECK_SEC = 60.0
+#todo
+SERVICE_CHECK_SEC = 6.0
 
 
 def main():
@@ -341,48 +342,42 @@ class KtlMonitor():
         self.keys = keys
         self.queue_mgr = queue_mgr
         self.service = None
-        self.restart = False
+        self.last_mtime = None
         self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
 
 
     def start(self):
         '''Start monitoring 'trigger' keyword for new files.'''
 
-        #These cache calls can throw exceptions (if instr server is down for example)
-        #So, we should catch and retry until successful.  Be careful not to multi-register the callback
+        keys = self.keys
+
+        #get service instance
         try:
-            #delete service if exists
-            if self.service:
-                del self.service
-                self.service = None
-
-            #create service object for easy reads later
-            keys = self.keys
             self.service = ktl.Service(keys['service'])
-
-            # monitor keys for services that construct filepath from other keywords
-            filepath_keys = keys['fp_info']
-            for key in filepath_keys:
-                if key == keys['trigger']: continue
-                kw = self.service[key]
-                kw.monitor()
-
-            #monitor keyword that indicates new file
-            kw = self.service[keys['trigger']]
-            kw.callback(self.on_new_file)
-
-            # Prime callback to ensure it gets called at least once with current val
-            if kw['monitored'] == True:
-                self.on_new_file(kw)
-            else:
-                kw.monitor()
-
         except Exception as e:
             self.log.error(traceback.format_exc())
-            msg = f"Could not start KTL monitoring for {self.instr} '{keys['service']}'.  Retry in 60 seconds."
+            msg = (f"Could not start KTL monitoring for {self.instr} '{keys['service']}'. "
+                   f"  Retry in {KTL_START_RETRY_SEC} seconds.")
             self.queue_mgr.handle_error('KTL_START_ERROR', msg)
             threading.Timer(KTL_START_RETRY_SEC, self.start).start()
             return
+
+        # monitor keys for services that construct filepath from other keywords
+        filepath_keys = keys['fp_info']
+        for key in filepath_keys:
+            if key == keys['trigger']: continue
+            kw = self.service[key]
+            kw.monitor()
+
+        #monitor keyword that indicates new file
+        kw = self.service[keys['trigger']]
+        kw.callback(self.on_new_file)
+
+        # Prime callback to ensure it gets called at least once with current val
+        if kw['monitored'] == True:
+            self.on_new_file(kw)
+        else:
+            kw.monitor()
 
         #Start an interval timer to periodically check that this service is running.
         threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
@@ -390,42 +385,34 @@ class KtlMonitor():
 
     def check_service(self):
         '''
-        Try to read heartbeat keyword from service.  If all ok, then check again in 1 minute.
-        If we can't get a value, restart service monitoring.  
+        Probe to see if keyword service is still working.
         '''
-        heartbeat = self.keys.get('heartbeat')
-        if not heartbeat: return
-
         try:
-            val = self.service[heartbeat].read()
+            print("PROBING: ", self.keys['probe'])
+            kw = self.service[self.keys['probe']]
+            kw.probe()
         except Exception as e:
-            self.log.debug(f"KTL read exception: {str(e)}")
-            val = None
+            self.log.debug(str(e))
+            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' is NOT running.")
+            self.do_restart()
 
-        if not val:
-            msg = f"KTL service {self.instr} '{self.keys['service']}' is NOT running.  Restarting service."
-            self.queue_mgr.handle_error('KTL_CHECK_ERROR', msg)
-            self.restart = True
-            self.start()
-        else:
-            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
+        threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
+
+
+    def do_restart(self):
+        self.log.debug(f"Restarting {self.instr} KTL service '{self.keys['service']}'")
+        self.service.reconnect()
 
 
     def on_new_file(self, keyword):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
         try:
-            self.log.debug(f'on_new_file: {keyword.name}={keyword.ascii}')
 
+            #make sure keyword is populated
             if keyword['populated'] == False:
                 self.log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
-
-            #assuming first read is old
-            #NOTE: I don't think we could rely on a timestamp check vs now?
-            if len(keyword.history) <= 1 or self.restart:
-               self.log.info(f'Skipping first value read assuming it is old. Val is {keyword.ascii}')
-               self.restart = False
-               return
+            self.log.debug(f'on_new_file: {keyword.name}={keyword.ascii}')
 
             #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
             keys = self.keys
@@ -457,6 +444,20 @@ class KtlMonitor():
             if '/sdata' not in filepath:
                 self.log.error(f"INVALID FILEPATH (no 'sdata')\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
+
+            #Check file mod time and ensure it is not the same as last file (re-broadcasts)
+            #(NOTE: preferred to checking last val read b/c observer can regenerate same filepath)
+            try:
+                mtime = os.stat(filepath).st_mtime
+            except Exception as e:
+                mtime = None
+                self.queue_mgr.handle_error('FILE_READ_ERROR', traceback.format_exc())
+                return
+            if self.last_mtime is None or self.last_mtime == mtime:
+               self.log.debug(f'Skipping (last mtime = {self.last_mtime})')
+               self.last_mtime = mtime
+               return
+            self.last_mtime = mtime
 
         except Exception as e:
             self.queue_mgr.handle_error('KTL_READ_ERROR', traceback.format_exc())
