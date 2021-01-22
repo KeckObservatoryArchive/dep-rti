@@ -363,6 +363,7 @@ class KtlMonitor():
         self.queue_mgr = queue_mgr
         self.service = None
         self.last_mtime = None
+        self.probe_failed = False
         self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
 
 
@@ -411,11 +412,15 @@ class KtlMonitor():
             kw = self.service[self.keys['probe']]
             kw.probe()
         except Exception as e:
+            self.probe_failed = True
             self.log.debug(str(e))
-            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' is NOT running.")
-            self.do_restart()
-
-        threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
+            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' probe failed.")
+        else:
+            if self.probe_failed:
+                self.do_restart()
+            self.probe_failed = False
+        finally:
+            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 
 
     def do_restart(self):
