@@ -44,8 +44,8 @@ import monitor_config
 last_email_times = None
 PROC_CHECK_SEC = 1.0
 KTL_START_RETRY_SEC = 60.0
-#todo
-SERVICE_CHECK_SEC = 6.0
+SERVICE_CHECK_SEC = 60.0
+QUEUE_CHECK_SEC = 60.0
 
 
 def main():
@@ -92,6 +92,7 @@ class Monitor():
         self.queue = []
         self.procs = []
         self.max_procs = 10
+        self.last_queue_check = time.time()
         self.last_email_times = {}
 
         #cd to script dir so relative paths work
@@ -130,6 +131,7 @@ class Monitor():
 
         #start interval to monitor DEP processes for completion
         self.process_monitor()
+        self.queue_monitor()
 
 
     def process_monitor(self):
@@ -233,6 +235,8 @@ class Monitor():
 
     def check_queue(self):
         '''Check queue for jobs that need to be spawned.'''
+        self.last_queue_check = time.time()
+
         query = (f"select * from dep_status where "
                 f" status='QUEUED' "
                 f" and instrument='{self.instr}' "
@@ -263,6 +267,22 @@ class Monitor():
             self.process_file(row['id'])
         except Exception as e:
             self.handle_error('PROCESS_ERROR', f"ID={row['id']}, filepath={row['ofname']}\n, {traceback.format_exc()}")
+
+
+    def queue_monitor(self):
+        '''
+        Periodically check the queue when idle.
+        NOTE: Queue is re-checked when an entry is made in the queue or if
+        a job finishes.  However, if an entry is manually entered in queue
+        outside of nominal operation, this will pick it up.
+        '''
+        now = time.time()
+        diff = int(now - self.last_queue_check)
+        if diff >= QUEUE_CHECK_SEC:
+            self.check_queue()
+
+        #call this function every N seconds
+        threading.Timer(QUEUE_CHECK_SEC, self.queue_monitor).start()
 
 
     def process_file(self, id):
@@ -388,7 +408,6 @@ class KtlMonitor():
         Probe to see if keyword service is still working.
         '''
         try:
-            print("PROBING: ", self.keys['probe'])
             kw = self.service[self.keys['probe']]
             kw.probe()
         except Exception as e:
