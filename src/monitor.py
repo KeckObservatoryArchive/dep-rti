@@ -363,7 +363,6 @@ class KtlMonitor():
         self.queue_mgr = queue_mgr
         self.service = None
         self.last_mtime = None
-        self.probe_failed = False
         self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
 
 
@@ -407,18 +406,32 @@ class KtlMonitor():
     def check_service(self):
         '''
         Probe to see if keyword service is still working.
+        NOTE: This method was rec'd by Kyle.
         '''
+        #First, see if the read() fails
         try:
             kw = self.service[self.keys['probe']]
+            kw.read(timeout=1)
+        except Exception as e:
+            self.service.communication_failed = True
+            self.log.debug(str(e))
+            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' comm test failed.")
+        else:
+            self.service.communication_failed = False
+            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()            
+            return
+
+        #If the read failed, then do the probe
+        try:
             kw.probe()
         except Exception as e:
-            self.probe_failed = True
+            self.service.communication_failed = True
             self.log.debug(str(e))
             self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' probe failed.")
         else:
-            if self.probe_failed:
+            if self.service.communication_failed:
                 self.do_restart()
-            self.probe_failed = False
+            self.service.communication_failed = False
         finally:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 
