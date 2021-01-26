@@ -52,7 +52,7 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, e
                 #raise Exception("metadata.py: Alignment issue: Keyword column name {} is bigger than column size of {}".format(row['keyword'], row['colSize']))            
 
         for index, row in keyDefs.iterrows():
-            out.write('|' + row['keyword'].replace('-', '_').ljust(row['colSize']))
+            out.write('|' + row['keyword'].ljust(row['colSize']))
         out.write("|\n")
 
         for index, row in keyDefs.iterrows():
