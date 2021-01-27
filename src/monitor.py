@@ -445,6 +445,12 @@ class KtlMonitor():
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
         try:
 
+            #Assume first read after a full restart is old
+            if self.last_mtime is None:
+                self.log.debug(f'Skipping (assuming first broadcast is old)')
+                self.last_mtime = -1
+                return
+
             #make sure keyword is populated
             if keyword['populated'] == False:
                 self.log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
@@ -487,10 +493,9 @@ class KtlMonitor():
             try:
                 mtime = os.stat(filepath).st_mtime
             except Exception as e:
-                mtime = None
                 self.queue_mgr.handle_error('FILE_READ_ERROR', traceback.format_exc())
                 return
-            if self.last_mtime is None or self.last_mtime == mtime:
+            if self.last_mtime == mtime:
                self.log.debug(f'Skipping (last mtime = {self.last_mtime})')
                self.last_mtime = mtime
                return
