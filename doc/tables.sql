@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `status_code`         varchar(30)                 COMMENT 'Status code of archive process [NULL, DUPLICATE, EMPTY, UNREADABLE, etc]',
   `ofname`              varchar(255)                COMMENT 'Full path to original file (sdata location)',
   `stage_file`          varchar(255)                COMMENT 'Full path the staged original raw file',
+  `process_dir`         varchar(255)                COMMENT 'Directory output files are processed',
   `archive_dir`         varchar(255)                COMMENT 'Directory file is archived',
   `creation_time`       datetime                    COMMENT 'Date and time the FITS file is ready to be processed',
   `dep_start_time`      datetime                    COMMENT 'Date and time that DEP processing started',
@@ -24,7 +25,6 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `ofname_deleted`      tinyint(1)                  COMMENT '0 file not deleted, 1 file deleted, 2 do not delete file.',
   `last_mod`            timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
-
 
 CREATE TABLE `dep_status_history` like `dep_status`;
 ALTER TABLE  `dep_status_history` drop index `koaid`;

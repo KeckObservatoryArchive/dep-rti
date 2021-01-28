@@ -319,6 +319,7 @@ class DEP:
         '''When reprocessing a record, we need to reset most columns to default.'''
         query = (f"update dep_status set "
                  f" status_code        = NULL, " 
+                 f" process_dir        = NULL, "
                  f" archive_dir        = NULL, "
                  f" creation_time      = NULL, "
                  f" dep_start_time     = NULL, "
@@ -837,7 +838,7 @@ class DEP:
     def update_dep_stats(self):
         '''Record DEP stats before we xfr to ipac.'''
         #todo: add other column data like size, sdata_dir, etc
-        if not self.update_dep_status('archive_dir', self.dirs['lev0']): return False
+        if not self.update_dep_status('process_dir', self.dirs['lev0']): return False
 
         if not self.update_dep_status('filesize_mb', self.filesize_mb): return False
 
