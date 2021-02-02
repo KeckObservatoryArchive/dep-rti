@@ -17,6 +17,8 @@ MAX_EMAIL_SEC = 2*60*60
 
 def main(instr=None, dev=False):
 
+    print(f"\n{dt.datetime.now()} Running {sys.argv}")
+
     #cd to script dir so relative paths work
     os.chdir(sys.path[0])
 
