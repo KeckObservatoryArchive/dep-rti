@@ -400,6 +400,7 @@ class KtlMonitor():
             kw.monitor()
 
         #Start an interval timer to periodically check that this service is running.
+        self.service.comm_failed = False
         threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 
 
@@ -410,14 +411,18 @@ class KtlMonitor():
         '''
         #First, see if the read() fails
         try:
+            print("test read")
             kw = self.service[self.keys['probe']]
             kw.read(timeout=1)
         except Exception as e:
-            self.service.communication_failed = True
+            self.service.comm_failed = True
             self.log.debug(str(e))
             self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' comm test failed.")
+            self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.keys['service'])
         else:
-            self.service.communication_failed = False
+            if self.service.comm_failed:
+                self.log.debug("KTL service read successful afer prior failure.")
+            self.service.comm_failed = False
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()            
             return
 
@@ -425,13 +430,15 @@ class KtlMonitor():
         try:
             kw.probe()
         except Exception as e:
-            self.service.communication_failed = True
+            self.service.comm_failed = True
             self.log.debug(str(e))
             self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' probe failed.")
         else:
-            if self.service.communication_failed:
+            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' probe succeeded.")
+            self.log.debug(f"comm_failed = {self.service.comm_failed}")
+            if self.service.comm_failed:
                 self.do_restart()
-            self.service.communication_failed = False
+            self.service.comm_failed = False
         finally:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 
