@@ -948,19 +948,20 @@ class DEP:
             if not self.update_dep_status('status', 'TRANSFERRED'): return False
 
             # Send API request to archive the data set
-            apiUrl = f'{api}instrument={self.instr}&utdate={self.utdate}&koaid={self.koaid}&ingesttype=lev0'
+            apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev0'
             if self.reprocess:
                 apiUrl = f'{apiUrl}&reingest=true'
             log.info(f'sending ingest API call {apiUrl}')
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_dep_status('ipac_notify_time', utstring): return False
-# Need to uncomment the following when API is ready
-#            apiData = self.get_api_data(apiUrl)
-#            if not apiData or not data.get('apiStatus'):
-#                self.log_error('IPAC_API_ERROR', apiUrl)
-#                self.update_dep_status('status', 'ERROR')
-#                self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
-#                return False
+            apiData = self.get_api_data(apiUrl)
+# Need to remove this line when API is fixed
+            if isinstance(apiData, str): apiData = json.loads(apiData)
+            if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
+                self.log_error('IPAC_API_ERROR', apiUrl)
+                self.update_dep_status('status', 'ERROR')
+                self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
+                return False
             return True
         # Transfer error
         else:
