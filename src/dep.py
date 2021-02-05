@@ -321,7 +321,6 @@ class DEP:
                  f" status_code        = NULL, " 
                  f" process_dir        = NULL, "
                  f" archive_dir        = NULL, "
-                 f" creation_time      = NULL, "
                  f" dep_start_time     = NULL, "
                  f" dep_end_time       = NULL, "
                  f" xfr_start_time     = NULL, "
