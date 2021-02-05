@@ -363,6 +363,8 @@ class KtlMonitor():
         self.queue_mgr = queue_mgr
         self.service = None
         self.last_mtime = None
+        self.restart_count = 0
+        self.resuscitations = None
         self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
 
 
@@ -399,53 +401,40 @@ class KtlMonitor():
         else:
             kw.monitor()
 
-        #Start an interval timer to periodically check that this service is running.
-        self.service.comm_failed = False
-        threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
+        #establish heartbeat restart mechanism and service check interval
+        hb = self.keys.get('heartbeat')
+        if hb: 
+            period = hb[1] + 10
+            if period < 30: period = 30
+            self.service.heartbeat(hb[0], period)
+            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start() 
+            self.check_failed = False           
+            self.resuscitations = self.service.resuscitations
 
 
     def check_service(self):
         '''
-        Probe to see if keyword service is still working.
-        NOTE: This method was rec'd by Kyle.
+        Periodically check that service is still working with a read of heartbeat keyword.
+        Also keep tabs on resuscitation value and logs when it changes. This should indicate
+        service reconnect.
         '''
-        #First, see if the read() fails
         try:
-            print("test read")
-            kw = self.service[self.keys['probe']]
+            hb = self.keys['heartbeat'][0]
+            kw = self.service[hb]
             kw.read(timeout=1)
+            if self.service.resuscitations != self.resuscitations:
+                self.log.debug(f"KTL service {self.keys['service']} resuscitations changed.")
+            self.resuscitations = self.service.resuscitations
         except Exception as e:
-            self.service.comm_failed = True
-            self.log.debug(str(e))
-            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' comm test failed.")
+            self.check_failed = True
+            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' heartbeat read failed.")
             self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.keys['service'])
         else:
-            if self.service.comm_failed:
-                self.log.debug("KTL service read successful afer prior failure.")
-            self.service.comm_failed = False
-            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()            
-            return
-
-        #If the read failed, then do the probe
-        try:
-            kw.probe()
-        except Exception as e:
-            self.service.comm_failed = True
-            self.log.debug(str(e))
-            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' probe failed.")
-        else:
-            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' probe succeeded.")
-            self.log.debug(f"comm_failed = {self.service.comm_failed}")
-            if self.service.comm_failed:
-                self.do_restart()
-            self.service.comm_failed = False
+            if self.check_failed:
+                self.log.debug(f"KTL service {self.keys['service']} read successful afer prior failure.")
+            self.check_failed = False
         finally:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
-
-
-    def do_restart(self):
-        self.log.debug(f"Restarting {self.instr} KTL service '{self.keys['service']}'")
-        self.service.reconnect()
 
 
     def on_new_file(self, keyword):
