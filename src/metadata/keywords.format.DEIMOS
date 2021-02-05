@@ -2,7 +2,7 @@ keyword	dataType	colSize	allowNull
 KOAID	char	32	N
 SEMID	char	21	N
 OFNAME	char	32	N
-FILESIZE_MB	double	16	Y
+FILESIZE_MB	double	16	N
 PROGID	char	32	N
 PROGINST	char	32	N
 PROGPI	char	32	N
