@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `utdatetime`             datetime                    COMMENT 'DATE-OBS UTC',
   `status`                 varchar(15)                 COMMENT 'Current status of archive process [QUEUED, PROCESSING, COMPLETE, INVALID, ERROR]',
   `status_code`            varchar(30)                 COMMENT 'Status code of archive process [NULL, DUPLICATE, EMPTY, UNREADABLE, etc]',
+  `status_code_ipac`       varchar(30)                 COMMENT 'Status code of ingestion process',
   `ofname`                 varchar(255)                COMMENT 'Full path to original file (sdata location)',
   `stage_file`             varchar(255)                COMMENT 'Full path the staged original raw file',
   `process_dir`            varchar(255)                COMMENT 'Directory output files are processed',
