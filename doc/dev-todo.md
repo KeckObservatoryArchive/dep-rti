@@ -1,48 +1,58 @@
-(NOTE: This is an uber detailed list of development TODOs and notes)
+## DEP
+- fix reset_status_record... it is clearing creation_time
+- Put service name on debug print in on_new_file
+- Add code to ignore certain strings in monitor/monitor_config. (ie /xdchange/ for HIRES)
+- Create new script (or mod check_dep_status_errors.py) to do a daily report which would include warnings and invalids.
+- Setup simple ktl logging with less noise for comparison?
+- Setup fake IPAC ingestion API
+- Change cmd line to assume --reprocess and --transfer (keep confirm). Add --notransfer?
+- Create a log file per KOAID? (and/or mark all logs with dbid)
+- DEIMOS triggering same FCS image file which results in many duplicate IDs.
+- DEIMOS create_jpg_from_fits using up all memory. Allow only 1 DEIMOS DEP at once? Optimize function? Add more memory?  Don't create jpg? JPG turned off for now.
+- Acknowledge column in dep_status to ignore warnings in report.
+- Some 'duplicate keyword' errors are a result of other keyword service being down and utc not changing.  Maybe a check on ofname+utdatetime? If ofname differs, then use the current UT time to create the KOAID.  Check files are different too?  See, for example, KCWI 20201213 UT that had 54 duplicates.  This is a problem with pydep too.
 
 
-## HIGH PRIORITY
-- HIRES: monitor WDISK toggle to False, then construct filename
-- https://stackoverflow.com/questions/45535594/pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
-- Handle errors and status=ERROR in dep.py
-- Refactor koaxfr.py.  Do we want this to be part of dep.py or standalone?
-- Insert header json
-- Implement handling for same filepath (ie renaming and updating 'stage_file' with _vN version)
-- Write requirements for admin status gui and reprocessing tool
-- What are we doing with rejected files?
-- How will we deal with TPX flag?  Is it good enough to use a -dev or -test flag to redirect to another db?
-- Test PSFR (NIRC2)
-- Test DRP (NIRC2, OSIRIS)
-- More try/except to ensure processing finishes without crashing (ie set_koaimtyp)
-- What is the minimal processing required to get file archived?
-- Speed test caching importlib
-- How will we handle if koa daemon is down and filepaths go uncalled?  Query KTL option in archive.py?
-- Design such that koa daemon can recieve code updates in realtime without restart.
-- Is there a fast gzip option?  Do a speed test vs internet speed.
-- Move common to processing base class and maybe get rid of common.py?
-- Throttle max processes based on server resources?
+## MONITOR
+- !Fix ktl service restart so we don't keep getting RPC error messages.
+- !Try to replicate issue of multiple service instances causing multiple callback (force code to del using self and see if that replicates issue).  Do we need to delete the callback as well?  See "remove" param in keyword.callback !!!
+- Don't send error on KTL start/restarts if instr is offline
+- Change monitor email time check to be per instrument?
+- How will we recover if monitor is down and filepaths are not logged or inserted?  Should execution client always append outfile + progid to a log file?
+- !PyMysql is not thread safe: https://stackoverflow.com/questions/45535594/, pymysql-with-django-multithreaded-application, https://github.com/PyMySQL/PyMySQL/issues/422
+- !Throttle max DEP processes based on server resources instead of hardcoded max=10?
+
+ 
+## LOW PRIORITY
+- Search TODOs in code
+- Add .fits to KOAID in DB?
+- Correcty mark critical functions in instr classes run_dqa()function. 
+- Enum dep_status.arch_stat values? [QUEUED, PROCESSING, TRANSFERRING, TRANSFERRED, COMPLETE, INVALID, ERROR]
+- Look at old DEP on github and ensure we got all hotfixes and changes since mid Sept
+- Log errors and warnings to database?
+- Improve documentation
+- Move remaining common.py to processing base class.
+- Speed test caching importlib. 
+- Put check_dep_status_errors on a once a day cron and/or merge with daily report cron/gui? 
+- Create a new proposalsAPI call that gets all info in one API call? Or direct query to prop DB?
+- Cleanup dep.validate_fits() and dep.construct_filename() (JM: No no longer need these since the monitor is giving us the full path and we know it is an instrument FITS file) What about manual reprocessing runs?  Feasible to make mistake here?
+- Implement basic missing program assignment (revisit when execution client/etc worked out)
+- What about PSFR (NIRC2) and DRP (NIRC2, OSIRIS) hooks?
+- Get rid of truncation warnings.
 - See if API calls are a considerable slowdown.
 - Speed test all of code to find bottlenecks.
-- Implement basic missing program assignment
-- DEIMOS FCS archive trigger (some header keyword points to another file to archive)
-- Search TODOs in code
-- Look at old DEP on github and ensure we got all hotfixes and changes since mid Sept
-- how will we deal with /anc/ files?  If status=INVALID, copy to /anc/ and rsync but do not notify IPAC?
-- Improve documentation
-
- echo "select to_timestamp(time),keyword,ascvalue from kbds where keyword='LOUTFILE' order by time desc limit 30;" | psql -h vm-history-1 -U k1obs -d keywordlog
-
-## LOW PRIORITY
+- Is there a fast gzip option?  Do a speed test vs internet speed.
 - Do we want to merge archive.py and dep.py?
-- Got this error once to stderr: "?RPC: Unable to send: monitor_server(kbds) __server_down__?."  Not sure if we can detect and log.
 - Review usage of instrument.keymap and see if it needs improvement.
 - Add "duplicate metadata keyword" check.  What to do? (ok if same val, otherwise ?)
 - Improve logging, email reporting and error handling.
-- Should we create a log file per KOAID?
 - Change keyword metadata defs to database tables?  Coordinate with IPAC.
-- How do we keep track of new sdata dirs?  A: Added by Jchock and we aren't necessarily notified.  Need better system.
 - See instr_lris.py for examples of condensed or streamlined functions that we can either apply to other instr_* files or create shared functions.
-- log all queries in db_conn to reduce code bloat?
+- There should be no duplicate KOAID errors with RTI.  If we find one it is probably due to keywords DATEOBS or UTC getting stuck.  We should try to use filetime.
+
+##NOTES:
+- Keyword history query: echo "select to_timestamp(time),keyword,ascvalue from kbds where keyword='LOUTFILE' order by time desc limit 30;" | psql -h vm-history-1 -U k1obs -d keywordlog
+
 
 ## MISC IDEAS
 - Do instrObj header fixes up front so we can just refer to things in the header as header['name']?
@@ -58,6 +68,8 @@
 - Create test directory with collection of sample non-proprietary FITS files and corresponding "gold standard" DEP output for comparison.
 - Create test script to validate DEP against sample FITS test directory.
 - Use test data when API is called.  OR, create public route to API with config key.
+
+
 
 
 

@@ -12,9 +12,9 @@ log = logging.getLogger('koa_dep')
 
 class Nires(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, dbid)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'        
@@ -24,30 +24,32 @@ class Nires(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_elaptime()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_ut()
-        if ok: ok = self.set_frameno()
-        if ok: ok = self.set_ofName()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_specres()
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_filter()
-        if ok: ok = self.set_slit_dims()
-        if ok: ok = self.set_spatscal()
-        if ok: ok = self.set_dispscal()
-        if ok: ok = self.set_image_stats_keywords()
-        if ok: ok = self.set_npixsat()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_dqa_date()
-        if ok: ok = self.set_dqa_vers()
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',       'crit': True},
+            {'name':'set_elaptime',    'crit': True},
+            {'name':'set_koaimtyp',    'crit': True},
+            {'name':'set_ut',          'crit': True},
+            {'name':'set_frameno',     'crit': True},
+            {'name':'set_ofName',      'crit': True},
+            {'name':'set_semester',    'crit': True},
+            {'name':'set_prog_info',   'crit': True},
+            {'name':'set_propint',     'crit': True},
+            {'name':'set_wavelengths', 'crit': False},
+            {'name':'set_specres',     'crit': False},
+            {'name':'set_weather',     'crit': False},
+            {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
+            {'name':'set_filter',      'crit': False},
+            {'name':'set_slit_dims',   'crit': False},
+            {'name':'set_spatscal',    'crit': False},
+            {'name':'set_dispscal',    'crit': False},
+            {'name':'set_image_stats', 'crit': False},
+            {'name':'set_npixsat',     'crit': False},
+            {'name':'set_oa',          'crit': False},
+            {'name':'set_dqa_date',    'crit': False},
+            {'name':'set_dqa_vers',    'crit': False},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     @staticmethod
@@ -74,7 +76,7 @@ class Nires(instrument.Instrument):
 
         instr = self.get_instr()
         if instr == 'nires':
-            ftype = self.get_keyword('FTYPE')
+            ftype = self.get_keyword('INSTR')
             if   ftype == 'imag': prefix = 'NI'
             elif ftype == 'spec': prefix = 'NR'
             else                : prefix = ''
@@ -97,7 +99,7 @@ class Nires(instrument.Instrument):
         itime  = self.get_keyword('ITIME')
         coadds = self.get_keyword('COADDS')
         if (itime == None or coadds == None):
-            log.error('set_elaptime: ITIME and COADDS values needed to set ELAPTIME')
+            self.log_warn("SET_ELAPTIME_ERROR")
             return False
 
         #update val
@@ -115,7 +117,7 @@ class Nires(instrument.Instrument):
 
         # log.info('set_wavelengths: setting wavelength keyword values')
 
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
 
         #imaging (K-filter always on):
         if (instr == 'imag'):
@@ -139,7 +141,7 @@ class Nires(instrument.Instrument):
 
         # log.info('set_specres: setting SPECRES keyword values')
 
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if (instr == 'spec'):
             specres = 2700.0
             self.set_keyword('SPECRES' , specres,  'KOA: Nominal spectral resolution')
@@ -151,7 +153,7 @@ class Nires(instrument.Instrument):
         Adds CCD pixel scale, dispersion (arcsec/pixel) keyword to header.
         '''
 
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if   (instr == 'imag'): dispscal = 0.12
         elif (instr == 'spec'): dispscal = 0.15
         self.set_keyword('DISPSCAL' , dispscal, 'KOA: CCD pixel scale, dispersion')
@@ -163,7 +165,7 @@ class Nires(instrument.Instrument):
         Adds spatial scale keyword to header.
         '''
 
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if   (instr == 'imag'): spatscal = 0.12
         elif (instr == 'spec'): spatscal = 0.15
         self.set_keyword('SPATSCAL' , spatscal, 'KOA: CCD pixel scale, spatial')
@@ -176,7 +178,7 @@ class Nires(instrument.Instrument):
         '''
 
         #add keyword for 'imag' only
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if (instr == 'imag'):
             # log.info('set_filter: setting FILTER keyword value')
             filt = 'Kp'
@@ -190,7 +192,7 @@ class Nires(instrument.Instrument):
         '''
 
         #add keywords for 'spec' only
-        instr = self.get_keyword('FTYPE')
+        instr = self.get_keyword('INSTR')
         if (instr == 'spec'):
             # log.info('set_slit_dims: setting slit keyword values')
             slitlen  = 18.1

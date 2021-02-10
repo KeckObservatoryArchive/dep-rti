@@ -15,6 +15,7 @@ import db_conn
 import importlib
 from pathlib import Path
 import logging
+import glob
 
 import dep
 import instrument
@@ -27,49 +28,63 @@ last_email_times = None
 
 def main():
 
-#TODO: Add option to report query list only before running (ie --status ERROR --listonly)
     # Define inputs
     parser = argparse.ArgumentParser(description='DEP input parameters')
     parser.add_argument('instr', help='Keck Instrument')
     parser.add_argument('--filepath' , type=str, default=None, help='Filepath to FITS file to archive.')
+    parser.add_argument('--files' , type=str, default=None, help='Directory path to FITS files.  Can use "glob" pattern match.')
     parser.add_argument('--dbid' , type=str, default=None, help='Database ID record to archive.')
-    parser.add_argument('--tpx' , type=int, default=1, help='Update DB tables and transfer to IPAC.  Else, create files only and no transfer.')
     parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
     parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--endtime' , type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--status' , type=str, default=None, help='Status to query for reprocessing.')
-    parser.add_argument('--outdir' , type=str, default=None, help='Outdir match to query for reprocessing.')
+    parser.add_argument('--statuscode' , type=str, default=None, help='Status code to (like) query for reprocessing.')
+    parser.add_argument('--ofname' , type=str, default=None, help='OFNAME match to query for reprocessing.')
+    parser.add_argument('--confirm', dest="confirm", default=False, action="store_true", help='Confirm query results.')
+    parser.add_argument('--transfer' , default=False, action='store_true', help='Transfer to IPAC and trigger IPAC API.  Else, create files only.')
     args = parser.parse_args()    
 
-    #todo: if options require reprocessing or query, always prompt with confirmation 
-    # and tell them how many files are affected and what the datetime range is
-
-    #run it and catch any unhandled error for email to admin
-    try:
-        archive = Archive(args.instr, tpx=args.tpx, filepath=args.filepath, dbid=args.dbid, reprocess=args.reprocess,
-                  starttime=args.starttime, endtime=args.endtime,
-                  status=args.status, outdir=args.outdir)
-    except Exception as error:
-        email_error('ARCHIVE_ERROR', traceback.format_exc())
+    #run it 
+    archive = Archive(args.instr, filepath=args.filepath, files=args.files, dbid=args.dbid, 
+              reprocess=args.reprocess, starttime=args.starttime, endtime=args.endtime,
+              status=args.status, statuscode=args.statuscode, ofname=args.ofname,
+              confirm=args.confirm, transfer=args.transfer)
 
 
 class Archive():
 
-    def __init__(self, instr, tpx=1, filepath=None, dbid=None, reprocess=False, 
-                 starttime=None, endtime=None, status=None, outdir=None):
+    def __init__(self, instr, filepath=None, files=None, dbid=None, reprocess=False, 
+                 starttime=None, endtime=None, status=None, statuscode=None,
+                 ofname=None, confirm=False, transfer=False):
 
-        self.instr = instr
-        self.tpx = tpx
+        #inputs
+        self.instr = instr.upper()
         self.filepath = filepath
+        self.files = files
         self.dbid = dbid
         self.reprocess = reprocess
         self.starttime = starttime
         self.endtime = endtime
         self.status = status
-        self.outdir = outdir
+        self.statuscode = statuscode
+        self.ofname = ofname
+        self.confirm = confirm
+        self.transfer = transfer
+
+        #other class vars
+        self.db = None
+
+        #handle any uncaught errors and email admin
+        try:
+            self.start()
+        except Exception as error:
+            email_error('ARCHIVE_ERROR', traceback.format_exc(), instr)
+
+
+    def start(self):
 
         #cd to script dir so relative paths work
-        #todo: is this needed?
+        #todo: is this needed?  Does it work for both cmd line and monitor call?
         os.chdir(sys.path[0])
 
         #load config file
@@ -77,26 +92,22 @@ class Archive():
             self.config = yaml.safe_load(f)
 
         #create logger first
-        #todo: not critical (try/except)
         global log
-        log = self.create_logger('koa_dep', self.config[instr]['ROOTDIR'], instr)
-        log.info("Starting DEP: " + ' '.join(sys.argv[0:]))
+        log = self.create_logger('koa_dep', self.config[self.instr]['ROOTDIR'], self.instr)
+        log.info("Starting DEP")
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
 
         #routing
-        #todo: Add remaining options
-        if filepath:
-            self.process_file(instr, filepath, reprocess, tpx)
-        elif dbid:
-            self.process_id(instr, dbid, reprocess, tpx)
-        elif starttime and endtime:
-            self.reprocess_time_range(instr, starttime, endtime, tpx)
-        elif status:
-            self.reprocess_by_status(instr, status, tpx)
-        elif outdir:
-            self.reprocess_by_outdir(instr, outdir, tpx)
+        if self.filepath:
+            self.process_file(filepath=self.filepath)
+        elif self.files:
+            self.process_files(self.files)
+        elif self.dbid:
+            self.process_file(dbid=self.dbid)
+        elif self.starttime or self.endtime or self.status or self.statuscode or self.ofname:
+            self.reprocess_by_query()
         else:
             log.error("Cannot run DEP.  Unable to decipher inputs.")
 
@@ -150,12 +161,11 @@ class Archive():
         return log
 
 
-    def process_file(self, instr, filepath, reprocess, tpx, dbid=None):
-
-        #TODO: Test that if an invalid instrument is used, this will throw an error and admin will be emailed.
-        module = importlib.import_module('instr_' + instr.lower())
-        instr_class = getattr(module, instr.capitalize())
-        instr_obj = instr_class(instr, filepath, self.config, self.db, reprocess, tpx, dbid=dbid)
+    def process_file(self, filepath=None, dbid=None):
+        '''Creates instrument object by name and starts processing.'''
+        module = importlib.import_module('instr_' + self.instr.lower())
+        instr_class = getattr(module, self.instr.capitalize())
+        instr_obj = instr_class(self.instr, filepath, self.reprocess, self.transfer, dbid=dbid)
 
         ok = instr_obj.process()
         if not ok:
@@ -164,37 +174,68 @@ class Archive():
             log.info("DEP finished successfully!")
 
 
-    def process_id(self, instr, dbid, reprocess, tpx):
-        '''Archive a record by DB ID.'''
+    def process_files(self, pattern):
+        '''Search a directory for files to process.  Can use glob wildcard match.'''
+        if pattern.endswith('/'): pattern += '*'
 
-        self.process_file(instr, None, reprocess, tpx, dbid)
+        files = []
+        for filepath in glob.glob(pattern):
+            files.append(filepath)
+
+        if not self.confirm:
+            print(f"\nSearching pattern: {pattern}\n")
+            print("--------------------")
+            for f in files: print(f)
+            print("--------------------")
+            print(f"{len(files)} files found.  Use --confirm option to process these files.\n")
+        else:
+            for f in files:
+                self.process_file(filepath=f)
 
 
-    def reprocess_time_range(self, instr, starttime, endtime, tpx):
-        '''Look for fits files that have a UTC time within the range given and reprocess.'''
 
-        #todo: this is pseudo code and untested
-        #todo: Should we be limiting query by status too?
-        starttime = starttime.replace('T', '')
-        endtime = endtime.replace('T', '')
+    def reprocess_by_query(self):
+        '''Query for fits files to reprocess.'''
+
         query = (f"select * from dep_status where "
-                 f"     utdatetime >= '{starttime}' "
-                 f" and utdatetime <= '{endtime}' "
-                 f" and instrument = '{instr}' ")
+                 f" instrument = '{self.instr}' ")
+        if self.status: 
+            query += f" and status = '{self.status}' "
+        if self.statuscode: 
+            query += f" and status_code = '{self.statuscode}' "
+        if self.ofname: 
+            query += f" and ofname like '%{self.ofname}%' "
+        if self.starttime: 
+            starttime = self.starttime.replace('T', ' ')
+            query += f" and utdatetime >= '{starttime}' "
+        if self.endtime:   
+            endtime = self.endtime.replace('T', ' ')
+            query += f" and utdatetime <= '{endtime}' "
+        query += " order by id asc"
         rows = self.db.query('koa', query)
 
-        for row in rows:
-            self.process_file(instr, None, True, tpx, row['id'])
+        if not self.confirm:
+            print(f"\n{query}\n")
+            print("--------------------")
+            for row in rows:
+                print(f"{row['id']}\t{row['status']}\t{row['status_code']}\t{row['utdatetime']}\t{row['koaid']}\t{row['ofname']}")
+            print("--------------------")
+            print(f"{len(rows)} records found.  Use --confirm option to process these records.\n")
+        else:
+            for row in rows:
+                self.process_file(dbid=row['id'])
 
 
     def handle_dep_error(self):
-        log.error("DEP ERROR!")
-        #todo: Should we do anything here or leave it to dep.py to handle failed archiving?
+        #todo: call independent error reporting script which will query dep_status
+        #and decide whether to email admins
+        pass
 
 
-def email_error(errcode, text, check_time=True):
+def email_error(errcode, text, instr='', check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
-#todo: This won't work as intended b/c we are spawning single instances of archive.py
+    #NOTE: This won't work as intended if DEP called as single instance from monitor
+    #but it is still useful for command line mode.
 
     #always log/print
     if log: log.error(f'{errcode}: {text}')
@@ -217,7 +258,7 @@ def email_error(errcode, text, check_time=True):
     
     # Construct email message
     body = f'{errcode}\n{text}'
-    subj = f'KOA ERROR: ({os.path.basename(__file__)}) {errcode}'
+    subj = f'KOA DEP ERROR: [{instr}] {errcode}'
     msg = MIMEText(body)
     msg['Subject'] = subj
     msg['To']      = adminEmail

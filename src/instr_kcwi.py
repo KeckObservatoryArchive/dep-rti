@@ -12,6 +12,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import math
 from skimage import exposure
+import traceback
 
 import logging
 log = logging.getLogger('koa_dep')
@@ -19,9 +20,9 @@ log = logging.getLogger('koa_dep')
 
 class Kcwi(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, dbid)
 
         # Set any unique keyword index values here
         self.keymap['UTC'] = 'UT'
@@ -30,26 +31,29 @@ class Kcwi(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_telescope()
-        if ok: ok = self.set_filename()
-        if ok: ok = self.set_elaptime()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_frameno()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_image_stats_keywords()
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_npixsat(satVal=65535)
-        if ok: ok = self.set_slitdims_wavelengths()
-        if ok: ok = self.set_wcs()
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_dqa_date()
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',       'crit': True},
+            {'name':'set_ut',          'crit': True},
+            {'name':'set_telescope',   'crit': True},
+            {'name':'set_ofName',      'crit': True},
+            {'name':'set_koaimtyp',    'crit': True},
+            {'name':'set_frameno',     'crit': True},
+            {'name':'set_semester',    'crit': True},
+            {'name':'set_prog_info',   'crit': True},
+            {'name':'set_propint',     'crit': True},
+            {'name':'set_elaptime',    'crit': False},
+            {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
+            {'name':'set_image_stats', 'crit': False},
+            {'name':'set_weather',     'crit': False},
+            {'name':'set_oa',          'crit': False},
+            {'name':'set_npixsat',     'crit': False,  'args': {'satVal':65535}},
+            {'name':'set_slitdims',    'crit': False},
+            {'name':'set_wcs',         'crit': False},
+            {'name':'set_dqa_vers',    'crit': False},
+            {'name':'set_dqa_date',    'crit': False},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     def get_dir_list(self):
@@ -88,13 +92,6 @@ class Kcwi(instrument.Instrument):
             prefix = ''
         return prefix
 
-    
-    def set_filename(self):
-        '''
-        Map OFNAME
-        '''
-        self.keymap['OFNAME'] = 'OFNAME'
-        return True
 
     def set_telescope(self):
         '''
@@ -189,7 +186,7 @@ class Kcwi(instrument.Instrument):
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
         return True
 
-    def set_slitdims_wavelengths(self):
+    def set_slitdims(self):
         '''
         Set slit dimensions and wavelengths
         '''
@@ -310,7 +307,7 @@ class Kcwi(instrument.Instrument):
         elif mode == 'stat':
             pa1 = float(pa)+float(parantel)-float(el)
         else:
-            log.error(f'set_wcs: indeterminate mode {mode}')
+            self.log_warn("WCS_INDETERMINATE_MODE", mode)
             return False
 
         #get correct units and formatting

@@ -13,9 +13,9 @@ log = logging.getLogger('koa_dep')
 
 class Osiris(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, reprocess, transfer):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx)
+        super().__init__(instr, filepath, reprocess, transfer)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'
@@ -25,36 +25,37 @@ class Osiris(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_dqa_date()
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_ut()
-        if ok: ok = self.set_elaptime()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_frameno()
-        if ok: ok = self.set_filter()
-        if ok: ok = self.set_ofName()
-        if ok: ok = self.set_semester()
-#        if ok: ok = self.set_dispers()
-#        if ok: ok = self.set_slit_values()
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_wcs_keywords()
-        if ok: ok = self.set_image_stats_keywords()
-#        if ok: ok = self.set_gain_and_readnoise()
-        if ok: ok = self.set_npixsat(self.get_keyword('COADDS')*self.get_keyword('SATURATE'))
-        if ok: ok = self.set_nlinear()
-        if ok: ok = self.set_scale()
-        if ok: ok = self.check_noninteger_values()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        if ok: ok = self.check_propint()
-        if ok: ok = self.check_ra()
-
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',        'crit': True},
+            {'name':'set_ut',           'crit': True},
+            {'name':'set_elaptime',     'crit': True},
+            {'name':'set_koaimtyp',     'crit': True},
+            {'name':'set_frameno',      'crit': True},
+            {'name':'set_filter',       'crit': True},
+            {'name':'set_ofName',       'crit': True},
+            {'name':'set_semester',     'crit': True},
+            {'name':'set_prog_info',    'crit': True},
+            {'name':'set_propint',      'crit': True},
+            #{'name':'set_dispers',     'crit': False},
+            #{'name':'set_slit_values', 'crit': False},
+            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_weather',      'crit': False},
+            {'name':'set_wcs_keywords', 'crit': False},
+            {'name':'set_image_stats',  'crit': False},
+            #{'name':'set_gain_and_rn', 'crit': False},
+            {'name':'set_npixsat()',    'crit': False},
+            {'name':'set_nlinear',      'crit': False},
+            {'name':'set_scale',        'crit': False},
+            {'name':'check_nonint_vals','crit': False},
+            {'name':'set_oa',           'crit': False},
+            {'name':'check_propint',    'crit': False},
+            {'name':'check_ra',         'crit': False},
+            {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+            {'name':'set_dqa_date',     'crit': True},
+            {'name':'set_dqa_vers',     'crit': True},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     def get_dir_list(self):
@@ -97,7 +98,6 @@ class Osiris(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword
         '''
-        log.info('set_elaptime: determining ELAPTIME from TRUITIME')
 
         #skip it it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
@@ -107,7 +107,7 @@ class Osiris(instrument.Instrument):
         coadds = self.get_keyword('COADDS')
         #if exposure time or # of exposures doesn't exist, throw error
         if (itime == None or coadds == None):
-            log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
+            self.log_warn("SET_ELAPTIME_ERROR")
             return False
 
         #update elaptime val (seconds)
@@ -120,11 +120,7 @@ class Osiris(instrument.Instrument):
         '''
         Assuming instrument is OSIRIS since INSTRUME not provided in header
         '''
-
-        log.info('set_instr: setting INSTRUME to OSIRIS')
-        #update instrument
         self.set_keyword('INSTRUME', 'OSIRIS', 'KOA: Instrument')
-        
         return True
         
 
@@ -132,8 +128,6 @@ class Osiris(instrument.Instrument):
         '''
         Adds KOAIMTYP keyword
         '''
-        log.info('set_koaimtyp: setting KOAIMTYP keyword from algorithm')
-
         koaimtyp = 'undefined'
         ifilter = self.get_keyword('IFILTER', default='')
         sfilter = self.get_keyword('SFILTER', default='')
@@ -302,6 +296,11 @@ class Osiris(instrument.Instrument):
         return True
 
 
+    def set_npixsat(self):
+        satVal = self.get_keyword('COADDS')*self.get_keyword('SATURATE')
+        return super().set_npixsat(satVal=satVal)
+
+
     def set_wavelengths(self):
         '''
         Set wavelength values based off filters used
@@ -402,13 +401,13 @@ class Osiris(instrument.Instrument):
         
         return True
 
-    def check_noninteger_values(self):
+    def check_nonint_vals(self):
         '''
         This checks certain keywords for decimal values less than one and converts them to zero.
         NOTE: This is a direct port from old IDL code.  Not sure what it is for.
         '''
 
-        log.info('check_noninteger_values: checking SHTRANG, SHTRACT and IHTRACT')
+        log.info('check_nonint_vals: checking SHTRANG, SHTRACT and IHTRACT')
 
         kws = ['SHTRANG', 'SHTRACT', 'IHTRACT']
         for kw in kws:

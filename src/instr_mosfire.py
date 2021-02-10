@@ -13,9 +13,9 @@ log = logging.getLogger('koa_dep')
 
 class Mosfire(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx)
+        super().__init__(instr, filepath, reprocess, transfer, dbid)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'        
@@ -28,25 +28,26 @@ class Mosfire(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_elaptime()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_ut()
-        if ok: ok = self.set_frameno()
-        if ok: ok = self.set_ofName()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_image_stats_keywords()
-        if ok: ok = self.set_npixsat()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_dqa_date()
-        if ok: ok = self.set_dqa_vers()
-        return ok
+        funcs = [
+            {'name':'set_telnr',        'crit': True},
+            {'name':'set_ut',           'crit': True},
+            {'name':'set_frameno',      'crit': True},
+            {'name':'set_ofName',       'crit': True},
+            {'name':'set_semester',     'crit': True},
+            {'name':'set_prog_info',    'crit': True},
+            {'name':'set_propint',      'crit': True},
+            {'name':'set_koaimtyp',     'crit': True},
+            {'name':'set_elaptime',     'crit': False},
+            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_weather',      'crit': False},
+            {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+            {'name':'set_image_stats',  'crit': False},
+            {'name':'set_npixsat',      'crit': False},
+            {'name':'set_oa',           'crit': False},
+            {'name':'set_dqa_date',     'crit': False},
+            {'name':'set_dqa_vers',     'crit': False},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     @staticmethod
@@ -90,7 +91,7 @@ class Mosfire(instrument.Instrument):
         itime  = self.get_keyword('TRUITIME')
         coadds = self.get_keyword('COADDS')
         if (itime == None or coadds == None):
-            log.error('set_elaptime: TRUITIME and COADDS values needed to set ELAPTIME')
+            self.log_warn('SET_ELAPTIME_ERROR')
             return False
 
         #update val

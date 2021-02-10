@@ -31,9 +31,12 @@ log = logging.getLogger('koa_dep')
 
 class Lris(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, reprocess, transfer):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx)
+        super().__init__(instr, filepath, reprocess, transfer)
+
+        # Set any unique keyword index values here
+        self.keymap['OFNAME']   = 'OUTFILE'
 
         # Other vars that subclass can overwrite
         self.keyskips   = ['CCDGN00', 'CCDRN00']
@@ -43,31 +46,33 @@ class Lris(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_ut()
-        if ok: ok = self.set_ofname()
-        if ok: ok = self.set_frameno()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.get_nexten()
-        if ok: ok = self.set_image_stats_keywords()
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_npixsat(satVal=65535)
-        if ok: ok = self.set_obsmode()
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_sig2nois()
-        if ok: ok = self.set_ccdtype()
-        if ok: ok = self.set_slit_dims()
-        if ok: ok = self.set_wcs()
-        if ok: ok = self.set_skypa()        
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_dqa_date()
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',        'crit': True},
+            {'name':'set_koaimtyp',     'crit': True},
+            {'name':'set_ut',           'crit': True},
+            {'name':'set_ofname',       'crit': True},
+            {'name':'set_frameno',      'crit': True},
+            {'name':'set_semester',     'crit': True},
+            {'name':'set_prog_info',    'crit': True},
+            {'name':'set_propint',      'crit': True},
+            {'name':'get_nexten',       'crit': True},
+            {'name':'set_image_stats',  'crit': False},
+            {'name':'set_weather',      'crit': False},
+            {'name':'set_oa',           'crit': False},
+            {'name':'set_npixsat',      'crit': False,  'args': {'satVal':65535.0}},
+            {'name':'set_obsmode',      'crit': False},
+            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_sig2nois',     'crit': False},
+            {'name':'set_ccdtype',      'crit': False},
+            {'name':'set_slit_dims',    'crit': False},
+            {'name':'set_wcs',          'crit': False},
+            {'name':'set_skypa',        'crit': False},        
+            {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+            {'name':'set_dqa_vers',     'crit': False},
+            {'name':'set_dqa_date',     'crit': False},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     @staticmethod
@@ -111,7 +116,7 @@ class Lris(instrument.Instrument):
         if instrume in ('LRIS', 'LRISBLUE'):
             ok = True
         if (not ok):
-            log.error('set_instr: cannot determine if file is from ' + self.instr + '.  UDF!')
+            self.log_error("SET_INSTR_ERROR", instrume)
         return ok
 
 
@@ -676,7 +681,7 @@ class Lris(instrument.Instrument):
         return True
 
 
-    def set_image_stats_keywords(self):
+    def set_image_stats(self):
         '''
         Get mean, median, and standard deviation of middle 225 (15x15) pixels of image and postscan
         NOTE: We use integer division throughout to mimic IDL code.

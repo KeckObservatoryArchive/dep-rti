@@ -13,12 +13,13 @@ log = logging.getLogger('koa_dep')
 
 class Esi(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, reprocess, transfer):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx)
+        super().__init__(instr, filepath, reprocess, transfer)
 
         # Set any unique keyword index values here
-        self.keymap['UTC']       = 'UT'        
+        self.keymap['UTC']      = 'UT'        
+        self.keymap['OFNAME']   = 'OUTFILE'
 
         # Other vars that subclass can overwrite
         self.keyskips   = ['PMFM', 'RECNO', 'CHECKSUM', 'DATASUM']
@@ -27,32 +28,33 @@ class Esi(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_filter()
-        self.get_obsmode(update=True)
-        if ok: ok = self.set_camera()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_ut()
-        if ok: ok = self.set_frameno()
-        if ok: ok = self.set_ofName()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_image_stats_keywords()
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_npixsat(65535)
-
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_slit_dims()
-        if ok: ok = self.set_spatscal()
-        if ok: ok = self.set_dispscal()
-        if ok: ok = self.set_specres()
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_dqa_date()
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',        'crit': True},
+            {'name':'set_camera',       'crit': True},
+            {'name':'set_koaimtyp',     'crit': True},
+            {'name':'set_ut',           'crit': True},
+            {'name':'set_frameno',      'crit': True},
+            {'name':'set_ofName',       'crit': True},
+            {'name':'set_semester',     'crit': True},
+            {'name':'set_prog_info',    'crit': True},
+            {'name':'set_propint',      'crit': True},
+            {'name':'set_filter',       'crit': False},
+            {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+            {'name':'set_image_stats',  'crit': False},
+            {'name':'set_weather',      'crit': False},
+            {'name':'set_oa',           'crit': False},
+            {'name':'set_npixsat',      'crit': False,  'args': {'satVal':65535}},
+            {'name':'get_obsmode',      'crit': False,  'args': {'update':True}},
+            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_slit_dims',    'crit': False},
+            {'name':'set_spatscal',     'crit': False},
+            {'name':'set_dispscal',     'crit': False},
+            {'name':'set_specres',      'crit': False},
+            {'name':'set_dqa_vers',     'crit': False},
+            {'name':'set_dqa_date',     'crit': False},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     @staticmethod

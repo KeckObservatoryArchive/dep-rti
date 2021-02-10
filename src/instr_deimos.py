@@ -23,13 +23,12 @@ log = logging.getLogger('koa_dep')
 
 class Deimos(instrument.Instrument):
 
-    def __init__(self, instr, filepath, config, db, reprocess, tpx):
+    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, config, db, reprocess, tpx)
+        super().__init__(instr, filepath, reprocess, transfer, dbid)
 
         # Set any unique keyword index values here
-        self.keymap['OFNAME']       = 'DATAFILE'        
-        self.keymap['FRAMENO']      = ''
+        self.keymap['OFNAME']   = 'OUTFILE'
 
         # Other vars that subclass can overwrite
         # Skip warnings for these FCS-only keywords
@@ -69,34 +68,35 @@ class Deimos(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA check unique to this instrument'''
 
-        ok = True
-        if ok: ok = super().run_dqa()
-        if ok: ok = self.set_fcs_date_time()
-        if ok: ok = self.set_ut()
-        if ok: ok = self.set_koaimtyp()
-        if ok: ok = self.set_fcskoaid()
-        if ok: ok = self.set_ofName()
-        if ok: ok = self.set_semester()
-        if ok: ok = self.set_prog_info()
-        if ok: ok = self.set_propint()
-        if ok: ok = self.set_datlevel(0)
-        if ok: ok = self.set_weather_keywords()
-        if ok: ok = self.set_oa()
-        if ok: ok = self.set_dqa_vers()
-        if ok: ok = self.set_dqa_date()
-        if ok: ok = self.set_camera()
-        if ok: ok = self.set_filter()
-        if ok: ok = self.set_mjd()
-        if ok: ok = self.set_obsmode()
-        if ok: ok = self.set_nexten()
-        if ok: ok = self.set_detsec()
-        if ok: ok = self.set_npixsat(satVal=65535.0)
-        if ok: ok = self.set_wavelengths()
-        if ok: ok = self.set_spatscal()
-        if ok: ok = self.set_dispscal()
-        if ok: ok = self.set_specres()
-
-        return ok
+        #todo: what is critical?
+        funcs = [
+            {'name':'set_telnr',        'crit': True},
+            {'name':'set_fcs_date_time','crit': True},
+            {'name':'set_ut',           'crit': True},
+            {'name':'set_koaimtyp',     'crit': True},
+            {'name':'set_fcskoaid',     'crit': False},
+            {'name':'set_ofName',       'crit': True},
+            {'name':'set_semester',     'crit': True},
+            {'name':'set_prog_info',    'crit': True},
+            {'name':'set_propint',      'crit': True},
+            {'name':'set_weather',      'crit': False},
+            {'name':'set_oa',           'crit': False},
+            {'name':'set_camera',       'crit': True},
+            {'name':'set_filter',       'crit': True},
+            {'name':'set_mjd',          'crit': False},
+            {'name':'set_obsmode',      'crit': False},
+            {'name':'set_nexten',       'crit': False},
+            {'name':'set_detsec',       'crit': False},
+            {'name':'set_npixsat',      'crit': False,  'args': {'satVal':65535.0}},
+            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_spatscal',     'crit': False},
+            {'name':'set_dispscal',     'crit': False},
+            {'name':'set_specres',      'crit': False},
+            {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+            {'name':'set_dqa_vers',     'crit': False},
+            {'name':'set_dqa_date',     'crit': False},
+        ]
+        return self.run_dqa_funcs(funcs)
 
 
     def get_dir_list(self):
@@ -164,13 +164,12 @@ class Deimos(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            log.info('set_ofName: Could not detrermine OFNAME')
+            log.info('set_ofName: Could not determine OFNAME')
             ofname = ''
             return False
         
         frameno = str(frameno).zfill(4)
         ofName = ''.join((outfile, frameno, '.fits'))
-        log.info('set_ofName: OFNAME = {}'.format(ofName))
         self.set_keyword('OFNAME', ofName, 'KOA: Original file name')
 
         return True
@@ -498,7 +497,11 @@ class Deimos(instrument.Instrument):
         Tile images horizontally in order from left to right.
         Use DETSEC keyword to figure out data order/position
         '''
-
+######################################################################################
+### TODO: Disabling for now until we figure out VM memory usage issue for DEIMOS jpgs
+######################################################################################
+        return True
+        
         #open
         hdus = fits.open(fits_filepath, ignore_missing_end=True)
 
@@ -655,35 +658,13 @@ class Deimos(instrument.Instrument):
             return [x1, x2, y1, y2]
 
 
-    def create_fcs_list(self, locateFile):
-        '''
-        Creates self.fcsFiles for use in set_fcskoaid()
-        '''
-
-        self.fcsFiles = {}
-        with open(locateFile, 'r') as lf:
-            for line in lf:
-                file = line.strip()
-                self.set_fits_file(file)
-                self.set_utc()
-                self.set_dateObs()
-                koaid = self.make_koaid()
-                if koaid and koaid.startswith('DF'):
-                    self.fcsFiles[file.split('/')[-1]] = koaid
-
-
     def set_fcskoaid(self):
         '''
         Populates FCSKOAID with the associated FCS file
         '''
-
         fcs = self.get_keyword('FCSIMGFI', default='')
-        fcs = fcs.split('/')[-1]
+        #todo: look up KOAID by ofname in dep_status or bring back code that calcs KOAID.
         fcskoaid = ''
-        if fcs in self.fcsFiles.keys():
-            fcskoaid = self.fcsFiles[fcs]
         self.set_keyword('FCSKOAID', fcskoaid, 'KOA: associated fcs file')
-
-
         return True
 
