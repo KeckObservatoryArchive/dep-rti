@@ -6,11 +6,11 @@ set instrupper=`echo "$instr" | tr '[a-z]' '[A-Z]'`
 source $HOME/.cshrc
 
 set PYTHON='/usr/local/anaconda/bin/python'
-set DEPDIR='/usr/local/home/koarti/dev/koa/dep-rti'
+set DEPDIR=`dirname $0`
 set LOGFILE="/koadata/$instrupper/dep-rti-$instr.log"
 
 #todo: normally we would do start, not a restart, but using restart for development
 #$PYTHON $DEPDIR/src/manager.py monitor start --extra "$instr" >> $LOGFILE
-set cmd="$PYTHON $DEPDIR/src/manager.py monitor restart --extra $instr >>& $LOGFILE"
+set cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $instr >>& $LOGFILE"
 echo $cmd
 eval "$cmd"
