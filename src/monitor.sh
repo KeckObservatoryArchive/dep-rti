@@ -11,6 +11,6 @@ set LOGFILE="/koadata/$instrupper/dep-rti-$instr.log"
 
 #todo: normally we would do start, not a restart, but using restart for development
 #$PYTHON $DEPDIR/src/manager.py monitor start --extra "$instr" >> $LOGFILE
-set cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $instr >>& $LOGFILE"
+set cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $instrupper >>& $LOGFILE"
 echo $cmd
 eval "$cmd"
