@@ -319,6 +319,7 @@ class DEP:
         '''When reprocessing a record, we need to reset most columns to default.'''
         query = (f"update dep_status set "
                  f" status_code        = NULL, " 
+                 f" status_code_ipac   = NULL, " 
                  f" process_dir        = NULL, "
                  f" archive_dir        = NULL, "
                  f" dep_start_time     = NULL, "
