@@ -451,7 +451,7 @@ class KtlMonitor():
             if keyword['populated'] == False:
                 self.log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
-            self.log.debug(f'on_new_file: {keyword.name}={keyword.ascii}')
+            self.log.debug(f'on_new_file: ({keyword.service}) {keyword.name}={keyword.ascii}')
 
             #Get trigger val and if 'reqval' is defined make sure trigger equals reqval
             keys = self.keys
