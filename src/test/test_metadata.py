@@ -1,4 +1,5 @@
 import pytest
+import filecmp
 import logging
 import sys
 import pdb
@@ -99,15 +100,34 @@ def test_logging():
     with open(logFile) as f: 
         assert startMsg in f.readline(), 'check that log file is logging properly'
 
+@pytest.mark.metadata
+def test_compare_metadata_files():
+    '''compares metadatafiles with standard found in koadata_test'''
+    outFiles = glob(os.path.join(outDir, f'*.metadata.table'))
+    stdOutFiles = glob('koadata_test/test_tmp_dir/*.metadata.table')
+    for idx in range(len(outFiles)):
+        f1 = outFiles[idx]
+        f2 = glob(os.path.join('koadata_test/test_tmp_dir/', os.path.basename(f1)))[0]
+        assert os.path.basename(f1) == os.path.basename(f2), 'file names must match {0} != {1}'.format(f1, f2)
+        assert filecmp.cmp(f1, f2, False), 'check file {0} with standard {1}'.format(f1, f2)
+@pytest.mark.metadata
+def test_compare_md5sum_files():
+    '''compares checksum files with standard found in koadata_test'''
+    metaOutFiles = glob(os.path.join(outDir, f'*.metadata.md5sum'))
+    stdMetaOutFiles = glob('koadata_test/test_tmp_dir/*.metadata.md5sum')
+    for idx in range(len(metaOutFiles)):
+        f1 = metaOutFiles[idx]
+        f2 = glob(os.path.join('koadata_test/test_tmp_dir/', os.path.basename(f1)))[0]
+        assert os.path.basename(f1) == os.path.basename(f2), 'file names must match {0} != {1}'.format(f1, f2)
+        assert filecmp.cmp(f1, f2, False), 'check file {0} with standard {1}'.format(f1, f2)
 
 if __name__=='__main__':
     if not os.path.exists(outDir): 
         os.mkdir(outDir)
     logging.basicConfig(filename=logFile, encoding='utf-8', level=logging.DEBUG)
     create_tables_and_checksum_files()
-
     # run pytests
-    if not dev:
-        os.system('pytest -m metadata')
+    os.system('pytest -m metadata')
     # cleanup
-    rmtree(outDir)
+    if not dev:
+        rmtree(outDir)
