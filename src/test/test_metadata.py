@@ -41,7 +41,14 @@ EXTRA_DATA = {
 }
 keywordTablePath = os.path.join(os.pardir, os.pardir, os.pardir, 'KeywordTables')
 fitsFilePath = os.path.join('koadata_test', 'test', '**', '20210208', 'lev0')
-outDir = './tmp'
+
+serverName = os.uname()[1]
+if 'koaserver' in serverName:
+    outDir = '/tmp/dep_test'
+    pytestPath = '/usr/local/anaconda3-5.0.0.1/bin/pytest'
+else:
+    outDir = './tmp'
+    pytestPath = 'pytest'
 startMsg = f'creating tables and files in {outDir}'
 logFile = os.path.join(outDir, os.path.basename(__file__).replace('.py', '.log'))
 dev = True
@@ -104,30 +111,34 @@ def test_logging():
 def test_compare_metadata_files():
     '''compares metadatafiles with standard found in koadata_test'''
     outFiles = glob(os.path.join(outDir, f'*.metadata.table'))
-    stdOutFiles = glob('koadata_test/test_tmp_dir/*.metadata.table')
+    filesMismatch = []
     for idx in range(len(outFiles)):
         f1 = outFiles[idx]
-        f2 = glob(os.path.join('koadata_test/test_tmp_dir/', os.path.basename(f1)))[0]
+        f2 = glob(os.path.join('koadata_test/dep_rti_output_std/', os.path.basename(f1)))[0]
         assert os.path.basename(f1) == os.path.basename(f2), 'file names must match {0} != {1}'.format(f1, f2)
-        assert filecmp.cmp(f1, f2, False), 'check file {0} with standard {1}'.format(f1, f2)
+        if not filecmp.cmp(f1, f2, False):
+            filesMismatch.append(f1)
+    assert len(filesMismatch) == 0, 'mismatching files with standard: {}'.format(filesMismatch)
 @pytest.mark.metadata
 def test_compare_md5sum_files():
     '''compares checksum files with standard found in koadata_test'''
     metaOutFiles = glob(os.path.join(outDir, f'*.metadata.md5sum'))
-    stdMetaOutFiles = glob('koadata_test/test_tmp_dir/*.metadata.md5sum')
+    filesMismatch = []
     for idx in range(len(metaOutFiles)):
         f1 = metaOutFiles[idx]
-        f2 = glob(os.path.join('koadata_test/test_tmp_dir/', os.path.basename(f1)))[0]
+        f2 = glob(os.path.join('koadata_test/dep_rti_output_std/', os.path.basename(f1)))[0]
         assert os.path.basename(f1) == os.path.basename(f2), 'file names must match {0} != {1}'.format(f1, f2)
-        assert filecmp.cmp(f1, f2, False), 'check file {0} with standard {1}'.format(f1, f2)
-
+        if not filecmp.cmp(f1, f2, False):
+            filesMismatch.append(f1)
+    assert len(filesMismatch) == 0, 'mismatching files with standard: {}'.format(filesMismatch)
 if __name__=='__main__':
     if not os.path.exists(outDir): 
         os.mkdir(outDir)
-    logging.basicConfig(filename=logFile, encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename=logFile, level=logging.DEBUG)
     create_tables_and_checksum_files()
     # run pytests
-    os.system('pytest -m metadata')
+    testCmd = pytestPath + ' -m metadata'
+    os.system(testCmd)
     # cleanup
     if not dev:
         rmtree(outDir)
