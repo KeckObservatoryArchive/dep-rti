@@ -40,7 +40,8 @@ EXTRA_DATA = {
 'PROGTITL': '',
 }
 keywordTablePath = os.path.join(os.pardir, os.pardir, os.pardir, 'KeywordTables')
-fitsFilePath = os.path.join('koadata_test', 'test', '**', '20210208', 'lev0')
+koadataPath = os.path.join(os.pardir, os.pardir, os.pardir, 'koadata_test')
+fitsFilePath = os.path.join(koadataPath, 'test', '**', '20210208', 'lev0')
 
 serverName = os.uname()[1]
 if 'koaserver' in serverName:
@@ -79,8 +80,7 @@ def test_input_tables_exist():
 @pytest.mark.metadata
 def test_fits_files_exist():
     for inst in INST_MAPPING:
-        lev0Dir = os.path.join('./koadata_test', 'test', inst, '20210208', 'lev0')
-        fitsFiles = glob(os.path.join(lev0Dir, '*.fits'))
+        fitsFiles = glob(os.path.join(fitsFilePath, '*.fits'))
         assert len(fitsFiles) > 0, f'inst {inst} does not have any fits files.'
 
 @pytest.mark.metadata
@@ -114,7 +114,7 @@ def test_compare_metadata_files():
     filesMismatch = []
     for idx in range(len(outFiles)):
         f1 = outFiles[idx]
-        f2 = glob(os.path.join('koadata_test/dep_rti_output_std/', os.path.basename(f1)))[0]
+        f2 = glob(os.path.join(koadataPath, 'dep_rti_output_std', os.path.basename(f1)))[0]
         assert os.path.basename(f1) == os.path.basename(f2), 'file names must match {0} != {1}'.format(f1, f2)
         if not filecmp.cmp(f1, f2, False):
             filesMismatch.append(f1)
@@ -126,7 +126,7 @@ def test_compare_md5sum_files():
     filesMismatch = []
     for idx in range(len(metaOutFiles)):
         f1 = metaOutFiles[idx]
-        f2 = glob(os.path.join('koadata_test/dep_rti_output_std/', os.path.basename(f1)))[0]
+        f2 = glob(os.path.join(koadataPath, 'dep_rti_output_std', os.path.basename(f1)))[0]
         assert os.path.basename(f1) == os.path.basename(f2), 'file names must match {0} != {1}'.format(f1, f2)
         if not filecmp.cmp(f1, f2, False):
             filesMismatch.append(f1)
