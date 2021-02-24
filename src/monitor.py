@@ -384,13 +384,6 @@ class KtlMonitor():
             threading.Timer(KTL_START_RETRY_SEC, self.start).start()
             return
 
-        # monitor keys for services that construct filepath from other keywords
-        filepath_keys = keys['fp_info']
-        for key in filepath_keys:
-            if key == keys['trigger']: continue
-            kw = self.service[key]
-            kw.monitor()
-
         #monitor keyword that indicates new file
         kw = self.service[keys['trigger']]
         kw.callback(self.on_new_file)
@@ -407,6 +400,7 @@ class KtlMonitor():
             period = hb[1] + 10
             if period < 30: period = 30
             self.service.heartbeat(hb[0], period)
+
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start() 
             self.check_failed = False           
             self.resuscitations = self.service.resuscitations
@@ -460,15 +454,13 @@ class KtlMonitor():
                 self.log.info(f'Trigger val of {keyword.ascii} != {reqval}')
                 return
 
-            # construct filepath from keywords(s) using lambda defined in monitor_config.py
-            filepath_info = {}
-            filepath_info[keyword.name] = keyword.ascii
-            for key in keys['fp_info']:
-                if key == keys['trigger']: continue
-                kw = self.service[key]
-                filepath_info[kw.name] = kw.ascii
-                self.log.debug(f"\t{kw.name}={kw.ascii}")
-            filepath = keys['format'](filepath_info)
+            #get full file path
+            format = self.keys.get('format', None)
+            zfill = self.keys.get('zfill', None)
+            if format:
+                filepath = self.get_formatted_filepath(format, zfill)
+            else:
+                filepath = keyword.ascii
 
             #check for blank filepath
             if not filepath or not filepath.strip():
@@ -503,6 +495,26 @@ class KtlMonitor():
 
         #send back to queue manager
         self.queue_mgr.add_to_queue(filepath)
+
+
+    def get_formatted_filepath(self, format, zfill):
+        '''
+        Construct filepath from multiple KTL keywords. See instr_keys module global defined above.
+        Parameters:
+            format (str): Path formatting containing keywords in curlies to replace with KTL values
+            zfill (dict): Map KTL keywords to '0' zfill.
+        '''
+        filepath = format
+        matches = re.findall("{.*?}", format)
+        for key in matches:
+            key = key[1:-1]
+            val = self.service[key].read()
+            print(val)
+            pad = zfill.get(key, None) if zfill else None
+            if pad is not None:
+                val = val.zfill(pad)
+            filepath = filepath.replace('{'+key+'}', val)
+        return filepath
 
 
 def handle_error(errcode, text='', instr='', service='', check_time=True):
