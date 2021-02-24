@@ -47,6 +47,9 @@ serverName = os.uname()[1]
 if 'koaserver' in serverName:
     outDir = '/tmp/dep_test'
     pytestPath = '/usr/local/anaconda3-5.0.0.1/bin/pytest'
+elif 'koarti' in serverName:
+    outDir = '/tmp/dep_test'
+    pytestPath = 'pytest'
 else:
     outDir = './tmp'
     pytestPath = 'pytest'
