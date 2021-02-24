@@ -66,7 +66,7 @@ def main():
     while True:
         try:
             time.sleep(300)
-            monitor.log.debug(f'Monitor saying hi every 5 minutes ({m.instr} {m.service})')
+            monitor.log.debug(f'Monitor saying hi every 5 minutes ({monitor.instr} {monitor.service})')
         except:
             break
     monitor.log.info(f'Exiting {__file__}')
