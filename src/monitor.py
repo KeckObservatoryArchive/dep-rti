@@ -417,15 +417,15 @@ class KtlMonitor():
             kw = self.service[hb]
             kw.read(timeout=1)
             if self.service.resuscitations != self.resuscitations:
-                self.log.debug(f"KTL service {self.keys['service']} resuscitations changed.")
+                self.log.debug(f"KTL service {self.servicename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
         except Exception as e:
             self.check_failed = True
-            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' heartbeat read failed.")
-            self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.keys['service'])
+            self.log.debug(f"{self.instr} KTL service '{self.servicename}' heartbeat read failed.")
+            self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', servicename)
         else:
             if self.check_failed:
-                self.log.debug(f"KTL service {self.keys['service']} read successful afer prior failure.")
+                self.log.debug(f"KTL service {self.servicename} read successful afer prior failure.")
             self.check_failed = False
         finally:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
