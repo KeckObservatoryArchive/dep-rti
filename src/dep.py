@@ -104,8 +104,6 @@ class DEP:
             ok = False
             self.log_error('CODE_ERROR', traceback.format_exc())
 
-        #todo: What about condition of ok=False but log_error was not used?
-        #error monitoring script would catch it?
         self.handle_dep_errors()
         return ok
 
@@ -238,7 +236,6 @@ class DEP:
 
 
     def init_dirs(self):
-        #TODO: exit if existence of output/stage dirs? Maybe put override in config?
 
         # get the various root dirs
         self.set_root_dirs()
@@ -429,7 +426,6 @@ class DEP:
     def update_dep_status(self, column, value):
         """Sends command to update KOA dep_status."""
 
-        #todo: test failure case if record does not exist.
         if value is None: query = f"update dep_status set {column}=NULL where id='{self.dbid}'"
         else:             query = f"update dep_status set {column}='{value}' where id='{self.dbid}'"
         log.info(query)
@@ -493,8 +489,7 @@ class DEP:
     def construct_filename(self, instr, fitsFile, keywords):
         """Constructs the original filename from the fits header keywords"""
 
-#TODO: CLEAN THIS UP AND GET IT WORKING
-        #TODO: move this to instrument classes
+        #TODO: REMOVE THIS OR CLEAN IT UP AND MOVE TO INSTRUMENT CLASSES
 
         if instr in ['MOSFIRE', 'NIRES', 'NIRSPEC', 'OSIRIS']:
             try:
@@ -703,20 +698,6 @@ class DEP:
             check_dep_status_errors.main()
 
 
-    def copy_bad_file(self):
-        #todo: log_error with status 'WARN'.  How can we alert admins without marking as error?
-        if not self.filepath:
-            return False
-        try:
-            log.info(f"Copying invalid fits {self.filepath} to {outdir}")
-            outdir = self.dirs['udf']
-            shutil.copy(self.filepath, outdir)  
-        except Exception as e:
-            self.log_warn("FILE_COPY_ERROR")
-            return False
-        return True
-
-
     def verify_date(self, date=''):
         """
         Verify that date value has format yyyy-mm-dd
@@ -837,7 +818,6 @@ class DEP:
 
     def update_dep_stats(self):
         '''Record DEP stats before we xfr to ipac.'''
-        #todo: add other column data like size, sdata_dir, etc
         if not self.update_dep_status('process_dir', self.dirs['lev0']): return False
 
         if not self.update_dep_status('filesize_mb', self.filesize_mb): return False
@@ -875,7 +855,6 @@ class DEP:
     def get_api_data(self, url, getOne=False, isJson=True):
         '''
         Gets data for common calls to url API requests.
-        #todo: add some better validation checks 
         '''
         try:
             data = urlopen(url)

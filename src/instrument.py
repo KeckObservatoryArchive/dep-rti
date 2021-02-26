@@ -250,32 +250,6 @@ class Instrument(dep.DEP):
         instr = instr[0].replace(':','')
         return instr
 
-
-    def get_raw_fname(self):
-        """
-        Determines the original filename
-        """
-
-        #todo: is this function needed?
-
-        # Get the root name of the file
-        outfile = self.get_keyword('OFNAME')
-        if outfile == None: return '', False
-
-        # Get the frame number of the file
-        frameno = self.get_keyword('FRAMENO')
-        if frameno == None: return '', False
-
-        # Determine the necessary padding required
-        zero = ''
-        if         float(frameno) < 10:   zero = '000'
-        elif 10 <= float(frameno) < 100:  zero = '00'
-        elif 100 <= float(frameno)< 1000: zero = '0'
-
-        # Construct the original filename
-        filename = outfile.strip() + zero + str(frameno).strip() + '.fits'
-        return filename, True
-
  
     def set_instr(self):
         '''
@@ -763,7 +737,7 @@ class Instrument(dep.DEP):
     def set_telnr(self):
         '''
         Gets telescope number for instrument via API
-        #todo: Replace API call with hard-coded?
+        #todo: Replace API call with hard-coded/config?
         '''
         url = f"{self.config['API']['TELAPI']}cmd=getTelnr&instr={self.instr.upper()}"
         data = self.get_api_data(url, getOne=True)
@@ -869,36 +843,6 @@ class Instrument(dep.DEP):
 
         semid = semester + '_' + progid
         return semid
-
-
-    def fix_datetime(self, fname):
-
-        # Temp fix for bad file times (NIRSPEC legacy)
-        #todo: test this
-        #todo: is this needed?
-
-        datefile = ''.join(('/home/koaadmin/fixdatetime/', self.utdatedir, '.txt'))
-        datefile = '/home/koaadmin/fixdatetime/20101128.txt'
-        if os.path.isfile(datefile) is False:
-            return
-
-        fileroot = fname.split('/')
-        fileroot = fileroot[-1]
-        output = ''
-
-        with open(datefile, 'r') as df:
-            for line in df:
-                if fileroot in line:
-                    output = line
-                    break
-
-        if output != '':
-            dateobs = self.get_keyword('DATE-OBS')
-            if 'Error' not in dateobs and dateobs.strip() != '':
-                return
-            vals = output.split(' ')
-            self.set_keyword('DATE-OBS', vals[1], ' Original value missing - added by KOA')
-            self.set_keyword('UTC',      vals[2], 'Original value missing - added by KOA')
 
 
     def set_frameno(self):
