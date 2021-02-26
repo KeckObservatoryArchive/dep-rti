@@ -247,7 +247,6 @@ class Monitor():
             return 
 
         #check that we have not exceeded max num procs
-        #todo: do we want to notify admins of this condition?
         if len(self.procs) >= self.max_procs:
             self.handle_error('MAX_PROCESSES', self.max_procs)
             return
@@ -519,7 +518,6 @@ class KtlMonitor():
 
 def handle_error(errcode, text='', instr='', service='', check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
-    #todo: Should last time be checked on a per instrument basis? (ie move this into class)
 
     #always log/print
     print(f'{errcode}: {text}')
