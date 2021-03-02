@@ -44,7 +44,6 @@ def make_metadata(keywordsDefFile, metaOutFile, lev0Dir, extraData=dict(), log=N
     try:
         keyDefs = format_keyDefs(keyDefs)
     except Exception as err:
-        pdb.set_trace()
         keyDefs = format_keyDefs(keyDefs)
         msg = 'keywordsDefFile {0} not formatted err: {1} skipping'.format(keyDefs, err)
         logging.warning(msg)
@@ -176,11 +175,10 @@ def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, in
             try:
                 val, warns = check_keyword_val(keyword, val, row, warns)
             except Exception as err:
-                pdb.set_trace()
                 msg = 'Exception for metaOutFile {0} keyword: {1} val: {2}. Error: {3}'.format(os.path.basename(metaOutFile), keyword, val, err)
                 logging.warning(msg)
                 if not dev:
-                    raise Exception(err)
+                    raise Exception(msg)
 
             #write out val padded to size
             out.write(' ')
