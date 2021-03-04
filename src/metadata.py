@@ -51,6 +51,7 @@ def make_metadata(keywordsDefFile, metaOutFile, lev0Dir, extraData=dict(), log=N
         if not dev:
             raise Exception(msg)
 
+
     create_metadata_file(metaOutFile, keyDefs)
 
     #track warning counts
@@ -235,6 +236,7 @@ def check_and_set_value_type(val, warns, metaDataType, keyword):
 
     elif (metaDataType == 'double'):
         if not isinstance(val, float):
+            pdb.set_trace()
             logging.warning('metadata check: var type of {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
             warns['type'] += 1
 
@@ -257,11 +259,11 @@ def check_and_set_char_length(val, warns,  colSize, metaDataType, keyword):
     length = len(str(val))
     if (length > colSize):
         if (metaDataType == 'double'): 
-            logging.warning('metadata check: char length of {} greater than column size of {} ({}={}).  truncating.'.format(length, colSize, keyword, val))
+            logging.warning('metadata check: char length of {} greater than column size of {} ({}={}).  TRUNCATING.'.format(length, colSize, keyword, val))
             warns['truncate'] += 1
             val = truncate_float(val, colSize)
         else: 
-            logging.warning('metadata check: char length of {} greater than column size of {} ({}={}).  truncating.'.format(length, colSize, keyword, val))
+            logging.warning('metadata check: char length of {} greater than column size of {} ({}={}).  TRUNCATING.'.format(length, colSize, keyword, val))
             warns['truncate'] += 1
             val = str(val)[:colSize]
     return val, warns
@@ -361,92 +363,92 @@ def truncate_float(f, n):
     s = '{}'.format(f)
     exp = ''
     if 'e' in s or 'e' in s:
-        parts = re.split('e', s, flags=re.ignorecase)
+        parts = re.split('e', s, flags=re.IGNORECASE)
         s = parts[0]
         exp = 'e' + parts[1]
 
     n -= len(exp)
     return s[:n] + exp
 
-def compare_meta_files(filepaths, skipcolcomparewarn=False):
+def compare_meta_files(filepaths, skipColCompareWarn=False):
     '''
-    takes an array of filepaths to metadata output files and compares them all to 
+    Takes an array of filepaths to metadata output files and compares them all to 
     the first metadata file in a smart manner.
     '''
     results = []
 
     #columns we always skip value check
-    skips = ['dqa_date', 'dqa_vers']
+    skips = ['DQA_DATE', 'DQA_VERS']
 
     #store list of columns to compare
-    comparecols = []
-    comparekoaids = []
+    compareCols = []
+    compareKoaids = []
 
     #loop, parse and store dataframes
     dfs = []
     for filepath in filepaths:
         data = load_metadata_file_as_df(filepath)
-        if isinstance(data, pd.dataframe): dfs.append(data)
+        if isinstance(data, pd.DataFrame): dfs.append(data)
         else                             : return False
 
     #compare all to first df in list
-    basedf = dfs[0]
-    basecollist = basedf.columns.tolist()
+    baseDf = dfs[0]
+    baseCollList = baseDf.columns.tolist()
     for i, df in enumerate(dfs):
         if i == 0: continue
 
         result = {}
-        result['compare'] = '==> comparing (0){} to ({}){}:'.format(basedf.name, i, df.name)
+        result['compare'] = '==> comparing (0){} to ({}){}:'.format(baseDf.name, i, df.name)
         result['warnings'] = []
 
         #basic two-way column name compare
-        collist = df.columns.tolist()
-        for col in collist:
-            if col not in basecollist:
+        colList = df.columns.tolist()
+        for col in colList:
+            if col not in baseCollList:
                 if col not in skips:
-                    if not skipcolcomparewarn: 
-                        result['warnings'].append('meta compare: md{} col "{}" not in md0 col list.'.format(i, col))
+                    if not skipColCompareWarn: 
+                        result['warnings'].append('Meta compare: MD{} col "{}" not in MD0 col list.'.format(i, col))
             else:
-                if col not in comparecols: comparecols.append(col)
-        for col in basecollist:
-            if col not in collist:
+                if col not in compareCols: compareCols.append(col)
+        for col in baseCollList:
+            if col not in colList:
                 if col not in skips:
-                    if not skipcolcomparewarn: 
-                        result['warnings'].append('meta compare: md0 col "{}" not in md{} col list.'.format(col, i))
+                    if not skipColCompareWarn: 
+                        result['warnings'].append('Meta compare: MD0 col "{}" not in MD{} col list.'.format(col, i))
             else:
-                if col not in comparecols: comparecols.append(col)
+                if col not in compareCols: compareCols.append(col)
 
         #basic two-way row find using koaid value
         for index, row in df.iterrows():
-            koaid = row['koaid']
-            baserow = basedf[basedf['koaid'] == koaid]
-            if baserow.empty: 
-                result['warnings'].append('meta compare: cannot find koaid "{}" in md0'.format(koaid))
+            koaid = row['KOAID']
+            baseRow = baseDf[baseDf['KOAID'] == koaid]
+            if baseRow.empty: 
+                result['warnings'].append('Meta compare: CANNOT FIND KOAID "{}" in MD0'.format(koaid))
                 continue
             else:
-                if koaid not in comparekoaids: comparekoaids.append(koaid)
+                if koaid not in compareKoaids: compareKoaids.append(koaid)
 
-        for index, baserow in basedf.iterrows():
-            koaid = baserow['koaid']
-            row = df[df['koaid'] == koaid]
+        for index, baseRow in baseDf.iterrows():
+            koaid = baseRow['KOAID']
+            row = df[df['KOAID'] == koaid]
             if row.empty: 
-                result['warnings'].append('meta compare: cannot find koaid "{}" in md{}'.format(koaid, i))
+                result['warnings'].append('Meta compare: CANNOT FIND KOAID "{}" in MD{}'.format(koaid, i))
                 continue
             else:
-                if koaid not in comparekoaids: comparekoaids.append(koaid)
+                if koaid not in compareKoaids: compareKoaids.append(koaid)
 
         #for koaids we found in both, compare those rows
-        for koaid in comparekoaids:
-            row0 = basedf[basedf['koaid'] == koaid].iloc[0]
-            row1 = df[df['koaid'] == koaid].iloc[0]
-            for col in comparecols:
+        for koaid in compareKoaids:
+            row0 = baseDf[baseDf['KOAID'] == koaid].iloc[0]
+            row1 = df[df['KOAID'] == koaid].iloc[0]
+            for col in compareCols:
                 if col in skips: continue
 
                 val0 = row0[col]
                 val1 = row1[col]
 
                 if val_smart_diff(val0, val1, col):
-                    result['warnings'].append('meta compare: {}: col "{}": (0)"{}" != ({})"{}"'.format(koaid, col, val0, i, val1))
+                    result['warnings'].append('Meta compare: {}: col "{}": (0)"{}" != ({})"{}"'.format(koaid, col, val0, i, val1))
 
         results.append(result)
 
@@ -459,7 +461,7 @@ def val_smart_diff(val0, val1, col=None):
     if pd.isnull(val1): val1 = ''
 
     #special fix for progtitl
-    if col == 'progtitl':
+    if col == 'PROGTITL':
         val0 = val0.replace('  ',' ')
         val1 = val0.replace('  ',' ')
 
@@ -474,16 +476,16 @@ def val_smart_diff(val0, val1, col=None):
     val1 = newval1
 
     #diff
-    isdiff = False
+    isDiff = False
     val0 = str(val0).lower()
     val1 = str(val1).lower()
     if val0 != val1:
 
         #if different, try html escaping
         if html.escape(val0) != html.escape(val1):
-            isdiff = True
+            isDiff = True
 
-    return isdiff
+    return isDiff
 
 def load_metadata_file_as_df(filepath):
 
@@ -491,7 +493,7 @@ def load_metadata_file_as_df(filepath):
 
     with open(filepath, 'r', errors='replace') as f:
 
-        # read first line of header and find all column widths using '|' split
+        # Read first line of header and find all column widths using '|' split
         header = f.readline().strip()
         cols = header.split('|')
         colWidths = []
