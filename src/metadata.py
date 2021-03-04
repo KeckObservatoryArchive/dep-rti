@@ -391,7 +391,7 @@ def compare_meta_files(filepaths, skipColCompareWarn=False):
 
     #compare all to first df in list
     baseDf = dfs[0]
-    baseCollList = baseDf.columns.tolist()
+    baseColList = baseDf.columns.tolist()
     for i, df in enumerate(dfs):
         if i == 0: continue
 
@@ -402,13 +402,13 @@ def compare_meta_files(filepaths, skipColCompareWarn=False):
         #basic two-way column name compare
         colList = df.columns.tolist()
         for col in colList:
-            if col not in baseCollList:
+            if col not in baseColList:
                 if col not in skips:
                     if not skipColCompareWarn: 
                         result['warnings'].append('Meta compare: MD{} col "{}" not in MD0 col list.'.format(i, col))
             else:
                 if col not in compareCols: compareCols.append(col)
-        for col in baseCollList:
+        for col in baseColList:
             if col not in colList:
                 if col not in skips:
                     if not skipColCompareWarn: 
