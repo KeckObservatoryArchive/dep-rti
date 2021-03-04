@@ -95,7 +95,6 @@ class DEP:
             if ok:      self.create_ext_meta()
             if ok: ok = self.run_drp()
             if ok:      self.check_koapi_send()
-            if ok: ok = self.create_readme()
             if ok: ok = self.update_dep_stats()
             if ok: ok = self.transfer_ipac()
             if ok:      self.add_header_to_db()
@@ -801,19 +800,6 @@ class DEP:
         else:
             val = data.get('data', {}).get('ProgramTitle', default)
             return val
-
-
-    def create_readme(self):
-        '''Create a text file that indicates some meta about KOAID product delivery'''
-        try:
-            filepath = f"{self.dirs['lev0']}/{self.koaid}.txt"
-            with open(filepath, 'w') as f:
-                path = self.dirs['output']
-                f.write(path + '\n')
-        except Exception as e:
-            self.log_error('FILE_IO', filepath)
-            return False
-        return True
 
 
     def update_dep_stats(self):
