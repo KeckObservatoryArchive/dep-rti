@@ -39,20 +39,22 @@ EXTRA_DATA = {
 'OFNAME': 'ofNamePlaceholder',
 'PROGTITL': '',
 }
-keywordTablePath = os.path.join(os.pardir, os.pardir, os.pardir, 'KeywordTables')
-koadataPath = os.path.join(os.pardir, os.pardir, os.pardir, 'koadata_test')
-fitsFilePath = os.path.join(koadataPath, 'test', '**', '20210208', 'lev0')
 
+keywordTablePath = os.path.join(os.pardir, os.pardir, os.pardir, 'KeywordTables')
 serverName = os.uname()[1]
 if 'koaserver' in serverName:
     outDir = '/tmp/dep_test'
     pytestPath = '/usr/local/anaconda3-5.0.0.1/bin/pytest'
+    koadataPath = os.path.join('/koadata', 'koadata_test')
 elif 'koarti' in serverName:
     outDir = '/tmp/dep_test'
     pytestPath = 'pytest'
+    koadataPath = os.path.join('/koadata', 'koadata_test')
 else:
     outDir = './tmp'
     pytestPath = 'pytest'
+    koadataPath = os.path.join(os.pardir, os.pardir, os.pardir, 'koadata_test')
+fitsFilePath = os.path.join(koadataPath, 'test', '**', '20210208', 'lev0')
 startMsg = f'creating tables and files in {outDir}'
 logFile = os.path.join(outDir, os.path.basename(__file__).replace('.py', '.log'))
 dev = True
@@ -134,6 +136,7 @@ def test_compare_md5sum_files():
         if not filecmp.cmp(f1, f2, False):
             filesMismatch.append(f1)
     assert len(filesMismatch) == 0, 'mismatching files with standard: {}'.format(filesMismatch)
+
 if __name__=='__main__':
     if not os.path.exists(outDir): 
         os.mkdir(outDir)
