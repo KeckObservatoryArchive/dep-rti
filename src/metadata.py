@@ -188,7 +188,6 @@ def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, in
         out.write("\n")
     return warns
 
-
 def check_keyword_existance(header, keyDefs, dev=False, instrKeywordSkips=[]):
 
     #get simple list of keywords
@@ -234,7 +233,6 @@ def check_and_set_value_type(val, warns, metaDataType, keyword):
 
     elif (metaDataType == 'double'):
         if not isinstance(val, float):
-            pdb.set_trace()
             logging.warning('metadata check: var type of {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
             warns['type'] += 1
 
