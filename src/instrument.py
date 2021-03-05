@@ -768,12 +768,6 @@ class Instrument(dep.DEP):
                     os.remove(self.outfile)
                 return False
 
-        #create md5 sum
-        if os.path.exists(self.outfile):
-            md5Outfile = self.outfile + '.md5sum'
-            log.info('Creating md5sum file {}'.format(md5Outfile))
-            make_file_md5(self.outfile, md5Outfile)
-
         return True
 
 
