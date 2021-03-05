@@ -201,6 +201,7 @@ def check_keyword_existance(header, keyDefs, dev=False, instrKeywordSkips=[]):
 
     #find all keywords in metadata def file that are not in header
     skips = ['PROGTITL', 'PROPINT']
+    assert keyDefs.iloc[0].keyword == "KOAID", "First column must be KOAID"
     for index, row in keyDefs.iterrows():
         keyword = row['keyword']
         if keyword not in header and keyword not in skips and row['allowNull'] == "N":
