@@ -73,7 +73,7 @@ def create_tables_and_checksum_files():
         metaOutFile = os.path.join(os.getcwd(), outDir, f'dep_{inst}.metadata.table') # must end in metadata.table
         instFitsFilePath = fitsFilePath.replace('**', inst)
         extraData = create_extra_data()
-        metadata.make_metadata(keywordsDefFile, metaOutFile, instFitsFilePath, extraData, log, dev=dev)
+        metadata.make_metadata(keywordsDefFile, metaOutFile, instFitsFilePath, extraData, log, dev=dev, filePath=None)
 
 @pytest.mark.metadata
 def test_input_tables_exist():
