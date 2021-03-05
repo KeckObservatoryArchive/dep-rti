@@ -95,6 +95,7 @@ class DEP:
             if ok:      self.create_ext_meta()
             if ok: ok = self.run_drp()
             if ok:      self.check_koapi_send()
+            if ok: ok = self.create_md5sum()
             if ok: ok = self.update_dep_stats()
             if ok: ok = self.transfer_ipac()
             if ok:      self.add_header_to_db()
@@ -624,15 +625,22 @@ class DEP:
                 self.log_warn('EXT_HEADER_FILE', f' HDU index {i}')
                 return False
 
-            #Create ext.md5sum.table
+        return True
+
+
+    def create_md5sum(self):
+        '''Create ext.md5sum.table for all files matching KOAID*'''
+        try:
             outdir = os.path.dirname(self.outfile)
             md5Prepend = self.utdatedir+'.'
-            md5Outfile = f'{outdir}/{self.koaid}.ext.md5sum.table'
-            log.info('Creating {}'.format(md5Outfile))
-            regex = self.koaid + r'.ext\d'
+            md5Outfile = f'{outdir}/{self.koaid}.md5sum.table'
+            regex = self.koaid
+            log.info(f'Creating {md5Outfile}')
             make_dir_md5_table(outdir, None, md5Outfile, regex=regex)
-
-        return True
+            return True
+        except Exception as e:
+            self.log_error('CREATE_MD5_SUM_ERROR', str(e))
+            return False
 
 
     def check_koapi_send(self):
