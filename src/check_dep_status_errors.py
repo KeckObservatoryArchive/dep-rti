@@ -46,7 +46,6 @@ def main(instr=None, dev=False):
     #query for any records that have blank status but have status code.
     q = ("select instrument, count(*) as count, status_code from dep_status "
          " where status='COMPLETE' and status_code is not NULL and status_code != '' "
-         " where status in ('COMPLETE', 'TRANSFERRED') and status_code is not NULL and status_code != '' "
          " group by instrument, status_code order by instrument asc")
     warns = db.query('koa', q)
 
