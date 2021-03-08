@@ -48,7 +48,6 @@ class Osiris(instrument.Instrument):
             {'name':'set_scale',        'crit': False},
             {'name':'check_nonint_vals','crit': False},
             {'name':'set_oa',           'crit': False},
-            {'name':'check_propint',    'crit': False},
             {'name':'check_ra',         'crit': False},
             {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
             {'name':'set_dqa_date',     'crit': True},
@@ -416,23 +415,6 @@ class Osiris(instrument.Instrument):
             if val < 1: 
                 val = 0
                 self.set_keyword(kw, val)
-        return True
-
-
-    def check_propint(self):
-        '''
-        Change propint to 0 for PROGID=ENG and KOAIMTYP=calib
-        '''
-
-        koaimtyp = self.get_keyword('KOAIMTYP')
-        progid = self.get_keyword('PROGID')
-
-        if progid == 'ENG' and koaimtyp == 'calib':
-            pp = self.extra_meta['PROPINT']
-            log = 'check_propint: Changing PROPINT from ' + str(pp) + ' to 0'
-            log.info(log)
-            self.extra_meta['PROPINT'] = 0
-
         return True
 
 

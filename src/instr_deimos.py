@@ -77,7 +77,6 @@ class Deimos(instrument.Instrument):
             {'name':'set_ofName',       'crit': True},
             {'name':'set_semester',     'crit': True},
             {'name':'set_prog_info',    'crit': True},
-            {'name':'set_propint',      'crit': True},
             {'name':'set_weather',      'crit': False},
             {'name':'set_oa',           'crit': False},
             {'name':'set_camera',       'crit': True},
@@ -91,6 +90,7 @@ class Deimos(instrument.Instrument):
             {'name':'set_spatscal',     'crit': False},
             {'name':'set_dispscal',     'crit': False},
             {'name':'set_specres',      'crit': False},
+            {'name':'set_propint',      'crit': True},
             {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
             {'name':'set_dqa_vers',     'crit': False},
             {'name':'set_dqa_date',     'crit': False},
@@ -406,6 +406,7 @@ class Deimos(instrument.Instrument):
     def set_wavelengths(self):
         '''
         Adds wavelength keywords.
+        NOTE: Dependent on set_obsmode
         '''
 
         waveblue = wavecntr = wavered = 'null'
@@ -451,6 +452,7 @@ class Deimos(instrument.Instrument):
     def set_dispscal(self):
         '''
         Populates DISPSCAL
+        NOTE: Dependent on set_obsmode
         '''
 
         dispscal = 'null'
@@ -667,3 +669,11 @@ class Deimos(instrument.Instrument):
         self.set_keyword('FCSKOAID', fcskoaid, 'KOA: associated fcs file')
         return True
 
+
+    def has_target_info(self):
+        '''Does this fits have target info?'''
+        #NOTE: Dependent on set_obsmode()
+        obsmode = self.get_keyword('OBSMODE')
+        print(obsmode)
+        has_target = obsmode not in ('MOS', 'Unknown')
+        return has_target
