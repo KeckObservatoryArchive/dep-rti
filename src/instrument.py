@@ -590,7 +590,52 @@ class Instrument(dep.DEP):
         #NOTE: PROPINT goes in metadata but not in header so we store in temp dict for later
         self.extra_meta['PROPINT'] = propint
 
+        # NEW POLICY per DKOA-82: Propint=0 for PROGID=ENG and KOAIMTYP=calib
+        try:
+            if self.check_zero_propint():
+                log.info(f"Changing PROPINT from {self.extra_meta['PROPINT']} to 0")
+                self.extra_meta['PROPINT'] = 0
+        except Exception as e:
+            self.log_error('CHECK_ZERO_PROPINT', str(e))
+
         return True
+
+
+    def check_zero_propint(self):
+        '''Check if we should zero out PROPINT based on new policy defined in DKOA-82.'''
+
+        koaimtyp = self.get_keyword('KOAIMTYP')
+        is_cal = koaimtyp not in ('object', 'unknown')
+
+        has_target = self.has_target_info()
+
+        utc = self.get_keyword('UTC')
+        is_daytime = self.is_daytime(utc)
+
+        print ('is_zero_propint: ', koaimtyp, is_daytime, has_target)
+        return (is_cal and is_daytime and not has_target)
+
+
+    def has_target_info(self):
+        '''
+        Does this fits have sensitive target info?
+        NOTE: Default is to assume true unless proven otherwise
+        See instr subclass overrides.
+        '''
+        return True
+
+
+    def is_daytime(self, utc):
+        '''Is the UTC time during the day?'''
+        url = f"{self.config['API']['METAPI']}date={self.utdate}"
+        suntimes = self.get_api_data(url, getOne=True)
+        sunrise = suntimes['sunrise']
+        sunset  = suntimes['sunset']
+        tm         = dt.datetime.strptime(utc,     '%H:%M:%S.%f').time()
+        sunset_tm  = dt.datetime.strptime(sunset,  '%H:%M').time()
+        sunrise_tm = dt.datetime.strptime(sunrise, '%H:%M').time()
+        is_daytime = sunset_tm < tm < sunrise_tm
+        return is_daytime
 
 
     def set_datlevel(self, level):

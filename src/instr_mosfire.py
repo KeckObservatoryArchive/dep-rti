@@ -227,3 +227,9 @@ class Mosfire(instrument.Instrument):
 
         return True
 
+
+    def has_target_info(self):
+        '''Does this fits have target info?'''
+        maskname = self.get_keyword('MASKNAME')
+        has_target = maskname and not maskname.startswith('long2pos')
+        return has_target
