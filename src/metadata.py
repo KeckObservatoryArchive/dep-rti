@@ -13,7 +13,6 @@ Ported to python by Josh Riley
 import sys
 import os
 from astropy.io import fits
-from common import make_dir_md5_table, make_file_md5
 import datetime
 import re
 import pandas as pd
@@ -82,11 +81,6 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, e
         log.info("Creating metadata record for: " + filepath)
         add_fits_metadata_line(filepath, metaOutFile, keyDefs, extra, warns, log, dev, keyskips)
 
-        #create md5 sum
-        md5Outfile = metaOutFile.replace('.table', '.md5sum')
-        log.info('Creating md5sum file {}'.format(md5Outfile))
-        make_file_md5(metaOutFile, md5Outfile)
-
     #or walk searchdir to find all final fits files
     elif searchdir:        
         log.info('metadata.py searching fits files in dir: {}'.format(searchdir))
@@ -97,12 +91,6 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, e
                     extra = extraData.get(filename, {})
                     log.info("Creating metadata record for: " + fitsFile)
                     add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, log, dev, keyskips)
-
-        #create md5 sum
-        md5Outfile = metaOutFile.replace('.table', '.md5sum')
-        log.info('Creating md5sum file {}'.format(md5Outfile))
-        make_dir_md5_table(searchdir, ".metadata.table", md5Outfile)
-
 
     #warn only if counts
     if (warns['type'] > 0):

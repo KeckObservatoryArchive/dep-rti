@@ -31,7 +31,6 @@ class Kcwi(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        #todo: what is critical?
         funcs = [
             {'name':'set_telnr',       'crit': True},
             {'name':'set_ut',          'crit': True},
