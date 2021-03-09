@@ -360,7 +360,7 @@ class DEP:
         #form filepath and copy
         if invalid: 
             #NOTE: We decided to not make udf copies of invalid files.
-            pass
+            return True
             # if self.dirs: outfile = f"{self.dirs['udf']}/{self.utdatedir}/{self.ofname}"
             # else:         outfile = f"{self.rootdir}/{self.instr}/stage/udf/{self.ofname}"
         else:       
