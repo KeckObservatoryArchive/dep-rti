@@ -139,13 +139,14 @@ class Instrument(dep.DEP):
         (self.fits_hdu[ext].header).update({keyword : (value, comment)})
 
 
-    def set_koaid(self):
+    def set_koaid(self, force=False):
         '''
         Create and add KOAID to header if it does not already exist
         '''
 
         #skip if it exists
-        if self.get_keyword('KOAID', False) != None: return True
+        if not force and self.get_keyword('KOAID', False) != None: 
+            return True
 
         #make it
         koaid = self.make_koaid()
@@ -170,7 +171,7 @@ class Instrument(dep.DEP):
         self.set_instr()
         self.prefix = self.get_prefix()
         if self.prefix == '': return False
-
+        
         # Extract the UTC time and date observed from the header
         self.set_utc()
         utc = self.get_keyword('UTC', useMap=False)
@@ -320,13 +321,8 @@ class Instrument(dep.DEP):
                 valid = True
 
         #if we couldn't match valid pattern, then build from file last mod time
-        #note: converting to universal time (+10 hours)
         if not valid:
-            lastMod = os.stat(self.filepath).st_mtime
-            dateObs = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
-            dateObs = dateObs.strftime('%Y-%m-%d')
-            self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
-            log.warning('set_dateObs: set DATE-OBS value from FITS file time')
+            self.set_dateobs_from_modtime()
 
         # If good match, just take first 10 chars (some dates have 'T' format and extra time)
         if len(dateObs) > 10:
@@ -337,6 +333,15 @@ class Instrument(dep.DEP):
 
         return True
        
+
+    def set_dateobs_from_modtime(self):
+
+        #note: converting to universal time (+10 hours)
+        lastMod = os.stat(self.filepath).st_mtime
+        dateObs = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
+        dateObs = dateObs.strftime('%Y-%m-%d')
+        self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
+        log.warning('set_dateObs: set DATE-OBS value from FITS file time')
 
 
     def set_utc(self):
@@ -360,18 +365,22 @@ class Instrument(dep.DEP):
             valid = self.verify_utc(utc)
 
         #if we couldn't match valid pattern, then build from file last mod time
-        #note: converting to universal time (+10 hours)
         if not valid:
-            lastMod = os.stat(self.filepath).st_mtime
-            utc = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
-            utc = utc.strftime('%H:%M:%S.00')
-            update = True
-            log.warning('set_utc: set UTC value from FITS file time')
-        #update/add if need be
-        if update:
+            self.set_utc_from_modtime()
+        elif update:
             self.set_keyword('UTC', utc, 'KOA: UTC keyword corrected')
+
         return True
 
+
+    def set_utc_from_modtime(self):
+
+        #note: converting to universal time (+10 hours)
+        lastMod = os.stat(self.filepath).st_mtime
+        utc = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
+        utc = utc.strftime('%H:%M:%S.00')
+        log.warning('set_utc: set UTC value from FITS file time')
+        self.set_keyword('UTC', utc, 'KOA: UTC keyword corrected')
 
 
     def set_ut(self):
@@ -388,7 +397,6 @@ class Instrument(dep.DEP):
         #copy to UT
         self.set_keyword('UT', utc, 'KOA: Observing time')
         return True
-
 
 
     def get_outdir(self):
