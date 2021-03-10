@@ -200,8 +200,11 @@ class DEP:
 
         #If entry exists and we are not reprocessing, return error
         if len(rows) > 0 and not self.reprocess:
-            self.log_invalid('DUPLICATE_KOAID')
-            return False
+            if self.check_fix_datetime():
+                self.log_warn('DATETIME_FIX')
+            else:
+                self.log_invalid('DUPLICATE_KOAID')
+                return False
 
         #if reprocessing, delete local files by KOAID
         if self.reprocess:
@@ -970,6 +973,39 @@ class DEP:
             return False
 
         return True
+
+
+    def check_fix_datetime(self):
+        '''
+        See if filemod time differs from DATEOBS+UTC.  
+        If so, correct DATEOBS and UTC and reset KOAID.
+        TODO: NOTE: This may not work b/c the UTC keyword looks to be the time the 
+        data started being taken, not the last file mod time which is all that
+        we can get from unix/os.stat.  To correctly compare the two we would 
+        need to account for exposure+readout, otherwise this will often see
+        them as being different.  And vice-versa, to set UTC from modtime is not
+        really accurate without accounting for exp/readout.  But, we do that in 
+        set_utc() anyway, so maybe it doesn't matter.
+        '''
+        try:
+            mtime_utc = os.stat(self.filepath).st_mtime + (10*60*60)
+            dateobs = self.get_keyword('DATE-OBS')
+            utc = self.get_keyword('UTC')
+            tm = dt.datetime.strptime(f'{dateobs} {utc}', '%Y-%m-%d %H:%M:%S.%f').timestamp()
+            diffsec = abs(tm - mtime_utc)
+            log.info('Difference betwen file modtime and DATEOBS+UTC is {diffsec} seconds')                
+            if diffsec < 60: 
+                return False
+
+            #fix it
+            self.set_utc_from_modtime()
+            self.set_dateobs_from_modtime()
+            self.set_koaid(force=True)
+            return True
+
+        except Exception as e:
+            self.log_warn("CHECK_FIX_DATETIME_ERROR", str(e))
+            return False
 
 
     def log_warn(self, errcode, text=''):
