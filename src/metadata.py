@@ -55,17 +55,16 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filePath=None, e
     #track warning counts
     warns = {'type': 0, 'truncate': 0, 'minValue': 0, 'maxValue': 0, 'discreteValues': 0}
 
-    inst = keywordsDefFile.split('_')[1]
-    log.info('metadata.py searching fits files in dir: {}'.format(searchdir))
 
     #get all fits files
+    log.info('metadata.py searching fits files in dir: {}'.format(searchdir))
     fitsFiles = []
     if searchdir:
         fitsFiles = glob.glob(os.path.join(searchdir, '*.fits'))
     if filePath:
         fitsFiles.append(filePath)
     if len(fitsFiles) == 0:
-        print(f'no fits file(s) found for instrument {inst}')
+        log.info(f'No fits file(s) found')
     for fitsFile in fitsFiles:
         extra = {}
         baseName = os.path.basename(fitsFile)
@@ -74,13 +73,14 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filePath=None, e
 
         log.info("Creating metadata record for: " + fitsFile)
         warns = add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, keyskips)
+
     #warn only if counts
     for warn, numWarns in warns.items():
         if numWarns == 0:
             continue
         msg = 'metadata.py: found {0} warnings of type {1}'.format(numWarns, warn)
         log.warning(msg)
-    create_md5_checksum_file(metaOutFile)
+
     return True
 
 def format_keyDefs(keyDefs):
@@ -90,20 +90,6 @@ def format_keyDefs(keyDefs):
     keyDefs = keyDefs[keyDefs['Source'].astype(str)!='NExScI']
     keyDefs['colSize'] = keyDefs['colSize'].astype(int)
     return keyDefs
-
-def create_md5_checksum_file(metaOutFile):
-    #create md5 sum
-    assert 'metadata.table' in metaOutFile, 'metaOutFile must be metadata.table file'
-    md5OutFile = metaOutFile.replace('.table', '.md5sum')
-
-    metaOutPath = os.path.dirname(metaOutFile)
-    # make_dir_md5_table(metaOutPath, ".metadata.table", md5OutFile)
-    with open(md5OutFile, 'w') as fp:
-        md5 = hashlib.md5(open(metaOutFile, 'rb').read()).hexdigest()
-        bName = os.path.basename(metaOutFile)
-        fp.write(md5 + '  ' + bName + '\n')
-        fp.flush()
-
 
 def create_metadata_file(filename, keyDefs):
     #add header to output file
