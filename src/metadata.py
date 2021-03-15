@@ -20,11 +20,12 @@ import pdb
 import glob
 import gzip
 import hashlib
+
 import logging
-log = logging.getLogger(f"dep <{os.getlogin()}>")
+log = logging.getLogger('koa_dep')
 
 
-def make_metadata(keywordsDefFile, metaOutFile, lev0Dir=None, extraData=dict(), log=log, dev=False, instrKeywordSkips=[], filePath=None):
+def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filePath=None, extraData=None, keyskips=[], dev=False):
     '''
     Creates the archiving metadata file as part of the DQA process.
     :param str keywordsDefFile: keywords format definition input file path
@@ -55,12 +56,12 @@ def make_metadata(keywordsDefFile, metaOutFile, lev0Dir=None, extraData=dict(), 
     warns = {'type': 0, 'truncate': 0, 'minValue': 0, 'maxValue': 0, 'discreteValues': 0}
 
     inst = keywordsDefFile.split('_')[1]
-    log.info('metadata.py searching fits files in dir: {}'.format(lev0Dir))
+    log.info('metadata.py searching fits files in dir: {}'.format(searchdir))
 
     #get all fits files
     fitsFiles = []
-    if lev0Dir:
-        fitsFiles = glob.glob(os.path.join(lev0Dir, '*.fits'))
+    if searchdir:
+        fitsFiles = glob.glob(os.path.join(searchdir, '*.fits'))
     if filePath:
         fitsFiles.append(filePath)
     if len(fitsFiles) == 0:
@@ -72,7 +73,7 @@ def make_metadata(keywordsDefFile, metaOutFile, lev0Dir=None, extraData=dict(), 
             extra = extraData[baseName]
 
         log.info("Creating metadata record for: " + fitsFile)
-        warns = add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, instrKeywordSkips)
+        warns = add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, keyskips)
     #warn only if counts
     for warn, numWarns in warns.items():
         if numWarns == 0:
@@ -130,7 +131,7 @@ def create_metadata_file(filename, keyDefs):
         out.flush()
 
 
-def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, instrKeywordSkips):
+def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, keyskips):
     """
     Adds a line to metadata file for one FITS file.
     """
@@ -138,7 +139,7 @@ def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, in
     #get header object using astropy
     header = fits.getheader(fitsFile)
     #check keywords
-    check_keyword_existance(header, keyDefs, dev, instrKeywordSkips)
+    check_keyword_existance(header, keyDefs, dev, keyskips)
     #write all keywords vals for image to a line
     with open(metaOutFile, 'a') as out:
         for index, row in keyDefs.iterrows():
@@ -185,7 +186,7 @@ def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, in
     return warns
 
 
-def check_keyword_existance(header, keyDefs, dev=False, instrKeywordSkips=[]):
+def check_keyword_existance(header, keyDefs, dev=False, keyskips=[]):
 
     #get simple list of keywords
     keyDefList = []
@@ -193,7 +194,7 @@ def check_keyword_existance(header, keyDefs, dev=False, instrKeywordSkips=[]):
         keyDefList.append(row['keyword'])        
 
     #find all keywords in header that are not in metadata file
-    skips = ['SIMPLE', 'COMMENT', 'PROGTL1', 'PROGTL2', 'PROGTL3'] + instrKeywordSkips
+    skips = ['SIMPLE', 'COMMENT', 'PROGTL1', 'PROGTL2', 'PROGTL3'] + keyskips
     for keywordHdr in header:
         if not keywordHdr: continue  #blank keywords can exist
         if keywordHdr not in keyDefList and not is_keyword_skip(keywordHdr, skips):
