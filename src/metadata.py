@@ -25,7 +25,7 @@ import logging
 log = logging.getLogger('koa_dep')
 
 
-def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filePath=None, extraData=None, keyskips=[], dev=False):
+def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, extraData=None, keyskips=[], dev=False):
     '''
     Creates the archiving metadata file as part of the DQA process.
     :param str keywordsDefFile: keywords format definition input file path
@@ -61,8 +61,8 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filePath=None, e
     fitsFiles = []
     if searchdir:
         fitsFiles = glob.glob(os.path.join(searchdir, '*.fits'))
-    if filePath:
-        fitsFiles.append(filePath)
+    if filepath:
+        fitsFiles.append(filepath)
     if len(fitsFiles) == 0:
         log.info(f'No fits file(s) found')
     for fitsFile in fitsFiles:
