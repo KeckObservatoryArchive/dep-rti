@@ -20,27 +20,30 @@ import pdb
 import glob
 import gzip
 import hashlib
-
+import json
 import logging
-log = logging.getLogger('koa_dep')
+from pathlib import Path
 
+log = logging.getLogger("koa_dep")
 
-def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, extraData=None, keyskips=[], dev=False):
-    '''
+def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, 
+                  extraMeta=dict(), dev=False, keyskips=[], create_md5=False):
+    """
     Creates the archiving metadata file as part of the DQA process.
-    :param str keywordsDefFile: keywords format definition input file path
-    :param str metaOutFile: metadata output file path
-    :param str searchdir: directory for finding FITS files and writing output files
-    :param str filepath: specific file to process
-    :param dict extraData: dictionary of any extra key val pairs not in header
-    :returns: bool: success
-    '''
+
+    @param keywordsDefFile: keywords format definition input file path
+    @type keywordsDefFile: string
+    @param metaOutFile: metadata output file path
+    @type metaOutFile: string
+    @param searchdir: directory for finding FITS files and writing output files
+    @type searchdir: string
+    @param extraMeta: dictionary of any extra key val pairs not in header
+    @type extraMeta: dictionary
+    """
 
     #open keywords format file and read data
-    #NOTE: changed this file to tab-delimited
     log.info('metadata.py reading keywords definition file: {}'.format(keywordsDefFile))
     keyDefs = pd.read_csv(keywordsDefFile, sep='\t')
-
     try:
         keyDefs = format_keyDefs(keyDefs)
     except Exception as err:
@@ -50,27 +53,28 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, e
         if not dev:
             raise Exception(msg)
 
+    #create initial file with header
     create_metadata_file(metaOutFile, keyDefs)
 
     #track warning counts
     warns = {'type': 0, 'truncate': 0, 'minValue': 0, 'maxValue': 0, 'discreteValues': 0}
 
-
     #get all fits files
     log.info('metadata.py searching fits files in dir: {}'.format(searchdir))
     fitsFiles = []
     if searchdir:
-        fitsFiles = glob.glob(os.path.join(searchdir, '*.fits'))
+        for path in Path(searchdir).rglob('*.fits'):
+            fitsFiles.append(str(path))
     if filepath:
         fitsFiles.append(filepath)
     if len(fitsFiles) == 0:
         log.info(f'No fits file(s) found')
+    #for fitsFile in sorted(fitsFiles):
     for fitsFile in fitsFiles:
         extra = {}
         baseName = os.path.basename(fitsFile)
-        if baseName in extraData:
-            extra = extraData[baseName]
-
+        if baseName in extraMeta:
+            extra = extraMeta[baseName]
         log.info("Creating metadata record for: " + fitsFile)
         warns = add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, keyskips)
 
@@ -81,15 +85,35 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None, e
         msg = 'metadata.py: found {0} warnings of type {1}'.format(numWarns, warn)
         log.warning(msg)
 
+    #md5sum option
+    if create_md5: 
+        create_md5_checksum_file(metaOutFile)
+
     return True
 
 def format_keyDefs(keyDefs):
     '''renames and type declarations for metadata table'''
     keyDefs = keyDefs.rename(columns={'FITSKeyword': 'keyword', 'MetadataDatatype': 'metaDataType', 'NullsAllowed':'allowNull', 'MetadataWidth': 'colSize', 'MinValue': 'minValue', 'MaxValue': 'maxValue'})
     keyDefs = keyDefs.dropna(axis=0, subset=['keyword'])
-    keyDefs = keyDefs[keyDefs['Source'].astype(str)!='NExScI']
+    keyDefs = keyDefs[keyDefs['Source'].astype(str) != 'NExScI']
     keyDefs['colSize'] = keyDefs['colSize'].astype(int)
+    #keyDefs['minValue'] = keyDefs['minValue'].astype(float)
+    #keyDefs['maxValue'] = keyDefs['maxValue'].astype(float)
     return keyDefs
+
+def create_md5_checksum_file(metaOutFile):
+    #create md5 sum
+    assert 'metadata.table' in metaOutFile, 'metaOutFile must be metadata.table file'
+    md5OutFile = metaOutFile.replace('.table', '.md5sum')
+
+    metaOutPath = os.path.dirname(metaOutFile)
+    # make_dir_md5_table(metaOutPath, ".metadata.table", md5OutFile)
+    with open(md5OutFile, 'w') as fp:
+        md5 = hashlib.md5(open(metaOutFile, 'rb').read()).hexdigest()
+        bName = os.path.basename(metaOutFile)
+        fp.write(md5 + '  ' + bName + '\n')
+        fp.flush()
+
 
 def create_metadata_file(filename, keyDefs):
     #add header to output file
@@ -125,10 +149,12 @@ def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, ke
     #get header object using astropy
     header = fits.getheader(fitsFile)
     #check keywords
-    check_keyword_existance(header, keyDefs, dev, keyskips)
+    check_keyword_existance(header, keyDefs, dev, keyskips, extra)
     #write all keywords vals for image to a line
     with open(metaOutFile, 'a') as out:
+
         for index, row in keyDefs.iterrows():
+
             keyword   = row['keyword']
             dataType  = row['metaDataType']
             colSize   = row['colSize']
@@ -145,7 +171,7 @@ def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, ke
                 val = extra[keyword]
             else: 
                 val = 'null'
-                log.warning('metadata check: Keyword not found in header (' + fitsFile + '): ' + keyword)
+                if dev: log.warning('metadata check: Keyword not found in header (' + fitsFile + '): ' + keyword)
 
             #special check for val = fits.Undefined
             if isinstance(val, fits.Undefined):
@@ -172,7 +198,7 @@ def add_fits_metadata_line(fitsFile, metaOutFile, keyDefs, extra, warns, dev, ke
     return warns
 
 
-def check_keyword_existance(header, keyDefs, dev=False, keyskips=[]):
+def check_keyword_existance(header, keyDefs, dev=False, keyskips=[], extra={}):
 
     #get simple list of keywords
     keyDefList = []
@@ -184,21 +210,21 @@ def check_keyword_existance(header, keyDefs, dev=False, keyskips=[]):
     for keywordHdr in header:
         if not keywordHdr: continue  #blank keywords can exist
         if keywordHdr not in keyDefList and not is_keyword_skip(keywordHdr, skips):
-            log.warning('metadata.py: header keyword "{}" not found in metadata definition file.'.format(keywordHdr))
+            if dev: log.warning('metadata.py: header keyword "{}" not found in metadata definition file.'.format(keywordHdr))
 
     #find all keywords in metadata def file that are not in header
     skips = ['PROGTITL', 'PROPINT']
     assert keyDefs.iloc[0].keyword == "KOAID", "First column must be KOAID"
     for index, row in keyDefs.iterrows():
         keyword = row['keyword']
-        if keyword not in header and keyword not in skips and row['allowNull'] == "N":
-            log.warning('metadata.py: non-null metadata keyword "{}" not found in header.'.format(keyword))
+        if keyword not in header and keyword not in skips and row['allowNull'] == "N" and keyword not in extra:
+            if dev: log.warning('metadata.py: non-null metadata keyword "{}" not found in header.'.format(keyword))
 
 def check_null(val, allowNull):
     if (val == 'null' or val == '') and (allowNull == 'N'):
         raise Exception('metadata check: incorrect "null" value found for non-null keyword {}'.format(keyword))            
 
-def check_and_set_value_type(val, warns, metaDataType, keyword):
+def check_and_set_value_type(val, warns, metaDataType, keyword, dev=False):
     vtype = type(val).__name__
     if (metaDataType == 'char'):
         if isinstance(val, bool):
@@ -208,35 +234,35 @@ def check_and_set_value_type(val, warns, metaDataType, keyword):
             val = ''
             log.warning('metadata check: found integer 0, expected {}. KNOWN ISSUE. SETTING TO BLANK!'.format(metaDataType))
         elif not isinstance(val, str):
-            log.warning('metadata check: var type {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
+            if dev: log.warning('metadata check: var type {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
             warns['type'] += 1
 
     elif (metaDataType == 'integer'):
         if not isinstance(val, int):
-            log.warning('metadata check: var type of {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
+            if dev: log.warning('metadata check: var type of {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
             warns['type'] += 1
 
     elif (metaDataType == 'double'):
         if not isinstance(val, float):
-            log.warning('metadata check: var type of {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
+            if dev: log.warning('metadata check: var type of {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
             warns['type'] += 1
 
     elif (metaDataType == 'date'):
         try:
-            datetime.datetime.strptime(val, '%y-%m-%d')
+            datetime.datetime.strptime(val, '%Y-%m-%d')
         except Exception as err:
             log.warning('metadata check: expected date format yyyy-mm-dd ({}={}).'.format(keyword, val))
             warns['type'] += 1
 
     elif (metaDataType == 'datetime'):
         try:
-            datetime.datetime.strptime(val, '%y-%m-%d %h:%i:%s')
+            datetime.datetime.strptime(val, '%Y-%m-%d %H:%M:%S')
         except Exception as err:
             log.warning('metadata check: expected date format yyyy-mm-dd hh:ii:ss ({}={}).'.format(keyword, val))
             warns['type'] += 1
     return val, warns
 
-def check_and_set_char_length(val, warns,  colSize, metaDataType, keyword):
+def check_and_set_char_length(val, warns,  colSize, metaDataType, keyword, dev=False):
     length = len(str(val))
     if (length > colSize):
         if (metaDataType == 'double'): 
@@ -275,27 +301,33 @@ def convert_type(val, vtype):
     else:
         return val
 @skip_if_input_has_none
-def check_min_range(val, warns, minVal, vtype):
+def check_min_range(val, warns, minVal, vtype, keyword):
     try:
         if not val >= convert_type(minVal, vtype):
-            log.warning('metadata check: val {0} > minVal {1}'.format(val, minVal))
+            log.warning(f'metadata check: {keyword} val {val} < minVal {minVal}')
             warns['minValue'] += 1
     except Exception as err:
         print(err)
     return warns
 
 @skip_if_input_has_none
-def check_max_range(val, warns, maxVal, vtype):
+def check_max_range(val, warns, maxVal, vtype, keyword):
     if not val <= convert_type(maxVal, vtype):
-        log.warning('metadata check: val {0} > maxVal {1}'.format(val, maxVal))
+        log.warning(f'metadata check: {keyword} val {val} > maxVal {maxVal}')
         warns['maxValue'] += 1
     return warns
 
 @skip_if_input_has_none
-def check_discrete_values(val, warns, valStr):
-    valSet = [x.replace(' ', '') for x in valStr.split(',')]
-    if not val in valSet:
-        log.warning('metadata check: val {0} not in {1}'.format(val, valSet))
+def check_discrete_values(val, warns, valStr, keyword):
+    '''Discrete value string can be JSON or comma-separated.'''
+    try:
+        valSet = json.loads(valStr)
+    except Exception as e:
+        valSet = valStr.split(',')
+
+    valSet = [x.strip().lower() for x in valSet]
+    if not val.lower() in valSet:
+        log.warning(f'metadata check: {keyword} val "{val}" not in {valSet}')
         warns['discreteValues'] += 1
     return warns
 
@@ -304,34 +336,35 @@ def check_keyword_val(keyword, val, fmt, warns, dev=False):
     checks keyword for correct type and proper value.
     '''
     #specific error, udf values that we should convert to "null"
-    errvals = ['#### error ###']
+    errvals = ['#### Error ###']
     if (val in errvals):
         val = 'null'
     check_null(val, fmt['allowNull'])
     if (val == 'null' or val == '') and (fmt['allowNull'] == 'Y'):
         return val, warns
-    val, warns = check_and_set_value_type(val, warns, fmt['metaDataType'], fmt['keyword'])
-    val, warns = check_and_set_char_length(val, warns, fmt['colSize'], fmt['metaDataType'], fmt['keyword'])
+    val, warns = check_and_set_value_type(val, warns, fmt['metaDataType'], fmt['keyword'], dev)
+    val, warns = check_and_set_char_length(val, warns, fmt['colSize'], fmt['metaDataType'], fmt['keyword'], dev)
 
     # check if val is degrees
     checkHours = not str(fmt['minValue'])=='nan' and fmt['metaDataType'] in ('char') 
     if checkHours:
-        msg = 'val: {0} units {1} minValue {2} maxValue {3} may need conversion'.format(val, fmt['Units'], fmt['minValue'], fmt['maxValue'])
+        msg = f"{keyword} val: {val} units {fmt['Units']} minValue {fmt['minValue']} maxValue {fmt['maxValue']} may need conversion"
         log.info(msg)
         ang = Angle(val, au.deg)
         minAng = Angle(fmt['minValue'], au.deg)
         maxAng = Angle(fmt['maxValue'], au.deg)
         if ang <= minAng:
-            log.warning('metadata check: val {0} > maxVal {1}'.format(ang, minAng))
+            log.warning(f'metadata check: {keyword} val {ang} < minVal {minAng}')
             warns['maxValue'] += 1
         if ang >= maxAng:
-            log.warning('metadata check: val {0} > maxVal {1}'.format(ang, maxAng))
+            log.warning(f'metadata check: {keyword} val {ang} > maxVal {maxAng}')
             warns['maxValue'] += 1
     else:
         val = convert_type(val, fmt['metaDataType'])
-        warns = check_min_range(val, warns, fmt['minValue'], fmt['metaDataType'])
-        warns = check_max_range(val, warns, fmt['maxValue'], fmt['metaDataType'])
-        warns = check_discrete_values(val, warns, fmt['DiscreteValues'])
+        if fmt['CheckValues'].upper() == 'Y':
+            warns = check_min_range(val, warns, fmt['minValue'], fmt['metaDataType'], keyword)
+            warns = check_max_range(val, warns, fmt['maxValue'], fmt['metaDataType'], keyword)
+            warns = check_discrete_values(val, warns, fmt['DiscreteValues'], keyword)
     return val, warns
 
 def is_keyword_skip(keyword, skips):

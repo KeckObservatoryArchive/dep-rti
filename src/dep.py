@@ -547,10 +547,10 @@ class DEP:
         extra_meta[koaid]['FILESIZE_MB'] = self.filesize_mb
         extra_meta[koaid]['SEMID'] = self.get_semid()
 
-        keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + self.instr
+        keydefs = f"{self.config['MISC']['METADATA_TABLES_DIR']}/KOA_{self.instr}_Keyword_Table.txt"
         metaoutfile =  self.dirs['lev0'] + '/' + self.koaid + '.metadata.table'
         ok = metadata.make_metadata( keydefs, metaoutfile, filepath=self.outfile, 
-                                     extraData=extra_meta, keyskips=self.keyskips)   
+                                     extraMeta=extra_meta, keyskips=self.keyskips)   
         return ok
 
 
