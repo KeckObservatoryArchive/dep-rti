@@ -46,7 +46,6 @@ class Lris(instrument.Instrument):
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
 
-        #todo: what is critical?
         funcs = [
             {'name':'set_telnr',        'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
@@ -984,3 +983,10 @@ class Lris(instrument.Instrument):
             y2 = int(match.groups(1)[3])
             return [x1, x2, y1, y2]
 
+
+    def has_target_info(self):
+        '''Does this fits have target info?'''
+        slitname = self.get_keyword('SLITNAME')
+        slits = ('long_', 'pol_', 'goh_', 'direct')
+        has_target = slitname and slitname.lower() not in slits
+        return has_target

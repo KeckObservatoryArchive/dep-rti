@@ -250,32 +250,6 @@ class Instrument(dep.DEP):
         instr = instr[0].replace(':','')
         return instr
 
-
-    def get_raw_fname(self):
-        """
-        Determines the original filename
-        """
-
-        #todo: is this function needed?
-
-        # Get the root name of the file
-        outfile = self.get_keyword('OFNAME')
-        if outfile == None: return '', False
-
-        # Get the frame number of the file
-        frameno = self.get_keyword('FRAMENO')
-        if frameno == None: return '', False
-
-        # Determine the necessary padding required
-        zero = ''
-        if         float(frameno) < 10:   zero = '000'
-        elif 10 <= float(frameno) < 100:  zero = '00'
-        elif 100 <= float(frameno)< 1000: zero = '0'
-
-        # Construct the original filename
-        filename = outfile.strip() + zero + str(frameno).strip() + '.fits'
-        return filename, True
-
  
     def set_instr(self):
         '''
@@ -616,7 +590,52 @@ class Instrument(dep.DEP):
         #NOTE: PROPINT goes in metadata but not in header so we store in temp dict for later
         self.extra_meta['PROPINT'] = propint
 
+        # NEW POLICY per DKOA-82: Propint=0 for PROGID=ENG and KOAIMTYP=calib
+        try:
+            if self.check_zero_propint():
+                log.info(f"Changing PROPINT from {self.extra_meta['PROPINT']} to 0")
+                self.extra_meta['PROPINT'] = 0
+        except Exception as e:
+            self.log_error('CHECK_ZERO_PROPINT', str(e))
+
         return True
+
+
+    def check_zero_propint(self):
+        '''Check if we should zero out PROPINT based on new policy defined in DKOA-82.'''
+
+        koaimtyp = self.get_keyword('KOAIMTYP')
+        is_cal = koaimtyp not in ('object', 'unknown')
+
+        has_target = self.has_target_info()
+
+        utc = self.get_keyword('UTC')
+        is_daytime = self.is_daytime(utc)
+
+        print ('is_zero_propint: ', koaimtyp, is_daytime, has_target)
+        return (is_cal and is_daytime and not has_target)
+
+
+    def has_target_info(self):
+        '''
+        Does this fits have sensitive target info?
+        NOTE: Default is to assume true unless proven otherwise
+        See instr subclass overrides.
+        '''
+        return True
+
+
+    def is_daytime(self, utc):
+        '''Is the UTC time during the day?'''
+        url = f"{self.config['API']['METAPI']}date={self.utdate}"
+        suntimes = self.get_api_data(url, getOne=True)
+        sunrise = suntimes['sunrise']
+        sunset  = suntimes['sunset']
+        tm         = dt.datetime.strptime(utc,     '%H:%M:%S.%f').time()
+        sunset_tm  = dt.datetime.strptime(sunset,  '%H:%M').time()
+        sunrise_tm = dt.datetime.strptime(sunrise, '%H:%M').time()
+        is_daytime = sunset_tm < tm < sunrise_tm
+        return is_daytime
 
 
     def set_datlevel(self, level):
@@ -763,7 +782,7 @@ class Instrument(dep.DEP):
     def set_telnr(self):
         '''
         Gets telescope number for instrument via API
-        #todo: Replace API call with hard-coded?
+        #todo: Replace API call with hard-coded/config?
         '''
         url = f"{self.config['API']['TELAPI']}cmd=getTelnr&instr={self.instr.upper()}"
         data = self.get_api_data(url, getOne=True)
@@ -793,12 +812,6 @@ class Instrument(dep.DEP):
                 if os.path.isfile(self.outfile):
                     os.remove(self.outfile)
                 return False
-
-        #create md5 sum
-        if os.path.exists(self.outfile):
-            md5Outfile = self.outfile + '.md5sum'
-            log.info('Creating md5sum file {}'.format(md5Outfile))
-            make_file_md5(self.outfile, md5Outfile)
 
         return True
 
@@ -869,36 +882,6 @@ class Instrument(dep.DEP):
 
         semid = semester + '_' + progid
         return semid
-
-
-    def fix_datetime(self, fname):
-
-        # Temp fix for bad file times (NIRSPEC legacy)
-        #todo: test this
-        #todo: is this needed?
-
-        datefile = ''.join(('/home/koaadmin/fixdatetime/', self.utdatedir, '.txt'))
-        datefile = '/home/koaadmin/fixdatetime/20101128.txt'
-        if os.path.isfile(datefile) is False:
-            return
-
-        fileroot = fname.split('/')
-        fileroot = fileroot[-1]
-        output = ''
-
-        with open(datefile, 'r') as df:
-            for line in df:
-                if fileroot in line:
-                    output = line
-                    break
-
-        if output != '':
-            dateobs = self.get_keyword('DATE-OBS')
-            if 'Error' not in dateobs and dateobs.strip() != '':
-                return
-            vals = output.split(' ')
-            self.set_keyword('DATE-OBS', vals[1], ' Original value missing - added by KOA')
-            self.set_keyword('UTC',      vals[2], 'Original value missing - added by KOA')
 
 
     def set_frameno(self):

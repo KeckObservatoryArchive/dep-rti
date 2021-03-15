@@ -45,17 +45,13 @@ def main(instr=None, dev=False):
 
     #query for any records that have blank status but have status code.
     q = ("select instrument, count(*) as count, status_code from dep_status "
-#todo: include TRANSFERRED until IPAC has working API
-#         " where status='COMPLETE' and status_code is not NULL and status_code != '' "
-         " where status in ('COMPLETE', 'TRANSFERRED') and status_code is not NULL and status_code != '' "
+         " where status='COMPLETE' and status_code is not NULL and status_code != '' "
          " group by instrument, status_code order by instrument asc")
     warns = db.query('koa', q)
 
-    #query for any records that are > X minutes old and status in (PROCESSING, TRANSFERRED, etc)
+    #query for any records that are > X minutes old and status in (PROCESSING, TRANSFERRING, etc)
     q = ("select instrument, count(*) as count from dep_status "
-#todo: exclude TRANSFERRED until IPAC has working API
-#         " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED') "
-         " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING') "
+        " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED') "
          " and creation_time < NOW() - INTERVAL 15 MINUTE "
          " group by instrument order by instrument asc")
     stuck = db.query('koa', q)

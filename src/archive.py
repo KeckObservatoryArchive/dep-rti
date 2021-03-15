@@ -167,7 +167,8 @@ class Archive():
 
         ok = instr_obj.process()
         if not ok:
-            self.handle_dep_error()
+            #NOTE: DEP has its own error reporting system so no need to do anything here.
+            log.error("DEP finished with ERRORS!  See log file for details.")
         else:
             log.info("DEP finished successfully!")
 
@@ -222,12 +223,6 @@ class Archive():
         else:
             for row in rows:
                 self.process_file(dbid=row['id'])
-
-
-    def handle_dep_error(self):
-        #todo: call independent error reporting script which will query dep_status
-        #and decide whether to email admins
-        pass
 
 
 def email_error(errcode, text, instr='', check_time=True):

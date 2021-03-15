@@ -3,12 +3,11 @@
 Desc: Daemon to monitor for new FITS files and send to DEP for archiving.
 Monitors KTL keywords to find new files for archiving.  Uses the database as its queue 
 so the queue is not in memory.  Keeps a list of spawned processes to manage how many 
-concurrent processes can run at once.  Can run as single or multiple instruments.
+concurrent processes can run at once.  Run per instrument service.
 
 Usage: 
-    python monitor.py [instr list]
-    python monitor.py hires
-    python monitor.py kcwi nires
+    python monitor.py [service name]
+    python monitor.py kfcs
 
 Reference:
     http://spg.ucolick.org/KTLPython/index.html
@@ -49,44 +48,40 @@ QUEUE_CHECK_SEC = 60.0
 
 
 def main():
-    '''Handle command line args and create one monitor object per instrument.'''
+    '''Handle command line args and create monitor object for service.'''
 
     # Arg parser
     parser = argparse.ArgumentParser()
-    parser.add_argument('instruments', nargs='+', default=[], help='Keck instruments list to monitor')
+    parser.add_argument('service', help='Service to monitor.')
     args = parser.parse_args()    
 
     #run monitors and catch any unhandled error for email to admin
     try:
-        monitors = []
-        for instr in args.instruments:
-            monitor = Monitor(instr.upper())
-            monitors.append(monitor)
+        monitor = Monitor(args.service)
     except Exception as error:
         handle_error('MONITOR_ERROR', traceback.format_exc())
+        sys.exit(1)
 
     #stay alive until control-C to exit
     while True:
         try:
             time.sleep(300)
-            for m in monitors:
-                m.log.debug(f'Monitor saying hi every 5 minutes ({m.instr})')
+            monitor.log.debug(f'Monitor saying hi every 5 minutes ({monitor.instr} {monitor.service})')
         except:
             break
-    for m in monitors:
-        m.log.info(f'Exiting {__file__}')
+    monitor.log.info(f'Exiting {__file__}')
 
 
 class Monitor():
     '''
-    Class to monitor KTL keywords for an instrument to find new files to archive.  
+    Class to monitor KTL service to find new files to archive.  
     When a new file is detected via KTL, will insert a record into DB.
     Monitors DB queue and spawns new DEP archive processes per datafile.
     '''
-    def __init__(self, instr):
+    def __init__(self, service):
 
         #input vars
-        self.instr = instr
+        self.service = service
 
         #init other vars
         self.queue = []
@@ -94,6 +89,7 @@ class Monitor():
         self.max_procs = 10
         self.last_queue_check = time.time()
         self.last_email_times = {}
+        self.db = None
 
         #cd to script dir so relative paths work
         os.chdir(sys.path[0])
@@ -102,9 +98,13 @@ class Monitor():
         with open('config.live.ini') as f: 
             self.config = yaml.safe_load(f)
 
+        #get instrument
+        self.keys = monitor_config.instr_keymap[self.service]
+        self.instr = self.keys['instr']
+
         #create logger first
-        self.log = self.create_logger(f'koa_monitor_{instr}', self.config[instr]['ROOTDIR'], instr)
-        self.log.info(f"Starting KOA Monitor for {instr}")
+        self.log = self.create_logger(self.config[self.instr]['ROOTDIR'], self.instr, self.service)
+        self.log.info(f"Starting KOA Monitor for {self.instr} {self.service}")
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
@@ -121,13 +121,9 @@ class Monitor():
 
     def monitor(self):
 
-        #run KTL monitor for each group defined for instr
-        #NOTE: We must keep all our monitors in an array to prevent garbage collection
-        self.monitors = []
-        for keys in monitor_config.instr_keymap[self.instr]:
-            ktlmon = KtlMonitor(self.instr, keys, self, self.log)
-            ktlmon.start()
-            self.monitors.append(ktlmon)
+        #run KTL monitor for service
+        self.monitor = KtlMonitor(self.service, self.keys, self, self.log)
+        self.monitor.start()
 
         #start interval to monitor DEP processes for completion
         self.process_monitor()
@@ -170,6 +166,7 @@ class Monitor():
         self.log.info(f'Adding to queue: {filepath}')
         query = ("insert into dep_status set "
                 f"   instrument='{self.instr}' "
+                f" , service='{self.service}' "
                 f" , ofname='{filepath}' "
                 f" , status='QUEUED' "
                 f" , creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
@@ -240,6 +237,7 @@ class Monitor():
         query = (f"select * from dep_status where "
                 f" status='QUEUED' "
                 f" and instrument='{self.instr}' "
+                f" and service='{self.service}' "
                 f" order by creation_time asc limit 1")
         row = self.db.query('koa', query, getOne=True)
         if row is False:
@@ -249,7 +247,6 @@ class Monitor():
             return 
 
         #check that we have not exceeded max num procs
-        #todo: do we want to notify admins of this condition?
         if len(self.procs) >= self.max_procs:
             self.handle_error('MAX_PROCESSES', self.max_procs)
             return
@@ -300,10 +297,11 @@ class Monitor():
         obj = Archive(self.instr, dbid=dbid, transfer=True)
 
 
-    def create_logger(self, name, rootdir, instr):
-        """Creates a logger based on rootdir, instr and date"""
+    def create_logger(self, rootdir, instr, service):
+        """Creates a logger based on rootdir, instr, service name and date"""
 
         # Create logger object
+        name = f'koa_monitor_{instr}_{service}'
         log = logging.getLogger(name)
         log.setLevel(logging.DEBUG)
 
@@ -333,7 +331,7 @@ class Monitor():
         log.addHandler(sh)
         
         #init message and return
-        log.info(f'logger created for {name} {instr} at {logFile}')
+        log.info(f'logger created for {instr} {service} at {logFile}')
         return log
 
     def handle_error(self, errcode, text='', check_time=True):
@@ -341,7 +339,7 @@ class Monitor():
 
         #always log/print
         self.log.error(f'{errcode}: {text}')
-        handle_error(errcode, text, self.instr, check_time)
+        handle_error(errcode, text, self.instr, self.service, check_time)
 
 
 class KtlMonitor():
@@ -350,22 +348,23 @@ class KtlMonitor():
     determine when a new image has been written.
 
     Parameters:
-        instr (str): Instrument to monitor.
+        servicename (str): KTL service to monitor.
         keys (dict): Defines service and keyword to monitor 
                      as well as special formatting to construct filepath.
         queue_mgr (obj): Class object that contains callback 'add_to_queue' function.
         log (obj): logger object
     '''
-    def __init__(self, instr, keys, queue_mgr, log):
+    def __init__(self, servicename, keys, queue_mgr, log):
         self.log = log
-        self.instr = instr
+        self.servicename = servicename
         self.keys = keys
         self.queue_mgr = queue_mgr
         self.service = None
         self.last_mtime = None
         self.restart_count = 0
         self.resuscitations = None
-        self.log.info(f"KtlMonitor: instr: {instr}, service: {keys['service']}, trigger: {keys['trigger']}")
+        self.instr = keys['instr']
+        self.log.info(f"KtlMonitor: instr: {self.instr}, service: {servicename}, trigger: {keys['trigger']}")
 
 
     def start(self):
@@ -375,21 +374,14 @@ class KtlMonitor():
 
         #get service instance
         try:
-            self.service = ktl.Service(keys['service'])
+            self.service = ktl.Service(self.servicename)
         except Exception as e:
             self.log.error(traceback.format_exc())
-            msg = (f"Could not start KTL monitoring for {self.instr} '{keys['service']}'. "
-                   f"  Retry in {KTL_START_RETRY_SEC} seconds.")
+            msg = (f"Could not start KTL monitoring for {self.instr} '{self.service}'. "
+                   f"Retry in {KTL_START_RETRY_SEC} seconds.")
             self.queue_mgr.handle_error('KTL_START_ERROR', msg)
             threading.Timer(KTL_START_RETRY_SEC, self.start).start()
             return
-
-        # monitor keys for services that construct filepath from other keywords
-        filepath_keys = keys['fp_info']
-        for key in filepath_keys:
-            if key == keys['trigger']: continue
-            kw = self.service[key]
-            kw.monitor()
 
         #monitor keyword that indicates new file
         kw = self.service[keys['trigger']]
@@ -407,6 +399,7 @@ class KtlMonitor():
             period = hb[1] + 10
             if period < 30: period = 30
             self.service.heartbeat(hb[0], period)
+
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start() 
             self.check_failed = False           
             self.resuscitations = self.service.resuscitations
@@ -423,15 +416,15 @@ class KtlMonitor():
             kw = self.service[hb]
             kw.read(timeout=1)
             if self.service.resuscitations != self.resuscitations:
-                self.log.debug(f"KTL service {self.keys['service']} resuscitations changed.")
+                self.log.debug(f"KTL service {self.servicename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
         except Exception as e:
             self.check_failed = True
-            self.log.debug(f"{self.instr} KTL service '{self.keys['service']}' heartbeat read failed.")
-            self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.keys['service'])
+            self.log.debug(f"{self.instr} KTL service '{self.servicename}' heartbeat read failed.")
+            self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', servicename)
         else:
             if self.check_failed:
-                self.log.debug(f"KTL service {self.keys['service']} read successful afer prior failure.")
+                self.log.debug(f"KTL service {self.servicename} read successful afer prior failure.")
             self.check_failed = False
         finally:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
@@ -460,15 +453,13 @@ class KtlMonitor():
                 self.log.info(f'Trigger val of {keyword.ascii} != {reqval}')
                 return
 
-            # construct filepath from keywords(s) using lambda defined in monitor_config.py
-            filepath_info = {}
-            filepath_info[keyword.name] = keyword.ascii
-            for key in keys['fp_info']:
-                if key == keys['trigger']: continue
-                kw = self.service[key]
-                filepath_info[kw.name] = kw.ascii
-                self.log.debug(f"\t{kw.name}={kw.ascii}")
-            filepath = keys['format'](filepath_info)
+            #get full file path
+            format = self.keys.get('format', None)
+            zfill = self.keys.get('zfill', None)
+            if format:
+                filepath = self.get_formatted_filepath(format, zfill)
+            else:
+                filepath = keyword.ascii
 
             #check for blank filepath
             if not filepath or not filepath.strip():
@@ -482,6 +473,9 @@ class KtlMonitor():
             #check for invalid filepath
             if '/sdata' not in filepath:
                 self.log.error(f"INVALID FILEPATH (no 'sdata')\t{self.instr}\t{keyword.service}\t{filepath}")
+                return
+            if '/mira/' in filepath:
+                self.log.error(f"INVALID FILE (mira)\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
 
             #Check file mod time and ensure it is not the same as last file (re-broadcasts)
@@ -505,9 +499,28 @@ class KtlMonitor():
         self.queue_mgr.add_to_queue(filepath)
 
 
-def handle_error(errcode, text='', instr='', check_time=True):
+    def get_formatted_filepath(self, format, zfill):
+        '''
+        Construct filepath from multiple KTL keywords. See instr_keys module global defined above.
+        Parameters:
+            format (str): Path formatting containing keywords in curlies to replace with KTL values
+            zfill (dict): Map KTL keywords to '0' zfill.
+        '''
+        filepath = format
+        matches = re.findall("{.*?}", format)
+        for key in matches:
+            key = key[1:-1]
+            val = self.service[key].read()
+            print(val)
+            pad = zfill.get(key, None) if zfill else None
+            if pad is not None:
+                val = val.zfill(pad)
+            filepath = filepath.replace('{'+key+'}', val)
+        return filepath
+
+
+def handle_error(errcode, text='', instr='', service='', check_time=True):
     '''Email admins the error but only if we haven't sent one recently.'''
-    #todo: Should last time be checked on a per instrument basis? (ie move this into class)
 
     #always log/print
     print(f'{errcode}: {text}')
@@ -529,7 +542,7 @@ def handle_error(errcode, text='', instr='', check_time=True):
     
     # Construct email message
     body = f'{errcode}\n{text}'
-    subj = f'KOA MONITOR ERROR: [{instr}] {errcode}'
+    subj = f'KOA MONITOR ERROR: [{instr} {service}] {errcode}'
     msg = MIMEText(body)
     msg['Subject'] = subj
     msg['To']      = adminEmail
