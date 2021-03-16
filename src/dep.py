@@ -21,6 +21,7 @@ import fnmatch
 import pathlib
 import traceback
 import subprocess
+import pdb
 
 import metadata
 import update_koapi_send
@@ -217,13 +218,12 @@ class DEP:
         '''
         Perform specific initialization tasks for DEP processing.
         '''
-
         #define some handy utdate vars here after loading fits (dependent on set_koaid())
         self.utdate = self.get_keyword('DATE-OBS', useMap=False)
         self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
         hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
         self.hstdate = hstdate.strftime('%Y-%m-%d')
-        self.utc = self.get_keyword('UTC', useMap=False)
+        self.utc = self.get_keyword('UTC', useMap=True)
         self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
 
         #create output dirs (this is dependent on utdatedir above)
@@ -440,7 +440,6 @@ class DEP:
 
     def validate_fits(self):
         '''Basic checks for valid FITS before proceeding with archiving'''
-
         #check no data
         if len(self.fits_hdu) == 0:
             self.log_invalid('NO_FITS_HDUS')
@@ -550,10 +549,10 @@ class DEP:
         extra_meta[koaid]['FILESIZE_MB'] = self.filesize_mb
         extra_meta[koaid]['SEMID'] = self.get_semid()
 
-        keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + self.instr
+        keydefs = f"{self.config['MISC']['METADATA_TABLES_DIR']}/KOA_{self.instr}_Keyword_Table.txt"
         metaoutfile =  self.dirs['lev0'] + '/' + self.koaid + '.metadata.table'
         ok = metadata.make_metadata( keydefs, metaoutfile, filepath=self.outfile, 
-                                     extraData=extra_meta, keyskips=self.keyskips)   
+                                     extraMeta=extra_meta, keyskips=self.keyskips)   
         return ok
 
 

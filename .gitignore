@@ -128,3 +128,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+*.*~
+/src/test/koadata_test
+*.bak
+/src/test/tmp/
