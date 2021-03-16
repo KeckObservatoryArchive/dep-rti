@@ -376,7 +376,7 @@ def is_keyword_skip(keyword, skips):
 def truncate_float(f, n):
     s = '{}'.format(f)
     exp = ''
-    if 'e' in s or 'e' in s:
+    if 'e' in s or 'E' in s:
         parts = re.split('e', s, flags=re.IGNORECASE)
         s = parts[0]
         exp = 'e' + parts[1]
