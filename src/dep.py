@@ -929,6 +929,8 @@ class DEP:
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_dep_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
+# Need to remove this line when API is fixed
+            if isinstance(apiData, str): apiData = json.loads(apiData)                     
             if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
                 self.log_error('IPAC_API_ERROR', apiUrl)
                 self.update_dep_status('status', 'ERROR')
