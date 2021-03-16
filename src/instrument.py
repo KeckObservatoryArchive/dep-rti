@@ -612,7 +612,6 @@ class Instrument(dep.DEP):
         utc = self.get_keyword('UTC')
         is_daytime = self.is_daytime(utc)
 
-        print ('is_zero_propint: ', koaimtyp, is_daytime, has_target)
         return (is_cal and is_daytime and not has_target)
 
 

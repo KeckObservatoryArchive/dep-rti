@@ -10,9 +10,10 @@ parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parentdir)
 import instrument
 import metadata
+import pytest
 
-
-def test():
+@pytest.mark.fullrun
+def test_full_run():
     '''
     Takes a list of test FITS files and processes them all and compares them to gold standard output.
     NOTE: This test assumes your dev environment is setup in dev mode, using a dev database, and
@@ -79,7 +80,3 @@ def get_filelist(pattern, basename=False):
         if basename: filepath = os.path.basename(filepath)
         files.append(filepath)
     return files
-
-
-if __name__ == "__main__":
-    test()

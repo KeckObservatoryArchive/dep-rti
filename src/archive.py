@@ -16,7 +16,7 @@ import importlib
 from pathlib import Path
 import logging
 import glob
-
+import pdb
 import dep
 import instrument
 
@@ -95,10 +95,8 @@ class Archive():
         global log
         log = self.create_logger('koa_dep', self.config[self.instr]['ROOTDIR'], self.instr)
         log.info("Starting DEP")
-
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
-
         #routing
         if self.filepath:
             self.process_file(filepath=self.filepath)

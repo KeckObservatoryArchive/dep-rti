@@ -21,6 +21,7 @@ import fnmatch
 import pathlib
 import traceback
 import subprocess
+import pdb
 
 import metadata
 import update_koapi_send
@@ -217,13 +218,12 @@ class DEP:
         '''
         Perform specific initialization tasks for DEP processing.
         '''
-
         #define some handy utdate vars here after loading fits (dependent on set_koaid())
         self.utdate = self.get_keyword('DATE-OBS', useMap=False)
         self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
         hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
         self.hstdate = hstdate.strftime('%Y-%m-%d')
-        self.utc = self.get_keyword('UTC', useMap=False)
+        self.utc = self.get_keyword('UTC', useMap=True)
         self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
 
         #create output dirs (this is dependent on utdatedir above)
@@ -359,8 +359,10 @@ class DEP:
 
         #form filepath and copy
         if invalid: 
-            if self.dirs: outfile = f"{self.dirs['udf']}/{self.utdatedir}/{self.ofname}"
-            else:         outfile = f"{self.rootdir}/{self.instr}/stage/udf/{self.ofname}"
+            #NOTE: We decided to not make udf copies of invalid files.
+            return True
+            # if self.dirs: outfile = f"{self.dirs['udf']}/{self.utdatedir}/{self.ofname}"
+            # else:         outfile = f"{self.rootdir}/{self.instr}/stage/udf/{self.ofname}"
         else:       
             outfile = f"{self.dirs['stage']}/{self.utdatedir}/{self.ofname}"
         if outfile == self.filepath:
@@ -438,7 +440,6 @@ class DEP:
 
     def validate_fits(self):
         '''Basic checks for valid FITS before proceeding with archiving'''
-
         #check no data
         if len(self.fits_hdu) == 0:
             self.log_invalid('NO_FITS_HDUS')
@@ -548,10 +549,10 @@ class DEP:
         extra_meta[koaid]['FILESIZE_MB'] = self.filesize_mb
         extra_meta[koaid]['SEMID'] = self.get_semid()
 
-        keydefs = self.config['MISC']['METADATA_TABLES_DIR'] + '/keywords.format.' + self.instr
+        keydefs = f"{self.config['MISC']['METADATA_TABLES_DIR']}/KOA_{self.instr}_Keyword_Table.txt"
         metaoutfile =  self.dirs['lev0'] + '/' + self.koaid + '.metadata.table'
         ok = metadata.make_metadata( keydefs, metaoutfile, filepath=self.outfile, 
-                                     extraData=extra_meta, keyskips=self.keyskips)   
+                                     extraMeta=extra_meta, keyskips=self.keyskips)   
         return ok
 
 
@@ -928,13 +929,12 @@ class DEP:
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_dep_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
-# Need to remove this line when API is fixed
-            if isinstance(apiData, str): apiData = json.loads(apiData)
             if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
                 self.log_error('IPAC_API_ERROR', apiUrl)
                 self.update_dep_status('status', 'ERROR')
                 self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
                 return False
+            log.info("IPAC API response: ", apiData)
             return True
         # Transfer error
         else:
