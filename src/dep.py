@@ -86,6 +86,7 @@ class DEP:
             if ok: ok = self.set_koaid()
             if ok: ok = self.processing_init()
             if ok: ok = self.check_koaid_db_entry()
+            if ok: ok = self.change_logger()
             if ok: ok = self.validate_fits()
             if ok: ok = self.run_psfr()
             if ok: ok = self.run_dqa()
@@ -264,6 +265,44 @@ class DEP:
         self.dirs['lev1']    = f"{rootdir}/{instr}/{ymd}/lev1"
         self.dirs['stage']   = f"{rootdir}/{instr}/stage"
         self.dirs['udf']     = f"{rootdir}/{instr}/stage/udf"
+
+
+    def change_logger(self):
+
+        '''Now that we have a KOAID, change fileHandler logger.'''
+
+        #Find logger and FileHandler
+        fileHandler = None
+        logger = None
+        for k, l in  logging.Logger.manager.loggerDict.items():
+            if isinstance(l, logging.PlaceHolder): continue
+            for h in l.handlers:
+                if 'FileHandler' in str(h.__class__):
+                    fileHandler = h
+                    logger = l
+                    break
+
+        if not fileHandler:
+            self.log_error('CHANGE_LOGGER_ERROR')
+            return False
+
+        #rename
+        koaid = self.get_keyword('KOAID')
+        koaid = koaid.replace('.fits', '')
+        newfile = f"{self.dirs['lev0']}/{koaid}.log"
+        log.info(f"Renaming log file from {h.baseFilename} to {newfile}")
+        shutil.move(h.baseFilename, newfile)
+
+        #remove old fileHandler and add new
+        logger.removeHandler(fileHandler)
+
+        handle = logging.FileHandler(newfile, mode='a')
+        handle.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+        handle.setFormatter(formatter)
+        logger.addHandler(handle)
+
+        return True
 
 
     def load_fits(self):
@@ -888,6 +927,7 @@ class DEP:
             self.log_error('NO_TRANSFER_DIR', fromDir)
             return False
 
+        #check that there are files
         pattern = f'{self.koaid}*'
         koaidList = [f for f in fnmatch.filter(os.listdir(fromDir), pattern) if os.path.isfile(os.path.join(fromDir, f))]
         if len(koaidList) == 0:
@@ -901,13 +941,15 @@ class DEP:
         api = self.config['KOAXFR']['INGESTAPI']
 
         # Configure the transfer command
+        # Goal is to include only KOAID* files except KOAID.log
+        # NOTE: rsync order of include and exclude is important.  It was a bit confusing how it works.  
         toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}'
         log.info(f'transferring directory {fromDir} to {toLocation}')
-        log.info(f'rsync -avz --include="{pattern}" {fromDir} {toLocation}')
+        cmd = f'rsync -avz --exclude="*.log" --include="*/" --include="{pattern}" --exclude="*" {fromDir} {toLocation}'
+        log.info(cmd)
 
         # Transfer the data
         import subprocess as sp
-        cmd = f'rsync -avz --include="*/" --include="{pattern}" --exclude="*" {fromDir} {toLocation}'
         xfrCmd = sp.Popen([cmd], stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
         utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_dep_status('xfr_start_time', utstring): return False

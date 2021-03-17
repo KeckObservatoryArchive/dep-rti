@@ -95,8 +95,10 @@ class Archive():
         global log
         log = self.create_logger('koa_dep', self.config[self.instr]['ROOTDIR'], self.instr)
         log.info("Starting DEP")
+
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+
         #routing
         if self.filepath:
             self.process_file(filepath=self.filepath)
@@ -127,14 +129,16 @@ class Archive():
         log.setLevel(logging.INFO)
 
         #paths 
-        #NOTE: Using UTC so a night's data ends up in same log file.
+        #NOTE: We create a temp log file first and once we have the KOAID,
+        #we will rename the logfile and change the filehandler (see dep.change_logger)
         processDir = f'{rootdir}/{instr.upper()}'
-        ymd = dt.datetime.utcnow().strftime('%Y%m%d')
-        logFile =  f'{processDir}/{name}_{instr.upper()}_{ymd}.log'
+        ymd = dt.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+        logFile =  f'{processDir}/logtmp/{name}_{instr.upper()}_{ymd}.log'
 
         #create directory if it does not exist
         try:
             Path(processDir).mkdir(parents=True, exist_ok=True)
+            Path(os.path.dirname(logFile)).mkdir(parents=True, exist_ok=True)
         except Exception as e:
             print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
             return False
