@@ -9,12 +9,9 @@ import traceback
 import os
 import smtplib
 from email.mime.text import MIMEText
-import logging
 import yaml
 import db_conn
 import importlib
-from pathlib import Path
-import logging
 import glob
 import pdb
 import dep
@@ -22,7 +19,6 @@ import instrument
 
 
 #module globals
-log = logging.getLogger('koa_dep')
 last_email_times = None
 
 
@@ -83,6 +79,8 @@ class Archive():
 
     def start(self):
 
+        print("STARTING PROCESSING")
+
         #cd to script dir so relative paths work
         #todo: is this needed?  Does it work for both cmd line and monitor call?
         os.chdir(sys.path[0])
@@ -90,11 +88,6 @@ class Archive():
         #load config file
         with open('config.live.ini') as f: 
             self.config = yaml.safe_load(f)
-
-        #create logger first
-        global log
-        log = self.create_logger('koa_dep', self.config[self.instr]['ROOTDIR'], self.instr)
-        log.info("Starting DEP")
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
@@ -109,9 +102,9 @@ class Archive():
         elif self.starttime or self.endtime or self.status or self.statuscode or self.ofname:
             self.reprocess_by_query()
         else:
-            log.error("Cannot run DEP.  Unable to decipher inputs.")
+            print("ERROR: Unknown inputs.")
 
-        log.info("DEP COMPLETE")
+        print("ALL PROCESSING COMPLETE")
 
 
     def __del__(self):
@@ -119,48 +112,6 @@ class Archive():
         #Close the database connection
         if self.db:
             self.db.close()
-
-
-    def create_logger(self, name, rootdir, instr):
-        """Creates a logger based on rootdir, instr and date"""
-
-        # Create logger object
-        log = logging.getLogger(name)
-        log.setLevel(logging.INFO)
-
-        #paths 
-        #NOTE: We create a temp log file first and once we have the KOAID,
-        #we will rename the logfile and change the filehandler (see dep.change_logger)
-        processDir = f'{rootdir}/{instr.upper()}'
-        ymd = dt.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-        logFile =  f'{processDir}/logtmp/{name}_{instr.upper()}_{ymd}.log'
-
-        #create directory if it does not exist
-        try:
-            Path(processDir).mkdir(parents=True, exist_ok=True)
-            Path(os.path.dirname(logFile)).mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
-            return False
-
-        # Create a file handler
-        handle = logging.FileHandler(logFile)
-        handle.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        log.addHandler(handle)
-
-        #add stdout to output so we don't need both log and print statements(>= warning only)
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.WARNING)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-        sh.setFormatter(formatter)
-        log.addHandler(sh)
-        
-        #init message and return
-        log.info(f'logger created for {name} at {logFile}')
-        print(f'Logging to {logFile}')
-        return log
 
 
     def process_file(self, filepath=None, dbid=None):
@@ -172,9 +123,9 @@ class Archive():
         ok = instr_obj.process()
         if not ok:
             #NOTE: DEP has its own error reporting system so no need to do anything here.
-            log.error("DEP finished with ERRORS!  See log file for details.")
+            print("DEP finished with ERRORS!  See log file for details.")
         else:
-            log.info("DEP finished successfully!")
+            print("DEP finished successfully!")
 
 
     def process_files(self, pattern):
@@ -234,9 +185,8 @@ def email_error(errcode, text, instr='', check_time=True):
     #NOTE: This won't work as intended if DEP called as single instance from monitor
     #but it is still useful for command line mode.
 
-    #always log/print
-    if log: log.error(f'{errcode}: {text}')
-    else: print(text)
+    #always print
+    print(errcode, text)
 
     #Only send if we haven't sent one of same errcode recently
     if check_time:

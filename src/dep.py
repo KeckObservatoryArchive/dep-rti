@@ -22,6 +22,7 @@ import pathlib
 import traceback
 import subprocess
 import pdb
+from pathlib import Path
 
 import metadata
 import update_koapi_send
@@ -81,6 +82,7 @@ class DEP:
         try:
             ok = True
             if ok: ok = self.init()
+            if ok: ok = self.create_logger()
             if ok: ok = self.check_status_db_entry()
             if ok: ok = self.load_fits()
             if ok: ok = self.set_koaid()
@@ -108,6 +110,58 @@ class DEP:
 
         self.handle_dep_errors()
         return ok
+
+
+    def create_logger(self):
+        """Creates a logger based on rootdir, instr and date"""
+
+        name = 'koa_dep'
+        rootdir = self.config[self.instr]['ROOTDIR']
+        instr = self.instr
+
+        # Create logger object
+        global log
+        log = logging.getLogger(name)
+        log.setLevel(logging.INFO)
+
+        #paths 
+        #NOTE: We create a temp log file first and once we have the KOAID,
+        #we will rename the logfile and change the filehandler (see dep.change_logger)
+        processDir = f'{rootdir}/{instr.upper()}'
+        ymd = dt.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+        logFile =  f'{processDir}/logtmp/{name}_{instr.upper()}_{ymd}.log'
+
+        #create directory if it does not exist
+        try:
+            Path(processDir).mkdir(parents=True, exist_ok=True)
+            Path(os.path.dirname(logFile)).mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
+            return False
+
+        #Remove all handlers
+        #NOTE: This is important if processing multiple files with archive.py since
+        #we reuse global log object and do some renaming of log file (see change_logger())
+        log.handlers = []
+
+        # Create a file handler
+        handle = logging.FileHandler(logFile)
+        handle.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+        handle.setFormatter(formatter)
+        log.addHandler(handle)
+
+        #add stdout to output so we don't need both log and print statements(>= warning only)
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setLevel(logging.WARNING)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+        sh.setFormatter(formatter)
+        log.addHandler(sh)
+        
+        #init message and return
+        log.info(f'logger created for {name} at {logFile}')
+        print(f'Logging to {logFile}')
+        return log
 
 
     def init(self):
