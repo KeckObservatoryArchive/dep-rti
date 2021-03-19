@@ -69,8 +69,7 @@ def make_metadata(keywordsDefFile, metaOutFile, searchdir=None, filepath=None,
         fitsFiles.append(filepath)
     if len(fitsFiles) == 0:
         log.info(f'No fits file(s) found')
-    #for fitsFile in sorted(fitsFiles):
-    for fitsFile in fitsFiles:
+    for fitsFile in sorted(fitsFiles):
         extra = {}
         baseName = os.path.basename(fitsFile)
         if baseName in extraMeta:
@@ -224,43 +223,16 @@ def check_null(val, allowNull):
     if (val == 'null' or val == '') and (allowNull == 'N'):
         raise Exception('metadata check: incorrect "null" value found for non-null keyword {}'.format(keyword))            
 
-def check_and_set_value_type(val, warns, metaDataType, keyword, dev=False):
-    vtype = type(val).__name__
+def fix_value(val, metaDataType, keyword):
+    '''Some known value conversions we must do.'''
     if (metaDataType == 'char'):
         if isinstance(val, bool):
             if   (val == True):  val = 'T'
             elif (val == False): val = 'F'
         elif isinstance(val, int) and val == 0:
             val = ''
-            log.warning('metadata check: found integer 0, expected {}. KNOWN ISSUE. SETTING TO BLANK!'.format(metaDataType))
-        elif not isinstance(val, str):
-            if dev: log.warning('metadata check: var type {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
-            warns['type'] += 1
-
-    elif (metaDataType == 'integer'):
-        if not isinstance(val, int):
-            if dev: log.warning('metadata check: var type of {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
-            warns['type'] += 1
-
-    elif (metaDataType == 'double'):
-        if not isinstance(val, float):
-            if dev: log.warning('metadata check: var type of {}, expected {} ({}={}).'.format(vtype, metaDataType, keyword, val))
-            warns['type'] += 1
-
-    elif (metaDataType == 'date'):
-        try:
-            datetime.datetime.strptime(val, '%Y-%m-%d')
-        except Exception as err:
-            log.warning('metadata check: expected date format yyyy-mm-dd ({}={}).'.format(keyword, val))
-            warns['type'] += 1
-
-    elif (metaDataType == 'datetime'):
-        try:
-            datetime.datetime.strptime(val, '%Y-%m-%d %H:%M:%S')
-        except Exception as err:
-            log.warning('metadata check: expected date format yyyy-mm-dd hh:ii:ss ({}={}).'.format(keyword, val))
-            warns['type'] += 1
-    return val, warns
+            log.warning(f'metadata check: {keyword}: found integer 0, expected {metaDataType}. KNOWN ISSUE. SETTING TO BLANK!')
+    return val
 
 def check_and_set_char_length(val, warns,  colSize, metaDataType, keyword, dev=False):
     length = len(str(val))
@@ -303,7 +275,7 @@ def convert_type(val, vtype):
 @skip_if_input_has_none
 def check_min_range(val, warns, minVal, vtype, keyword):
     try:
-        if not val >= convert_type(minVal, vtype):
+        if val < convert_type(minVal, vtype):
             log.warning(f'metadata check: {keyword} val {val} < minVal {minVal}')
             warns['minValue'] += 1
     except Exception as err:
@@ -312,7 +284,7 @@ def check_min_range(val, warns, minVal, vtype, keyword):
 
 @skip_if_input_has_none
 def check_max_range(val, warns, maxVal, vtype, keyword):
-    if not val <= convert_type(maxVal, vtype):
+    if val > convert_type(maxVal, vtype):
         log.warning(f'metadata check: {keyword} val {val} > maxVal {maxVal}')
         warns['maxValue'] += 1
     return warns
@@ -331,6 +303,19 @@ def check_discrete_values(val, warns, valStr, keyword):
         warns['discreteValues'] += 1
     return warns
 
+def check_value_type(val, warns, mtype, keyword):
+    try:
+        if   mtype == 'integer':  val = int(val)
+        elif mtype == 'double':   val = float(val)
+        elif mtype == 'date':     val = datetime.datetime.strptime(val, '%Y-%m-%d')
+        elif mtype == 'time':     val = datetime.datetime.strptime(val, '%H:%M:%S.%f')
+        elif mtype == 'datetime': val = datetime.datetime.strptime(val, '%Y-%m-%d %H:%M:%S')
+        elif mtype == 'angle':    val = Angle(val, au.deg)
+    except:
+        log.error(f"metadata_check: {keyword} val '{val}' is not type {mtype}")
+        warns['type'] += 1
+    return warns
+
 def check_keyword_val(keyword, val, fmt, warns, dev=False):
     '''
     checks keyword for correct type and proper value.
@@ -339,32 +324,37 @@ def check_keyword_val(keyword, val, fmt, warns, dev=False):
     errvals = ['#### Error ###']
     if (val in errvals):
         val = 'null'
+
+    #deal with null, blank vals
     check_null(val, fmt['allowNull'])
     if (val == 'null' or val == '') and (fmt['allowNull'] == 'Y'):
         return val, warns
-    val, warns = check_and_set_value_type(val, warns, fmt['metaDataType'], fmt['keyword'], dev)
-    val, warns = check_and_set_char_length(val, warns, fmt['colSize'], fmt['metaDataType'], fmt['keyword'], dev)
 
-    # check if val is degrees
-    checkHours = not str(fmt['minValue'])=='nan' and fmt['metaDataType'] in ('char') 
-    if checkHours:
-        msg = f"{keyword} val: {val} units {fmt['Units']} minValue {fmt['minValue']} maxValue {fmt['maxValue']} may need conversion"
-        log.info(msg)
-        ang = Angle(val, au.deg)
-        minAng = Angle(fmt['minValue'], au.deg)
-        maxAng = Angle(fmt['maxValue'], au.deg)
-        if ang <= minAng:
-            log.warning(f'metadata check: {keyword} val {ang} < minVal {minAng}')
-            warns['maxValue'] += 1
-        if ang >= maxAng:
-            log.warning(f'metadata check: {keyword} val {ang} > maxVal {maxAng}')
-            warns['maxValue'] += 1
-    else:
-        val = convert_type(val, fmt['metaDataType'])
-        if fmt['CheckValues'].upper() == 'Y':
+    #basic checks of type and length
+    val = fix_value(val, fmt['metaDataType'], keyword)
+    if fmt['ValidateFormat'].upper() == 'Y':
+        warns = check_value_type(val, warns, fmt['metaDataType'], keyword)
+    val, warns = check_and_set_char_length(val, warns, fmt['colSize'], fmt['metaDataType'], fmt['keyword'], dev)
+    val = convert_type(val, fmt['metaDataType'])
+
+    #check range and discrete values?
+    if fmt['CheckValues'].upper() == 'Y':
+        # check if val is angle in degrees
+        if not pd.isnull(fmt['minValue']) and fmt['metaDataType'] == 'angle':
+            ang = Angle(val, au.deg)
+            minAng = Angle(fmt['minValue'], au.deg)
+            maxAng = Angle(fmt['maxValue'], au.deg)
+            if ang < minAng:
+                log.warning(f'metadata check: {keyword} val {ang} < minVal {minAng}')
+                warns['maxValue'] += 1
+            if ang > maxAng:
+                log.warning(f'metadata check: {keyword} val {ang} > maxVal {maxAng}')
+                warns['maxValue'] += 1
+        else:
             warns = check_min_range(val, warns, fmt['minValue'], fmt['metaDataType'], keyword)
             warns = check_max_range(val, warns, fmt['maxValue'], fmt['metaDataType'], keyword)
             warns = check_discrete_values(val, warns, fmt['DiscreteValues'], keyword)
+
     return val, warns
 
 def is_keyword_skip(keyword, skips):
