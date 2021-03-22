@@ -34,7 +34,8 @@ def main(instr=None, dev=False):
     if lasttime:
         now = dt.datetime.now()
         diff = now-lasttime
-        if diff.seconds < MAX_EMAIL_SEC:
+        if diff.total_seconds() < MAX_EMAIL_SEC:
+            print("Already sent a recent error email.")
             return
 
     #query for all errors
@@ -58,6 +59,7 @@ def main(instr=None, dev=False):
 
     #nada?
     if not errors and not warns and not stuck:
+        print("No errors or warnings.")
         return
 
     #msg
