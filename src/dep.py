@@ -325,13 +325,14 @@ class DEP:
 
         '''Now that we have a KOAID, change fileHandler logger.'''
 
-        #Find logger and FileHandler
+        #Find logger and FileHandler 
+        #NOTE: monitor.py has its own logger which will be in loggerDict
         fileHandler = None
         logger = None
         for k, l in  logging.Logger.manager.loggerDict.items():
             if isinstance(l, logging.PlaceHolder): continue
             for h in l.handlers:
-                if 'FileHandler' in str(h.__class__):
+                if 'koa_dep' in h.baseFilename and 'FileHandler' in str(h.__class__):
                     fileHandler = h
                     logger = l
                     break
