@@ -51,9 +51,10 @@ def main(instr=None, dev=False):
     warns = db.query('koa', q)
 
     #query for any records that are > X minutes old and status in (PROCESSING, TRANSFERRING, etc)
+    #NOTE: creation_time is UTC
     q = ("select instrument, count(*) as count from dep_status "
         " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED') "
-         " and creation_time < NOW() - INTERVAL 15 MINUTE "
+         " and creation_time < (NOW() - INTERVAL 15 MINUTE + INTERVAL 10 HOUR) "
          " group by instrument order by instrument asc")
     stuck = db.query('koa', q)
 
