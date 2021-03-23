@@ -332,10 +332,11 @@ class DEP:
         for k, l in  logging.Logger.manager.loggerDict.items():
             if isinstance(l, logging.PlaceHolder): continue
             for h in l.handlers:
-                if 'koa_dep' in h.baseFilename and 'FileHandler' in str(h.__class__):
-                    fileHandler = h
-                    logger = l
-                    break
+                if 'FileHandler' not in str(h.__class__): continue
+                if 'koa_dep' not in h.baseFilename: continue
+                fileHandler = h
+                logger = l
+                break
 
         if not fileHandler:
             self.log_error('CHANGE_LOGGER_ERROR')
@@ -345,8 +346,8 @@ class DEP:
         koaid = self.get_keyword('KOAID')
         koaid = koaid.replace('.fits', '')
         newfile = f"{self.dirs['lev0']}/{koaid}.log"
-        log.info(f"Renaming log file from {h.baseFilename} to {newfile}")
-        shutil.move(h.baseFilename, newfile)
+        log.info(f"Renaming log file from {fileHandler.baseFilename} to {newfile}")
+        shutil.move(fileHandler.baseFilename, newfile)
 
         #remove old fileHandler and add new
         logger.removeHandler(fileHandler)
