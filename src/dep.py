@@ -325,16 +325,18 @@ class DEP:
 
         '''Now that we have a KOAID, change fileHandler logger.'''
 
-        #Find logger and FileHandler
+        #Find logger and FileHandler 
+        #NOTE: monitor.py has its own logger which will be in loggerDict
         fileHandler = None
         logger = None
         for k, l in  logging.Logger.manager.loggerDict.items():
             if isinstance(l, logging.PlaceHolder): continue
             for h in l.handlers:
-                if 'FileHandler' in str(h.__class__):
-                    fileHandler = h
-                    logger = l
-                    break
+                if 'FileHandler' not in str(h.__class__): continue
+                if 'koa_dep' not in h.baseFilename: continue
+                fileHandler = h
+                logger = l
+                break
 
         if not fileHandler:
             self.log_error('CHANGE_LOGGER_ERROR')
@@ -344,8 +346,8 @@ class DEP:
         koaid = self.get_keyword('KOAID')
         koaid = koaid.replace('.fits', '')
         newfile = f"{self.dirs['lev0']}/{koaid}.log"
-        log.info(f"Renaming log file from {h.baseFilename} to {newfile}")
-        shutil.move(h.baseFilename, newfile)
+        log.info(f"Renaming log file from {fileHandler.baseFilename} to {newfile}")
+        shutil.move(fileHandler.baseFilename, newfile)
 
         #remove old fileHandler and add new
         logger.removeHandler(fileHandler)
@@ -1025,12 +1027,14 @@ class DEP:
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_dep_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
+# Need to remove this line when API is fixed
+            if isinstance(apiData, str): apiData = json.loads(apiData)                     
             if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
                 self.log_error('IPAC_API_ERROR', apiUrl)
                 self.update_dep_status('status', 'ERROR')
                 self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
                 return False
-            log.info("IPAC API response: ", apiData)
+            log.info(f"IPAC API response: {apiData}")
             return True
         # Transfer error
         else:

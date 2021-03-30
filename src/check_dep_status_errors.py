@@ -34,7 +34,8 @@ def main(instr=None, dev=False):
     if lasttime:
         now = dt.datetime.now()
         diff = now-lasttime
-        if diff.seconds < MAX_EMAIL_SEC:
+        if diff.total_seconds() < MAX_EMAIL_SEC:
+            print("Already sent a recent error email.")
             return
 
     #query for all errors
@@ -50,14 +51,16 @@ def main(instr=None, dev=False):
     warns = db.query('koa', q)
 
     #query for any records that are > X minutes old and status in (PROCESSING, TRANSFERRING, etc)
+    #NOTE: creation_time is UTC
     q = ("select instrument, count(*) as count from dep_status "
         " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED') "
-         " and creation_time < NOW() - INTERVAL 15 MINUTE "
+         " and creation_time < (NOW() - INTERVAL 15 MINUTE + INTERVAL 10 HOUR) "
          " group by instrument order by instrument asc")
     stuck = db.query('koa', q)
 
     #nada?
     if not errors and not warns and not stuck:
+        print("No errors or warnings.")
         return
 
     #msg
