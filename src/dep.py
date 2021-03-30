@@ -1034,7 +1034,7 @@ class DEP:
                 self.update_dep_status('status', 'ERROR')
                 self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
                 return False
-            log.info("IPAC API response: ", apiData)
+            log.info(f"IPAC API response: {apiData}")
             return True
         # Transfer error
         else:
