@@ -29,19 +29,20 @@ def main(instr=None, dev=False):
     db = db_conn.db_conn(f'config.live.ini', configKey='DATABASE')
 
     #Query for last email times
-    q = 'select * from dep_error_notify order by email_time desc limit 1'
-    lasttime = db.query('koa', q, getOne=True, getColumn='email_time')
-    if lasttime:
-        now = dt.datetime.now()
-        diff = now-lasttime
-        if diff.total_seconds() < MAX_EMAIL_SEC:
-            print("Already sent a recent error email.")
-            return
+    if not dev:
+        q = 'select * from dep_error_notify order by email_time desc limit 1'
+        lasttime = db.query('koa', q, getOne=True, getColumn='email_time')
+        if lasttime:
+            now = dt.datetime.now()
+            diff = now-lasttime
+            if diff.total_seconds() < MAX_EMAIL_SEC:
+                print("Already sent a recent error email.")
+                return
 
-    #query for all errors
-    q = ("select instrument, count(*) as count, status_code from dep_status "
+    #query for all ERRORs
+    q = ("select instrument, count(*) as count, status_code, status_code_ipac from dep_status "
          " where status='ERROR' "
-         " group by instrument, status_code order by instrument asc")
+         " group by instrument, status_code, status_code_ipac order by instrument asc")
     errors = db.query('koa', q)
 
     #query for any records that have blank status but have status code.
@@ -85,8 +86,10 @@ def gen_table_report(name, rows):
     for row in rows:
         txt += row['instrument'].ljust(12)
         txt += str(row['count']).ljust(6)
-        if 'status_code' in row:
-            txt += row['status_code']
+        status_code      = row.get('status_code')
+        status_code_ipac = row.get('status_code_ipac')
+        if status_code:      txt += "\t"+row['status_code']
+        if status_code_ipac: txt += "\t"+row['status_code_ipac']
         txt += "\n"
     return txt
 
