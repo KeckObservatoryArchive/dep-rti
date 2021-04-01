@@ -3,17 +3,35 @@
 #source environment variables so script will work from cron
 source $HOME/.cshrc
 
-#loop services
-foreach service ( $argv )
+#Usage
+set all_services = ("kfcs" "kbds" "nids" "nsds" "deimosplus" "deifcs" "hiccd")
+if ($#argv == 0) then
+	echo "\nUSAGE: Specify space-seperated list of services to restart or 'all'"
+	echo "SERVICES: $all_services"
+	echo "EXAMPLES:"
+	echo "  monitor.sh kfcs kbds"
+	echo "  monitor.sh all"
+	echo "\n"
+	exit
+endif
 
+#get list
+if ($argv[1] == "all") then
+	set services = all_services
+else
+	set services = $argv
+endif
+
+#loop services
+foreach service ( $services )
+
+	if ($service)
 	set PYTHON='/usr/local/anaconda/bin/python'
 	set DEPDIR=`dirname $0`
 	set LOGFILE="/koadata/dep-rti-$service.log"
 
-	#todo: normally we would do start, not a restart, but using restart for development
-	#$PYTHON $DEPDIR/src/manager.py monitor start --extra "$service" >> $LOGFILE
 	set cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $service >>& $LOGFILE"
 	echo $cmd
-	eval "$cmd"
+	#eval "$cmd"
 
 end
