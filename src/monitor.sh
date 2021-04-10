@@ -25,7 +25,6 @@ endif
 #loop services
 foreach service ( $services )
 
-	if ($service)
 	set PYTHON='/usr/local/anaconda/bin/python'
 	set DEPDIR=`dirname $0`
 	set LOGFILE="/koadata/dep-rti-$service.log"
