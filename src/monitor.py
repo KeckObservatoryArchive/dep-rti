@@ -394,10 +394,11 @@ class KtlMonitor():
             kw.monitor()
 
         #establish heartbeat restart mechanism and service check interval
+        #NOTE: Adding a couple seconds to heartbeat interval in case there 
+        # are edge cases to using exact heartbeat frequency
         hb = self.keys.get('heartbeat')
         if hb: 
-            period = hb[1] + 10
-            if period < 30: period = 30
+            period = hb[1] + 2
             self.service.heartbeat(hb[0], period)
 
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start() 

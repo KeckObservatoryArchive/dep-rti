@@ -16,22 +16,21 @@ if ($#argv == 0) then
 endif
 
 #get list
+set services = $argv
+
 if ($argv[1] == "all") then
-	set services = all_services
-else
-	set services = $argv
+	set services = ( $all_services )
 endif
 
 #loop services
 foreach service ( $services )
 
-	if ($service)
 	set PYTHON='/usr/local/anaconda/bin/python'
 	set DEPDIR=`dirname $0`
 	set LOGFILE="/koadata/dep-rti-$service.log"
 
 	set cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $service >>& $LOGFILE"
 	echo $cmd
-	#eval "$cmd"
+	eval "$cmd"
 
 end
