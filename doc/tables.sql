@@ -1,6 +1,7 @@
 
-CREATE TABLE IF NOT EXISTS `dep_status` (
+CREATE TABLE IF NOT EXISTS `koa_status` (
   `id`                     int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
+  `level'                  int(11)       UNIQUE        COMMENT 'Data processing level',
   `koaid`                  varchar(30)   UNIQUE        COMMENT 'Unique KOA ID',
   `instrument`             varchar(15)   NOT NULL      COMMENT 'Instrument name',
   `utdatetime`             datetime                    COMMENT 'DATE-OBS UTC',
@@ -12,8 +13,8 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `process_dir`            varchar(255)                COMMENT 'Directory output files are processed',
   `archive_dir`            varchar(255)                COMMENT 'Directory file is archived',
   `creation_time`          datetime                    COMMENT 'Date and time the FITS file is ready to be processed',
-  `dep_start_time`         datetime                    COMMENT 'Date and time that DEP processing started',
-  `dep_end_time`           datetime                    COMMENT 'Date and time that file processing is complete',
+  `process_start_time`     datetime                    COMMENT 'Date and time that DEP processing started',
+  `process_end_time`       datetime                    COMMENT 'Date and time that file processing is complete',
   `xfr_start_time`         datetime                    COMMENT 'Date and time that transfer started',
   `xfr_end_time`           datetime                    COMMENT 'Date and time that transfer is complete',
   `ipac_notify_time`       datetime                    COMMENT 'Date and time that IPAC is notified to start ingestion',
@@ -27,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `dep_status` (
   `archsize_mb`            double                      COMMENT 'Size of complete FITS dataset in megabytes',
   `koaimtyp`               varchar(25)                 COMMENT 'Image type of the FITS file',
   `semid`                  varchar(25)                 COMMENT 'SEMID of FITS file association',
-  `ofname_deleted`         tinyint(1)                  COMMENT '0 file not deleted, 1 file deleted, 2 do not delete file.',
+  `source_deleted`         tinyint(1)                  COMMENT '0 file not deleted, 1 file deleted, 2 do not delete file.',
   `last_mod`               timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 

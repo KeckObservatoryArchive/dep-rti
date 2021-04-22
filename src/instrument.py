@@ -223,6 +223,9 @@ class Instrument(dep.DEP):
                 'keck ipdm',
                 #'engineering',
                 'nirspec'
+            ],
+            'CAMERA': [
+                'fpc'
             ]
         }
         for kw, vals in keyvals.items():
@@ -230,6 +233,7 @@ class Instrument(dep.DEP):
             for val in vals:
                 if val in hdrval:
                     return True
+        if self.check_zero_propint(): return True
         return False
 
 
@@ -510,13 +514,12 @@ class Instrument(dep.DEP):
         #valid progname?
         #todo: Make sure we are getting the full semid with underscore
         valid = self.is_progid_valid(progid)
+        if self.is_engineering():
+            progid = 'ENG'
+            valid = True
         if not valid:
-            if self.is_engineering():
-                progid = 'ENG'
-            else:
-                self.log_warn('INVALID_PROGID', str(progid))
-        else:
-            progid = progid.strip().upper()
+            self.log_warn('INVALID_PROGID', str(progid))
+        progid = progid.strip().upper()
 
         #add semester?
         if '_' in progid: 
@@ -633,7 +636,7 @@ class Instrument(dep.DEP):
         tm         = dt.datetime.strptime(utc,     '%H:%M:%S.%f').time()
         sunset_tm  = dt.datetime.strptime(sunset,  '%H:%M').time()
         sunrise_tm = dt.datetime.strptime(sunrise, '%H:%M').time()
-        is_daytime = sunset_tm < tm < sunrise_tm
+        is_daytime = (tm < sunset_tm or tm > sunrise_tm)
         return is_daytime
 
 
