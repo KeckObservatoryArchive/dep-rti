@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS `koa_status` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
 CREATE TABLE `koa_status_history` like `koa_status`;
-ALTER TABLE  `koa_status_history` drop index `koaid`;
+ALTER TABLE  `koa_status_history` drop index `uidx`;
 ALTER TABLE  `koa_status_history` DROP PRIMARY KEY, CHANGE id id int(11);
 
 
