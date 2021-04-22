@@ -32,9 +32,9 @@ CREATE TABLE IF NOT EXISTS `koa_status` (
   `last_mod`               timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
-CREATE TABLE `dep_status_history` like `dep_status`;
-ALTER TABLE  `dep_status_history` drop index `koaid`;
-ALTER TABLE  `dep_status_history` DROP PRIMARY KEY, CHANGE id id int(11);
+CREATE TABLE `koa_status_history` like `koa_status`;
+ALTER TABLE  `koa_status_history` drop index `koaid`;
+ALTER TABLE  `koa_status_history` DROP PRIMARY KEY, CHANGE id id int(11);
 
 
 CREATE TABLE IF NOT EXISTS `headers` (
