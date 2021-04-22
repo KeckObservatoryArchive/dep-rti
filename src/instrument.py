@@ -520,14 +520,6 @@ class Instrument(dep.DEP):
         if not valid:
             self.log_warn('INVALID_PROGID', str(progid))
         progid = progid.strip().upper()
-#        if not valid:
-#            if self.is_engineering():
-#                progid = 'ENG'
-#                valid = True
-#            else:
-#                self.log_warn('INVALID_PROGID', str(progid))
-#        else:
-#            progid = progid.strip().upper()
 
         #add semester?
         if '_' in progid: 
