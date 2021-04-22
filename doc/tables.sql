@@ -1,7 +1,7 @@
 
 CREATE TABLE IF NOT EXISTS `koa_status` (
   `id`                     int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
-  `level'                  int(11)       UNIQUE        COMMENT 'Data processing level',
+  `level`                  int(11)       UNIQUE        COMMENT 'Data processing level',
   `koaid`                  varchar(30)   UNIQUE        COMMENT 'Unique KOA ID',
   `instrument`             varchar(15)   NOT NULL      COMMENT 'Instrument name',
   `utdatetime`             datetime                    COMMENT 'DATE-OBS UTC',
@@ -32,9 +32,9 @@ CREATE TABLE IF NOT EXISTS `koa_status` (
   `last_mod`               timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
-CREATE TABLE `dep_status_history` like `dep_status`;
-ALTER TABLE  `dep_status_history` drop index `koaid`;
-ALTER TABLE  `dep_status_history` DROP PRIMARY KEY, CHANGE id id int(11);
+CREATE TABLE `koa_status_history` like `koa_status`;
+ALTER TABLE  `koa_status_history` drop index `koaid`;
+ALTER TABLE  `koa_status_history` DROP PRIMARY KEY, CHANGE id id int(11);
 
 
 CREATE TABLE IF NOT EXISTS `headers` (
