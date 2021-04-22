@@ -1,8 +1,8 @@
 
 CREATE TABLE IF NOT EXISTS `koa_status` (
   `id`                     int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
-  `level`                  int(11)       UNIQUE        COMMENT 'Data processing level',
-  `koaid`                  varchar(30)   UNIQUE        COMMENT 'Unique KOA ID',
+  `level`                  int(11)                     COMMENT 'Data processing level',
+  `koaid`                  varchar(30)                 COMMENT 'Unique KOA ID',
   `instrument`             varchar(15)   NOT NULL      COMMENT 'Instrument name',
   `service`                varchar(16)                 COMMENT 'Instrument KTL service',
   `utdatetime`             datetime                    COMMENT 'DATE-OBS UTC',
@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS `koa_status` (
   `koaimtyp`               varchar(25)                 COMMENT 'Image type of the FITS file',
   `semid`                  varchar(25)                 COMMENT 'SEMID of FITS file association',
   `source_deleted`         tinyint(1)                  COMMENT '0 file not deleted, 1 file deleted, 2 do not delete file.',
-  `last_mod`               timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `last_mod`               timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE `uidx` (`level`,`koaid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
 CREATE TABLE `koa_status_history` like `koa_status`;
