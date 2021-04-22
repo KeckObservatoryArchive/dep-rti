@@ -189,7 +189,7 @@ class DEP:
 
         #If we passed in a filepath and are reprocessing, look for existing record by ofname
         if self.filepath and self.reprocess:
-            query = (f"select * from dep_status where "
+            query = (f"select * from koa_status where level=0 and"
                      f" instrument='{self.instr}' and ofname='{self.filepath}' "
                       " order by id desc")
             log.info(query)
@@ -198,10 +198,10 @@ class DEP:
                 self.dbid = row['id']
 
         #If we didn't pass in a DB ID, we must have filepath 
-        #so insert a new dep_status record and get ID
+        #so insert a new koa_status record and get ID
         if not self.dbid:
 
-            query = ("insert into dep_status set "
+            query = ("insert into koa_status set level=0, "
                     f"   instrument='{self.instr}' "
                     f" , ofname='{self.filepath}' "
                     f" , status='PROCESSING' "
@@ -217,7 +217,7 @@ class DEP:
         else:              log.info(f"Processing ID# {self.dbid}")
 
         #Now query for it by ID (typically we are given a DB ID)
-        query = f"select * from dep_status where id={self.dbid}"
+        query = f"select * from koa_status where id={self.dbid}"
         row = self.db.query('koa', query, getOne=True)
         if not row:
             self.log_invalid('DB_ID_NOT_FOUND', query)
@@ -236,10 +236,10 @@ class DEP:
             self.copy_old_status_entry(self.dbid)
             self.reset_status_record(self.dbid)
 
-        #update dep_status
-        if not self.update_dep_status('status', 'PROCESSING'): return False
-        if not self.update_dep_status('status_code', ''): return False
-        if not self.update_dep_status('dep_start_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')): return False
+        #update koa_status
+        if not self.update_koa_status('status', 'PROCESSING'): return False
+        if not self.update_koa_status('status_code', ''): return False
+        if not self.update_koa_status('process_start_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')): return False
 
         return True
 
@@ -247,8 +247,8 @@ class DEP:
     def check_koaid_db_entry(self):
 
         #Query for existing KOAID record
-        query = (f"select * from dep_status "
-                 f" where koaid='{self.koaid}'")
+        query = (f"select * from koa_status "
+                 f" where level=0 and koaid='{self.koaid}'")
         rows = self.db.query('koa', query)
         if rows is False:
             self.log_error('QUERY_ERROR', query)
@@ -263,8 +263,8 @@ class DEP:
         if self.reprocess:
             self.delete_local_files(self.instr, self.koaid)
 
-        #Now that KOAID check is passed, update dep_status.koaid
-        if not self.update_dep_status('koaid', self.koaid): return False
+        #Now that KOAID check is passed, update koa_status.koaid
+        if not self.update_koa_status('koaid', self.koaid): return False
 
         return True
 
@@ -285,7 +285,7 @@ class DEP:
         self.init_dirs()
 
         #Update some details for this record
-        if not self.update_dep_status('utdatetime', self.utdatetime): return False
+        if not self.update_koa_status('utdatetime', self.utdatetime): return False
 
         return True
 
@@ -396,8 +396,8 @@ class DEP:
     def copy_old_status_entry(self, id):
 
         #move to history table 
-        query = (f"INSERT INTO dep_status_history "
-                f" SELECT ds.* FROM dep_status as ds " 
+        query = (f"INSERT INTO koa_status_history "
+                f" SELECT ds.* FROM koa_status as ds " 
                 f" WHERE id = {id}")
         log.info(query)
         result = self.db.query('koa', query)
@@ -409,13 +409,13 @@ class DEP:
 
     def reset_status_record(self, id):
         '''When reprocessing a record, we need to reset most columns to default.'''
-        query = (f"update dep_status set "
+        query = (f"update koa_status set "
                  f" status_code        = NULL, " 
                  f" status_code_ipac   = NULL, " 
                  f" process_dir        = NULL, "
                  f" archive_dir        = NULL, "
-                 f" dep_start_time     = NULL, "
-                 f" dep_end_time       = NULL, "
+                 f" process_start_time = NULL, "
+                 f" process_end_time   = NULL, "
                  f" xfr_start_time     = NULL, "
                  f" xfr_end_time       = NULL, "
                  f" ipac_notify_time   = NULL, "
@@ -487,8 +487,8 @@ class DEP:
             self.log_error('FILE_COPY_ERROR', outfile)
             return False
       
-        #update dep_status.savepath
-        self.update_dep_status('stage_file', outfile)
+        #update koa_status.savepath
+        self.update_koa_status('stage_file', outfile)
         return True
 
 
@@ -520,11 +520,11 @@ class DEP:
         return True
 
 
-    def update_dep_status(self, column, value):
-        """Sends command to update KOA dep_status."""
+    def update_koa_status(self, column, value):
+        """Sends command to update KOA koa_status."""
 
-        if value is None: query = f"update dep_status set {column}=NULL where id='{self.dbid}'"
-        else:             query = f"update dep_status set {column}='{value}' where id='{self.dbid}'"
+        if value is None: query = f"update koa_status set {column}=NULL where id='{self.dbid}'"
+        else:             query = f"update koa_status set {column}='{value}' where id='{self.dbid}'"
         log.info(query)
         result = self.db.query('koa', query)
         if result is False:
@@ -780,9 +780,9 @@ class DEP:
         log.warning(f"Found {len(self.errors)} errors and {len(self.warnings)} warnings.")
 
         #update by dbid
-        #NOTE: WARN only status does not change dep_status.status
+        #NOTE: WARN only status does not change koa_status.status
         if self.dbid:
-            query =  f"update dep_status set status_code='{errcode}' "
+            query =  f"update koa_status set status_code='{errcode}' "
             if status != 'WARN': query += f", status='{status}' "
             query += f" where id={self.dbid}"
             log.info(query)
@@ -908,21 +908,21 @@ class DEP:
 
     def update_dep_stats(self):
         '''Record DEP stats before we xfr to ipac.'''
-        if not self.update_dep_status('process_dir', self.dirs['lev0']): return False
+        if not self.update_koa_status('process_dir', self.dirs['lev0']): return False
 
-        if not self.update_dep_status('filesize_mb', self.filesize_mb): return False
+        if not self.update_koa_status('filesize_mb', self.filesize_mb): return False
 
         archsize_mb = self.get_archsize_mb()
-        if not self.update_dep_status('archsize_mb', archsize_mb): return False
+        if not self.update_koa_status('archsize_mb', archsize_mb): return False
 
         semid = self.get_semid()
-        if not self.update_dep_status('semid', semid): return False
+        if not self.update_koa_status('semid', semid): return False
 
         koaimtyp = self.get_keyword('KOAIMTYP')
-        if not self.update_dep_status('koaimtyp', koaimtyp): return False
+        if not self.update_koa_status('koaimtyp', koaimtyp): return False
 
         now = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        if not self.update_dep_status('dep_end_time', now): return False
+        if not self.update_koa_status('process_end_time', now): return False
 
         return True
 
@@ -972,7 +972,7 @@ class DEP:
         fromDir = self.dirs['lev0']
 
         # Verify that this dataset should be transferred
-        query = f'select * from dep_status where id={self.dbid} and xfr_start_time is null'
+        query = f'select * from koa_status where id={self.dbid} and xfr_start_time is null'
         row = self.db.query('koa', query, getOne=True)
         if not row:
             self.log_error('TRANSFER_BAD_STATUS')
@@ -1008,16 +1008,16 @@ class DEP:
         import subprocess as sp
         xfrCmd = sp.Popen([cmd], stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
         utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        if not self.update_dep_status('xfr_start_time', utstring): return False
-        if not self.update_dep_status('status', 'TRANSFERRING'): return False
+        if not self.update_koa_status('xfr_start_time', utstring): return False
+        if not self.update_koa_status('status', 'TRANSFERRING'): return False
 
         output, error = xfrCmd.communicate()
 
         # Transfer success
         if not error:
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            if not self.update_dep_status('xfr_end_time', utstring): return False
-            if not self.update_dep_status('status', 'TRANSFERRED'): return False
+            if not self.update_koa_status('xfr_end_time', utstring): return False
+            if not self.update_koa_status('status', 'TRANSFERRED'): return False
 
             # Send API request to archive the data set
             apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev0'
@@ -1025,21 +1025,21 @@ class DEP:
                 apiUrl = f'{apiUrl}&reingest=true'
             log.info(f'sending ingest API call {apiUrl}')
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            if not self.update_dep_status('ipac_notify_time', utstring): return False
+            if not self.update_koa_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
 # Need to remove this line when API is fixed
             if isinstance(apiData, str): apiData = json.loads(apiData)                     
             if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
                 self.log_error('IPAC_API_ERROR', apiUrl)
-                self.update_dep_status('status', 'ERROR')
-                self.update_dep_status('status_code', 'IPAC_NOTIFY_ERROR')
+                self.update_koa_status('status', 'ERROR')
+                self.update_koa_status('status_code', 'IPAC_NOTIFY_ERROR')
                 return False
             log.info(f"IPAC API response: {apiData}")
             return True
         # Transfer error
         else:
-            # Update dep_status
-            self.update_dep_status('xfr_start_time', None)
+            # Update koa_status
+            self.update_koa_status('xfr_start_time', None)
             self.log_error('TRANSFER_ERROR')
             return False
 

@@ -151,7 +151,7 @@ class Archive():
     def reprocess_by_query(self):
         '''Query for fits files to reprocess.'''
 
-        query = (f"select * from dep_status where "
+        query = (f"select * from koa_status where level=0 and "
                  f" instrument = '{self.instr}' ")
         if self.status: 
             query += f" and status = '{self.status}' "

@@ -667,7 +667,7 @@ class Deimos(instrument.Instrument):
         fcs = self.get_keyword('FCSIMGFI', default='')
         if fcs:
             if fcs.startswith('/sdata'): fcs = f"/s{fcs}"
-            query = f"select * from dep_status where ofname='{fcs}' order by id desc limit 1"
+            query = f"select * from koa_status where level=0 and ofname='{fcs}' order by id desc limit 1"
             row = self.db.query('koa', query, getOne=True)
             if row:
                 fcskoaid = row['koaid']

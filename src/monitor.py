@@ -164,7 +164,7 @@ class Monitor():
 
         #Do insert record
         self.log.info(f'Adding to queue: {filepath}')
-        query = ("insert into dep_status set "
+        query = ("insert into koa_status set level=0,"
                 f"   instrument='{self.instr}' "
                 f" , service='{self.service}' "
                 f" , ofname='{filepath}' "
@@ -182,12 +182,12 @@ class Monitor():
 
     def is_duplicate_file(self, filepath):
         '''
-        Check dep_status for most recent record with same ofname.
+        Check koa_status for most recent record with same ofname.
         If not staged and (queued or processing) then it is definitely a duplicate.
         If staged and file contents/hash are same, the we will skip this file.
         NOTE: This is to get around unsolved duplicate trigger broadcast issue.
         '''
-        q = ("select * from dep_status "
+        q = ("select * from koa_status "
             f" where ofname='{filepath}' "
              " order by id desc limit 1")
         row = self.db.query('koa', q, getOne=True)
@@ -234,7 +234,7 @@ class Monitor():
         '''Check queue for jobs that need to be spawned.'''
         self.last_queue_check = time.time()
 
-        query = (f"select * from dep_status where "
+        query = (f"select * from koa_status where level=0"
                 f" status='QUEUED' "
                 f" and instrument='{self.instr}' "
                 f" and service='{self.service}' "
@@ -252,7 +252,7 @@ class Monitor():
             return
 
         #set status to PROCESSING
-        query = f"update dep_status set status='PROCESSING' where id={row['id']}"
+        query = f"update koa_status set status='PROCESSING' where id={row['id']}"
         res = self.db.query('koa', query)
         if row is False:
             self.handle_error('DATABASE_ERROR', query)
