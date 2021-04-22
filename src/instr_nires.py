@@ -237,3 +237,10 @@ class Nires(instrument.Instrument):
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         return True
 
+
+    def has_target_info(self):
+        '''
+        Does this fits have sensitive target info?
+        '''
+        return False
+
