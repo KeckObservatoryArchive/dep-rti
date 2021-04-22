@@ -1,7 +1,7 @@
 
 CREATE TABLE IF NOT EXISTS `koa_status` (
   `id`                     int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
-  `level'                  int(11)       UNIQUE        COMMENT 'Data processing level',
+  `level`                  int(11)       UNIQUE        COMMENT 'Data processing level',
   `koaid`                  varchar(30)   UNIQUE        COMMENT 'Unique KOA ID',
   `instrument`             varchar(15)   NOT NULL      COMMENT 'Instrument name',
   `utdatetime`             datetime                    COMMENT 'DATE-OBS UTC',
