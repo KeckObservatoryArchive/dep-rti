@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS `koa_status` (
   `level`                  int(11)       UNIQUE        COMMENT 'Data processing level',
   `koaid`                  varchar(30)   UNIQUE        COMMENT 'Unique KOA ID',
   `instrument`             varchar(15)   NOT NULL      COMMENT 'Instrument name',
+  `service`                varchar(16)                 COMMENT 'Instrument KTL service',
   `utdatetime`             datetime                    COMMENT 'DATE-OBS UTC',
   `status`                 varchar(15)                 COMMENT 'Current status of archive process [QUEUED, PROCESSING, COMPLETE, INVALID, ERROR]',
   `status_code`            varchar(30)                 COMMENT 'Status code of archive process [NULL, DUPLICATE, EMPTY, UNREADABLE, etc]',
