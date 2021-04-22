@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS `koa_status` (
   `ipac_notify_time`       datetime                    COMMENT 'Date and time that IPAC is notified to start ingestion',
   `ingest_start_time`      datetime                    COMMENT 'Date and time that IPAC ingestion started',
   `ingest_copy_start_time` datetime                    COMMENT 'Date and time that IPAC transfer started',
-  `ingestcopy__end_time`   datetime                    COMMENT 'Date and time that IPAC transfer is complete',
+  `ingest_copy_end_time`   datetime                    COMMENT 'Date and time that IPAC transfer is complete',
   `ingest_end_time`        datetime                    COMMENT 'Date and time that IPAC ingestion is complete',
   `ipac_response_time`     datetime                    COMMENT 'Date and time that IPAC ingestion response received',
   `stage_time`             datetime                    COMMENT 'Date and time that original file copied to stage directory',
