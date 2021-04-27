@@ -234,8 +234,8 @@ class Monitor():
         '''Check queue for jobs that need to be spawned.'''
         self.last_queue_check = time.time()
 
-        query = (f"select * from koa_status where level=0"
-                f" status='QUEUED' "
+        query = (f"select * from koa_status where level=0 "
+                f" and status='QUEUED' "
                 f" and instrument='{self.instr}' "
                 f" and service='{self.service}' "
                 f" order by creation_time asc limit 1")
