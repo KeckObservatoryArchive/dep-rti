@@ -1,6 +1,6 @@
 #!/usr/local/anaconda/bin/python
 '''
-Check for dep_status errors and email admins if we haven't emailed recently.
+Check for koa_status errors and email admins if we haven't emailed recently.
 '''
 
 import os
@@ -40,20 +40,20 @@ def main(instr=None, dev=False):
                 return
 
     #query for all ERRORs
-    q = ("select instrument, count(*) as count, status_code, status_code_ipac from dep_status "
+    q = ("select instrument, count(*) as count, status_code, status_code_ipac from koa_status "
          " where status='ERROR' "
          " group by instrument, status_code, status_code_ipac order by instrument asc")
     errors = db.query('koa', q)
 
     #query for any records that have blank status but have status code.
-    q = ("select instrument, count(*) as count, status_code from dep_status "
+    q = ("select instrument, count(*) as count, status_code from koa_status "
          " where status='COMPLETE' and status_code is not NULL and status_code != '' "
          " group by instrument, status_code order by instrument asc")
     warns = db.query('koa', q)
 
     #query for any records that are > X minutes old and status in (PROCESSING, TRANSFERRING, etc)
     #NOTE: creation_time is UTC
-    q = ("select instrument, count(*) as count from dep_status "
+    q = ("select instrument, count(*) as count from koa_status "
         " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED') "
          " and creation_time < (NOW() - INTERVAL 15 MINUTE + INTERVAL 10 HOUR) "
          " group by instrument order by instrument asc")
