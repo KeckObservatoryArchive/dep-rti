@@ -31,6 +31,7 @@ def make_dir_md5_table(readDir, endswith, outfile, fileList=None, regex=None):
             for f in filenames:
                 if not dirpath.endswith('/'): dirpath += '/'
                 match = False
+#todo: we don't want to exclude drp log files
                 if f.endswith(".log"): continue
                 if endswith and f.endswith(endswith): match = True
                 elif regex and re.search(regex, f): match = True

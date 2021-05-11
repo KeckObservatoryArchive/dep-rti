@@ -231,7 +231,7 @@ def fix_value(val, metaDataType, keyword):
             elif (val == False): val = 'F'
         elif isinstance(val, int) and val == 0:
             val = ''
-            log.warning(f'metadata check: {keyword}: found integer 0, expected {metaDataType}. KNOWN ISSUE. SETTING TO BLANK!')
+            log.info(f'metadata check: {keyword}: found integer 0, expected {metaDataType}. KNOWN ISSUE. SETTING TO BLANK!')
     return val
 
 def check_and_set_char_length(val, warns,  colSize, metaDataType, keyword, dev=False):

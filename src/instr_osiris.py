@@ -133,7 +133,7 @@ class Osiris(instrument.Instrument):
         domeposn = self.get_keyword('DOMEPOSN', default=0)
         az = self.get_keyword('AZ', default=0)
         el = self.get_keyword('EL', default=0)
-        obsfname = self.get_keyword('OBSFNAME', default='')
+        obsfname = str(self.get_keyword('OBSFNAME', default=''))
         obsfx = self.get_keyword('OBSFX')
         obsfy = self.get_keyword('OBSFY')
         obsfz = self.get_keyword('OBSFZ')

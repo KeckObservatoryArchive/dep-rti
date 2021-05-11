@@ -89,7 +89,7 @@ def gen_table_report(name, rows):
         status_code      = row.get('status_code')
         status_code_ipac = row.get('status_code_ipac')
         if status_code:      txt += "\t"+row['status_code']
-        if status_code_ipac: txt += "\t"+row['status_code_ipac']
+        if status_code_ipac: txt += "\tIPAC:"+row['status_code_ipac']
         txt += "\n"
     return txt
 

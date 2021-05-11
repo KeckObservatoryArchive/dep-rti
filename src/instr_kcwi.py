@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import math
 from skimage import exposure
 import traceback
+import glob
 
 import logging
 log = logging.getLogger('koa_dep')
@@ -361,3 +362,51 @@ class Kcwi(instrument.Instrument):
         '''
         return False
 
+
+    def get_drp_files_list(self, datadir, koaid, level):
+        '''
+        Return list of files to archive for DRP specific to KCWI.
+
+        Raw ingest (KOA level 1)
+            icubed.fits files 
+            calibration validation (_arc and _bias)
+
+        Final ingest (KOA level 2)
+            icubes.fits or icubed.fits (if no flux standard)
+            calibration validation
+            QA (all plots in plots directory from pipeline)
+            kcwi.proc
+            all logs
+            configuration file
+        '''
+        files = []
+
+        if datadir.endswith('/'): datadir = datadir[:-1]
+        datadir = os.path.split(datadir)[0]
+
+        if level == 1:
+            icubed = f"{datadir}/redux/{koaid}_icubed.fits"
+            if os.path.isfile(icubed):
+                files.append(icubed)
+            for file in glob.glob(f"{datadir}/plots/arc_*"):
+                files.append(file)
+            for file in glob.glob(f"{datadir}/plots/bias_*"):
+                files.append(file)
+
+        #todo: should we send the whole directory here?
+        elif level == 2:
+            proc = f"{datadir}/kcwi.proc"
+            if os.path.isfile(proc): files.append(proc)
+
+            icubes = f"{datadir}/redux/{koaid}_icubes.fits"
+            icubed = f"{datadir}/redux/{koaid}_icubed.fits"
+            if   os.path.isfile(icubes): files.append(icubes)
+            elif os.path.isfile(icubed): files.append(icubed)
+
+            for file in glob.glob(f"{datadir}/plots/*"):
+                files.append(file)
+
+            for file in glob.glob(f"{datadir}/logs/*"):
+                files.append(file)
+
+        return files
