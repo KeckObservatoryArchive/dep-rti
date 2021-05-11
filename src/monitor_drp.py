@@ -202,8 +202,7 @@ class Monitor():
 
     def spawn_processing(self, instr, dbid):
         '''Call archiving for a single file by DB ID.'''
-#todo: archive.py needs to be updated to handle lev1/2 processing
-#        obj = Archive(self.instr, dbid=dbid, transfer=True)
+        obj = Archive(self.instr, dbid=dbid, transfer=True)
         pass
 
 
