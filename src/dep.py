@@ -77,33 +77,18 @@ class DEP:
 
 
     def process(self):
-        '''Run all prcessing steps required for archiving end to end'''
+        '''Start processing based on level.'''
 
+        #big catch for all unhandled exceptions
         try:
             ok = True
             if ok: ok = self.init()
             if ok: ok = self.create_logger()
-            if ok: ok = self.check_status_db_entry()
-            if ok: ok = self.load_fits()
-            if ok: ok = self.set_koaid()
-            if ok: ok = self.processing_init()
-            if ok: ok = self.check_koaid_db_entry()
-            if ok: ok = self.change_logger()
-            if ok: ok = self.validate_fits()
-            if ok: ok = self.run_psfr()
-            if ok: ok = self.run_dqa()
-            if ok: ok = self.write_lev0_fits_file() 
-            if ok:      self.make_jpg()
-            if ok:      self.set_filesize_mb()
-            if ok: ok = self.create_meta()
-            if ok:      self.create_ext_meta()
-            if ok: ok = self.run_drp()
-            if ok:      self.check_koapi_send()
-            if ok: ok = self.create_md5sum()
-            if ok: ok = self.update_dep_stats()
-            if ok: ok = self.transfer_ipac()
-            if ok:      self.add_header_to_db()
-            if ok:      self.copy_raw_fits()  
+            if ok: ok = self.get_level()
+            if ok:
+                if   self.level == 0: ok = self.process_lev0()
+                elif self.level == 1: ok = self.process_lev1()
+                elif self.level == 2: ok = self.process_lev2()
         except Exception as e:
             ok = False
             self.log_error('CODE_ERROR', traceback.format_exc())
@@ -112,8 +97,93 @@ class DEP:
         return ok
 
 
+    def process_lev0(self):
+        '''Run all prcessing steps required for archiving lev0.'''
+
+        ok = True
+        if ok: ok = self.check_status_db_entry()
+        if ok: ok = self.get_status_record()
+        if ok: ok = self.init_processing()
+        if ok: ok = self.determine_filepath()
+        if ok: ok = self.load_fits()
+        if ok: ok = self.set_koaid_by_level()
+        if ok: ok = self.init_processing2()
+        if ok: ok = self.check_koaid_db_entry()
+        if ok: ok = self.cleanup_files()  
+        if ok: ok = self.change_logger()
+        if ok: ok = self.validate_fits()
+        if ok: ok = self.run_psfr()
+        if ok: ok = self.run_dqa()
+        if ok: ok = self.write_lev0_fits_file() 
+        if ok:      self.make_jpg()
+        if ok:      self.set_filesize_mb()
+        if ok: ok = self.create_meta()
+        if ok:      self.create_ext_meta()
+        if ok: ok = self.run_drp()
+        if ok: ok = self.create_md5sum()
+        if ok: ok = self.update_dep_stats()
+        if ok: ok = self.transfer_ipac()
+        if ok:      self.check_koapi_send()
+        if ok:      self.add_header_to_db()
+        if ok:      self.copy_raw_fits()  
+        return ok
+
+
+    def process_lev1(self):
+        '''Run all prcessing steps required for archiving lev1.'''
+
+        ok = True
+        if ok: ok = self.get_status_record()
+        if ok: ok = self.init_processing()
+        if ok: ok = self.determine_filepath()
+        if ok: ok = self.load_fits()
+        if ok: ok = self.set_koaid_by_level()
+        if ok: ok = self.init_processing2()
+        if ok: ok = self.cleanup_files()  
+        if ok: ok = self.change_logger()
+        if ok: ok = self.copy_drp_files()  
+        if ok: ok = self.create_md5sum()
+        if ok: ok = self.update_dep_stats()
+        if ok: ok = self.transfer_ipac()
+        return ok
+
+
+    def process_lev2(self):
+        '''Run all prcessing steps required for archiving lev2.'''
+
+        ok = True
+        #TODO
+        return ok
+
+
+    def init(self):
+
+        #cd to script dir so relative paths work
+        scriptpath = os.path.dirname(os.path.realpath(__file__))
+        os.chdir(scriptpath)
+
+        #load config file
+        with open('config.live.ini') as f: 
+            self.config = yaml.safe_load(f)
+
+        #helpful vars from config
+        self.rootdir = self.config[self.instr]['ROOTDIR']
+        if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
+        self.dev = self.config['RUNTIME']['DEV']
+
+        # Establish database connection 
+        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+
+        return True
+
+
+
     def create_logger(self):
-        """Creates a logger based on rootdir, instr and date"""
+        """
+        Creates a logger based on rootdir, instr and cur date.
+        NOTE: We create a temp log file first and once we have the KOAID,
+        we will rename the logfile and change the filehandler (see dep.change_logger)
+        """
 
         name = 'koa_dep'
         rootdir = self.config[self.instr]['ROOTDIR']
@@ -125,8 +195,6 @@ class DEP:
         log.setLevel(logging.INFO)
 
         #paths 
-        #NOTE: We create a temp log file first and once we have the KOAID,
-        #we will rename the logfile and change the filehandler (see dep.change_logger)
         processDir = f'{rootdir}/{instr.upper()}'
         ymd = dt.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
         logFile =  f'{processDir}/logtmp/{name}_{instr.upper()}_{ymd}.log'
@@ -164,28 +232,21 @@ class DEP:
         return log
 
 
-    def init(self):
-
-        #cd to script dir so relative paths work
-        scriptpath = os.path.dirname(os.path.realpath(__file__))
-        os.chdir(scriptpath)
-
-        #load config file
-        with open('config.live.ini') as f: 
-            self.config = yaml.safe_load(f)
-
-        #other helpful vars
-        self.rootdir = self.config[self.instr]['ROOTDIR']
-        if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
-        self.dev = self.config['RUNTIME']['DEV']
-
-        # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
-
+    def get_level(self):
+        '''Determine processing level.  If filepath based (not from DB), assume lev 0.'''
+        if not self.dbid: 
+            self.level = 0
+        else:
+            self.get_status_record()
+            self.level = self.status['level']
         return True
 
 
     def check_status_db_entry(self):
+        '''
+        If a filepath was passed in instead of a DB ID, we need to insert a new record
+        and get that DB ID.
+        '''
 
         #If we passed in a filepath and are reprocessing, look for existing record by ofname
         if self.filepath and self.reprocess:
@@ -200,7 +261,6 @@ class DEP:
         #If we didn't pass in a DB ID, we must have filepath 
         #so insert a new koa_status record and get ID
         if not self.dbid:
-
             query = ("insert into koa_status set level=0, "
                     f"   instrument='{self.instr}' "
                     f" , ofname='{self.filepath}' "
@@ -213,23 +273,30 @@ class DEP:
                 return False
             self.dbid = result
 
-        if self.reprocess: log.info(f"Reprocessing ID# {self.dbid}")
-        else:              log.info(f"Processing ID# {self.dbid}")
+        return True
 
-        #Now query for it by ID (typically we are given a DB ID)
+
+    def get_status_record(self):
+        '''
+        Query for koa_status record by ID.  Typically we are given an id, but in
+        in the case where ofname filepath passed in, we should still have a dbid by this point.
+        '''
         query = f"select * from koa_status where id={self.dbid}"
-        row = self.db.query('koa', query, getOne=True)
-        if not row:
+        self.status = self.db.query('koa', query, getOne=True)
+        if not self.status:
             self.log_invalid('DB_ID_NOT_FOUND', query)
             return False
 
-        #If stage file is defined, use that for filepath if it exists
-        self.ofname = row.get('ofname')
-        self.stage_file = row.get('stage_file')
-        self.filepath = row['ofname']
-        if self.stage_file and os.path.isfile(self.stage_file):
-            self.filepath = self.stage_file
-        log.info(f"Input fits filepath: {self.filepath}")
+        return True
+
+
+    def init_processing(self):
+        '''
+        Perform initialization tasks for DEP processing.
+        '''
+
+        if self.reprocess: log.info(f"Reprocessing ID# {self.dbid}")
+        else:              log.info(f"Processing ID# {self.dbid}")
 
         #if reprocessing, copy record to history and clear status columns
         if self.reprocess:
@@ -244,35 +311,29 @@ class DEP:
         return True
 
 
-    def check_koaid_db_entry(self):
-
-        #Query for existing KOAID record
-        query = (f"select * from koa_status "
-                 f" where level=0 and koaid='{self.koaid}'")
-        rows = self.db.query('koa', query)
-        if rows is False:
-            self.log_error('QUERY_ERROR', query)
-            return False
-
-        #If entry exists and we are not reprocessing, return error
-        if len(rows) > 0 and not self.reprocess:
-            self.log_invalid('DUPLICATE_KOAID')
-            return False
-
-        #if reprocessing, delete local files by KOAID
-        if self.reprocess:
-            self.delete_local_files(self.instr, self.koaid)
-
-        #Now that KOAID check is passed, update koa_status.koaid
-        if not self.update_koa_status('koaid', self.koaid): return False
-
+    def determine_filepath(self):
+        '''Determine which filepath to use.  If stage file is defined and exists, use it.'''
+        if self.level == 0:
+            self.ofname     = self.status.get('ofname')
+            self.stage_file = self.status.get('stage_file')
+            self.filepath   = self.status.get('ofname')
+            if self.stage_file and os.path.isfile(self.stage_file):
+                self.filepath = self.stage_file
+        elif self.level == 1:
+            #todo: this is not ideal, could change per instrument
+            self.filepath = f"{self.status['stage_file']}/{self.status['koaid']}_icubed.fits"
+        elif self.level == 2:
+            #todo: 
+            pass
+        log.info(f"Using fits filepath: {self.filepath}")
         return True
 
 
-    def processing_init(self):
+    def init_processing2(self):
         '''
-        Perform specific initialization tasks for DEP processing.
+        Perform more initialization tasks for DEP processing now that fits is loaded.
         '''
+
         #define some handy utdate vars here after loading fits (dependent on set_koaid())
         self.utdate = self.get_keyword('DATE-OBS', useMap=False)
         self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
@@ -290,6 +351,34 @@ class DEP:
         return True
 
 
+    def check_koaid_db_entry(self):
+
+        #Query for existing KOAID record
+        query = (f"select * from koa_status "
+                 f" where level={self.level} and koaid='{self.koaid}'")
+        rows = self.db.query('koa', query)
+        if rows is False:
+            self.log_error('QUERY_ERROR', query)
+            return False
+
+        #If entry exists and we are not reprocessing, return error
+        if len(rows) > 0 and not self.reprocess:
+            self.log_invalid('DUPLICATE_KOAID')
+            return False
+
+        #Now that KOAID check is passed, update koa_status.koaid
+        if not self.update_koa_status('koaid', self.koaid): return False
+
+        return True
+
+
+    def cleanup_files(self):
+        #if reprocessing, delete old local files by KOAID
+        if self.reprocess:
+            self.delete_local_files(self.instr, self.koaid)
+        return True
+
+
     def init_dirs(self):
 
         # get the various root dirs
@@ -304,6 +393,9 @@ class DEP:
                 except:
                     raise Exception(f'instrument.py: could not create directory: {dir}')
 
+        #store levN outdir since we need this a lot
+        self.levdir = self.dirs[f'lev{self.level}']
+
 
     def set_root_dirs(self):
         """Sets the various rootdir subdirectories of interest"""
@@ -317,6 +409,7 @@ class DEP:
         self.dirs['output']  = f"{rootdir}/{instr}/{ymd}"
         self.dirs['lev0']    = f"{rootdir}/{instr}/{ymd}/lev0"
         self.dirs['lev1']    = f"{rootdir}/{instr}/{ymd}/lev1"
+        self.dirs['lev2']    = f"{rootdir}/{instr}/{ymd}/lev2"
         self.dirs['stage']   = f"{rootdir}/{instr}/stage"
         self.dirs['udf']     = f"{rootdir}/{instr}/stage/udf"
 
@@ -345,7 +438,9 @@ class DEP:
         #rename
         koaid = self.get_keyword('KOAID')
         koaid = koaid.replace('.fits', '')
-        newfile = f"{self.dirs['lev0']}/{koaid}.log"
+        lev = f'lev{self.level}'
+        newfile = f"{self.dirs[lev]}/{koaid}.log"
+        print(f"Logger renamed to {newfile}")
         log.info(f"Renaming log file from {fileHandler.baseFilename} to {newfile}")
         shutil.move(fileHandler.baseFilename, newfile)
 
@@ -358,6 +453,18 @@ class DEP:
         handle.setFormatter(formatter)
         logger.addHandler(handle)
 
+        return True
+
+
+    def set_koaid_by_level(self):
+        '''
+        If processing raw fits file, we need to call some complicated code to get koaid.
+        Otherwise, we can just use what is in DB.
+        '''
+        if self.level == 0:
+            self.set_koaid()
+        else:
+            self.koaid = self.status['koaid']
         return True
 
 
@@ -501,21 +608,24 @@ class DEP:
 
 
     def delete_local_files(self, instr, koaid):
-        '''Delete local archived output files.  This is important if we are reprocessing data.'''
+        '''
+        Delete local archived output files.  
+        This is important if we are reprocessing data.
+        '''
 
         if not self.koaid or len(self.koaid) < 20:
             self.log_error('INVALID_KOAID')
             return False
 
         #delete files matching KOAID*
+#todo: get this working for levN
         try:
-            match = f"{self.dirs['lev0']}/{self.koaid}*"
-            log.info(f'Deleting local files for: {match}')
-            for f in glob.glob(match):                
-                log.info(f"removing file: {f}")
-                os.remove(f)
+            log.info(f'Deleting local files in {self.levdir}')
+            for path in Path(self.levdir).rglob(f'*{self.koaid}*'):
+                log.info(f"removing file: {path}")
+                os.remove(path)
         except Exception as e:
-            self.log_error('FILE_DELETE_ERROR', match)
+            self.log_error('FILE_DELETE_ERROR', self.levdir)
             return False
         return True
 
@@ -645,7 +755,7 @@ class DEP:
         extra_meta[koaid]['SEMID'] = self.get_semid()
 
         keydefs = f"{self.config['MISC']['METADATA_TABLES_DIR']}/KOA_{self.instr}_Keyword_Table.txt"
-        metaoutfile =  self.dirs['lev0'] + '/' + self.koaid + '.metadata.table'
+        metaoutfile =  self.levdir + '/' + self.koaid + '.metadata.table'
         ok = metadata.make_metadata( keydefs, metaoutfile, filepath=self.outfile, 
                                      extraMeta=extra_meta, keyskips=self.keyskips)   
         return ok
@@ -724,19 +834,49 @@ class DEP:
         return True
 
 
+    def copy_drp_files(self):
+        '''Copy all DRP files to archive. File list differs per instrument.'''
+
+        koaid = self.status['koaid']
+        outdir = self.dirs[f'lev{self.level}']
+        datadir = self.status['stage_file']
+        self.drp_files = self.get_drp_files_list(datadir, koaid, self.level)
+        self.file_list = []
+        for srcfile in self.drp_files:
+            try:
+                idx = srcfile.rfind('_DRP/') + 14 # example "/foo/KCWI_DRP/yyyymmdd/redux/file.fits"
+                destfile = f"{outdir}/{srcfile[idx:]}"
+                self.file_list.append(destfile)
+                log.info(f"Copying {srcfile} to {destfile}")
+                os.makedirs(os.path.dirname(destfile), exist_ok=True)
+                subprocess.call(['rsync', '-avz', srcfile, destfile])
+            except Exception as e:
+                self.log_error('FILE_COPY_ERROR', f"{srcfile} to {destfile}")
+                return False
+
+        return True
+      
+
     def create_md5sum(self):
         '''Create ext.md5sum.table for all files matching KOAID*'''
         try:
-            outdir = os.path.dirname(self.outfile)
+            outdir = self.dirs[f'lev{self.level}']
             md5Prepend = self.utdatedir+'.'
             md5Outfile = f'{outdir}/{self.koaid}.md5sum.table'
-            regex = self.koaid
             log.info(f'Creating {md5Outfile}')
-            make_dir_md5_table(outdir, None, md5Outfile, regex=regex)
+            if self.level == 0:
+                make_dir_md5_table(outdir, None, md5Outfile, regex=self.koaid)
+            else:
+                make_dir_md5_table(outdir, None, md5Outfile, fileList=self.file_list)                
             return True
         except Exception as e:
             self.log_error('CREATE_MD5_SUM_ERROR', str(e))
             return False
+
+
+    def get_drp_files_list(self, datadir, koaid, level):
+        '''Return list of files to archive for DRP specific to instrument.'''
+        raise NotImplementedError("Abstract method not implemented!")
 
 
     def check_koapi_send(self):
@@ -908,18 +1048,19 @@ class DEP:
 
     def update_dep_stats(self):
         '''Record DEP stats before we xfr to ipac.'''
-        if not self.update_koa_status('process_dir', self.dirs['lev0']): return False
-
-        if not self.update_koa_status('filesize_mb', self.filesize_mb): return False
-
-        archsize_mb = self.get_archsize_mb()
-        if not self.update_koa_status('archsize_mb', archsize_mb): return False
 
         semid = self.get_semid()
         if not self.update_koa_status('semid', semid): return False
 
         koaimtyp = self.get_keyword('KOAIMTYP')
         if not self.update_koa_status('koaimtyp', koaimtyp): return False
+
+        if not self.update_koa_status('process_dir', self.levdir): return False
+
+        if not self.update_koa_status('filesize_mb', self.filesize_mb): return False
+
+        archsize_mb = self.get_archsize_mb()
+        if not self.update_koa_status('archsize_mb', archsize_mb): return False
 
         now = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_koa_status('process_end_time', now): return False
@@ -936,10 +1077,22 @@ class DEP:
     def get_archsize_mb(self):
         """Returns the archive size in MB"""
         bytes = 0
-        search = f"{self.dirs['lev0']}/{self.koaid}*"
-        for file in glob.glob(search):
-            bytes += os.path.getsize(file)
+        files = self.get_koaid_files()
+        for path in files:
+            bytes += os.path.getsize(path)
         return str(bytes/1e6)
+
+
+    def get_koaid_files(self):
+        '''Recursive search for all files with KOAID in filename.'''
+        search = f"{self.levdir}/{self.koaid}*"
+        files = []
+        for path in Path(self.levdir).rglob(f'*{self.koaid}*'):
+            path = str(path)
+            if f"{self.koaid}.log" in path:
+                continue
+            files.append(path)
+        return files
 
 
     def get_api_data(self, url, getOne=False, isJson=True):
@@ -969,7 +1122,7 @@ class DEP:
             return True
 
         # shorthand vars
-        fromDir = self.dirs['lev0']
+        fromDir = self.levdir
 
         # Verify that this dataset should be transferred
         query = f'select * from koa_status where id={self.dbid} and xfr_start_time is null'
@@ -983,10 +1136,12 @@ class DEP:
             self.log_error('NO_TRANSFER_DIR', fromDir)
             return False
 
-        #check that there are files
-        pattern = f'{self.koaid}*'
-        koaidList = [f for f in fnmatch.filter(os.listdir(fromDir), pattern) if os.path.isfile(os.path.join(fromDir, f))]
-        if len(koaidList) == 0:
+        #get file list to send
+        files = self.get_koaid_files()
+        if self.level > 0:
+            for f in self.file_list:
+                if f not in files: files.append(f)
+        if len(files) == 0:
             self.log_error('NO_TRANSFER_FILES', fromDir)
             return False
 
@@ -997,37 +1152,43 @@ class DEP:
         api = self.config['KOAXFR']['INGESTAPI']
 
         # Configure the transfer command
-        # Goal is to include only KOAID* files except KOAID.log
-        # NOTE: rsync order of include and exclude is important.  It was a bit confusing how it works.  
-        toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}'
-        log.info(f'transferring directory {fromDir} to {toLocation}')
-        cmd = f'rsync -avz --exclude="*.log" --include="*/" --include="{pattern}" --exclude="*" {fromDir} {toLocation}'
-        log.info(cmd)
-
-        # Transfer the data
-        import subprocess as sp
-        xfrCmd = sp.Popen([cmd], stdout=sp.PIPE, stderr=sp.PIPE, shell=True)
         utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_koa_status('xfr_start_time', utstring): return False
         if not self.update_koa_status('status', 'TRANSFERRING'): return False
 
-        output, error = xfrCmd.communicate()
+        toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}/'
+        log.info(f'transferring directory {fromDir} to {toLocation}')
+        for srcfile in files:
+            idx = srcfile.find(f"/{self.instr}/{self.utdatedir}/") + len(self.instr) + 2 + 9
+            srcfile = srcfile[:idx] + './' + srcfile[idx:]
+            cmd = f'rsync -avzR {srcfile} {toLocation}'
+            log.info(cmd)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            output, error = proc.communicate()
+            if error:
+                print(error)
+                self.update_koa_status('xfr_start_time', None)
+                self.log_error('TRANSFER_ERROR')
+                return False
 
         # Transfer success
-        if not error:
-            utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            if not self.update_koa_status('xfr_end_time', utstring): return False
-            if not self.update_koa_status('status', 'TRANSFERRED'): return False
+        utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        if not self.update_koa_status('xfr_end_time', utstring): return False
+        if not self.update_koa_status('status', 'TRANSFERRED'): return False
 
-            # Send API request to archive the data set
-            apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev0'
+        # Send API request to archive the data set
+        if not api:
+            log.warning('IPAC API not defined in config. NOT NOTIFYING IPAC.')
+            return True
+        else:
+            apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev{self.level}'
             if self.reprocess:
                 apiUrl = f'{apiUrl}&reingest=true'
             log.info(f'sending ingest API call {apiUrl}')
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_koa_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
-# Need to remove this line when API is fixed
+            # todo: Need to remove this line when API is fixed
             if isinstance(apiData, str): apiData = json.loads(apiData)                     
             if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
                 self.log_error('IPAC_API_ERROR', apiUrl)
@@ -1035,13 +1196,8 @@ class DEP:
                 self.update_koa_status('status_code', 'IPAC_NOTIFY_ERROR')
                 return False
             log.info(f"IPAC API response: {apiData}")
-            return True
-        # Transfer error
-        else:
-            # Update koa_status
-            self.update_koa_status('xfr_start_time', None)
-            self.log_error('TRANSFER_ERROR')
-            return False
+
+        return True
 
 
     def add_header_to_db(self):

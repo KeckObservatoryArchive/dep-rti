@@ -145,7 +145,10 @@ class Instrument(dep.DEP):
         '''
 
         #skip if it exists
-        if self.get_keyword('KOAID', False) != None: return True
+        koaid = self.get_keyword('KOAID', False)
+        if koaid != None: 
+            self.koaid = koaid.replace('.fits', '')
+            return True
 
         #make it
         koaid = self.make_koaid()

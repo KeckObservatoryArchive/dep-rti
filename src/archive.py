@@ -38,20 +38,21 @@ def main():
     parser.add_argument('--ofname' , type=str, default=None, help='OFNAME match to query for reprocessing.')
     parser.add_argument('--confirm', dest="confirm", default=False, action="store_true", help='Confirm query results.')
     parser.add_argument('--transfer' , default=False, action='store_true', help='Transfer to IPAC and trigger IPAC API.  Else, create files only.')
+    parser.add_argument('--level' , type=int, default=0, help='Data reduction level. Only needed if reprocessing by query search.')
     args = parser.parse_args()    
 
     #run it 
     archive = Archive(args.instr, filepath=args.filepath, files=args.files, dbid=args.dbid, 
               reprocess=args.reprocess, starttime=args.starttime, endtime=args.endtime,
               status=args.status, statuscode=args.statuscode, ofname=args.ofname,
-              confirm=args.confirm, transfer=args.transfer)
+              confirm=args.confirm, transfer=args.transfer, level=args.level)
 
 
 class Archive():
 
     def __init__(self, instr, filepath=None, files=None, dbid=None, reprocess=False, 
                  starttime=None, endtime=None, status=None, statuscode=None,
-                 ofname=None, confirm=False, transfer=False):
+                 ofname=None, confirm=False, transfer=False, level=0):
 
         #inputs
         self.instr = instr.upper()
@@ -66,6 +67,7 @@ class Archive():
         self.ofname = ofname
         self.confirm = confirm
         self.transfer = transfer
+        self.level = level
 
         #other class vars
         self.db = None
@@ -125,7 +127,7 @@ class Archive():
             #NOTE: DEP has its own error reporting system so no need to do anything here.
             print("DEP finished with ERRORS!  See log file for details.")
         else:
-            print("DEP finished successfully!")
+            print("DEP finished successfully.")
 
 
     def process_files(self, pattern):
@@ -151,7 +153,7 @@ class Archive():
     def reprocess_by_query(self):
         '''Query for fits files to reprocess.'''
 
-        query = (f"select * from koa_status where level=0 and "
+        query = (f"select * from koa_status where level={self.level} and "
                  f" instrument = '{self.instr}' ")
         if self.status: 
             query += f" and status = '{self.status}' "
