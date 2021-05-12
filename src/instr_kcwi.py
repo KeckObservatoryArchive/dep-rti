@@ -369,7 +369,7 @@ class Kcwi(instrument.Instrument):
 
         Raw ingest (KOA level 1)
             icubed.fits files 
-            calibration validation (_arc and _bias)
+            calibration validation (_arc and _bars < FRAMENO)
 
         Final ingest (KOA level 2)
             icubes.fits or icubed.fits (if no flux standard)
@@ -381,18 +381,24 @@ class Kcwi(instrument.Instrument):
         '''
         files = []
 
+        #back out of /redux/ subdir
         if datadir.endswith('/'): datadir = datadir[:-1]
         datadir = os.path.split(datadir)[0]
 
+        #level 1
         if level == 1:
             icubed = f"{datadir}/redux/{koaid}_icubed.fits"
             if os.path.isfile(icubed):
                 files.append(icubed)
-            for file in glob.glob(f"{datadir}/plots/arc_*"):
-                files.append(file)
-            for file in glob.glob(f"{datadir}/plots/bias_*"):
+            frameno = int(self.get_keyword('FRAMENO'))
+            for file in glob.glob(f"{datadir}/plots/*"):
+                fparts = os.path.basename(file).split('_')
+                if fparts[0] not in ('arc', 'bars'): continue
+                if not fparts[1].isdigit(): continue
+                if int(fparts[1]) >= frameno: continue
                 files.append(file)
 
+        #level 2
         #todo: should we send the whole directory here?
         elif level == 2:
             proc = f"{datadir}/kcwi.proc"
