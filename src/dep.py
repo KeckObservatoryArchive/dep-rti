@@ -1237,7 +1237,10 @@ class DEP:
             log.warning('IPAC API not defined in config. NOT NOTIFYING IPAC.')
             return True
         else:
-            apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev{self.level}'
+            if self.level in (0,1):
+                apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev{self.level}'
+            else:
+                apiUrl = f'{api}instrument={self.instr}&utdate={self.utdate}&ingesttype=lev{self.level}'
             if self.reprocess:
                 apiUrl = f'{apiUrl}&reingest=true'
             log.info(f'sending ingest API call {apiUrl}')
