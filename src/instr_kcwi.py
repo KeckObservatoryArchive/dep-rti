@@ -404,7 +404,7 @@ class Kcwi(instrument.Instrument):
             files.append(f"{datadir}/redux/{koaid}_icubed.fits")
             for file in glob.glob(f"{datadir}/plots/*"):
                 fparts = os.path.basename(file).split('_')
-                if fparts[0] not in ('arc', 'bars'): continue
+                if fparts[0] not in ('arc', 'bars', 'bias'): continue
                 if not fparts[1].isdigit(): continue
                 if int(fparts[1]) >= frameno: continue
                 files.append(file)
@@ -416,7 +416,7 @@ class Kcwi(instrument.Instrument):
             files.append(f"{datadir}/redux/{koaid}_icubes.fits")
             for file in glob.glob(f"{datadir}/plots/*"):
                 fparts = os.path.basename(file).split('_')
-                if fparts[0] not in ('sky', 'scat'): continue
+                if fparts[0] not in ('sky', 'scat', 'std'): continue
                 if not fparts[1].isdigit(): continue
                 if int(fparts[1]) != frameno: continue
                 files.append(file)
