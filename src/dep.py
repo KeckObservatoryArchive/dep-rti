@@ -137,7 +137,6 @@ class DEP:
         if ok: ok = self.get_status_record()
         if ok: ok = self.init_processing()
         if ok: ok = self.determine_filepath()
-        if ok: ok = self.load_fits()
         if ok: ok = self.set_koaid_by_level()
         if ok: ok = self.init_processing2()
         if ok: ok = self.cleanup_files()  
@@ -156,6 +155,7 @@ class DEP:
         if ok: ok = self.get_status_record()
         if ok: ok = self.init_processing()
         if ok: ok = self.determine_filepath()
+        if ok: ok = self.set_koaid_by_level()
         if ok: ok = self.init_processing2()
         if ok: ok = self.cleanup_files()  
         if ok: ok = self.change_logger()
@@ -332,10 +332,8 @@ class DEP:
             self.filepath   = self.status.get('ofname')
             if self.stage_file and os.path.isfile(self.stage_file):
                 self.filepath = self.stage_file
-        elif self.level == 1:
-            #todo: this is not ideal, could change per instrument
-            self.filepath = f"{self.status['stage_file']}/{self.status['koaid']}_icubed.fits"
-        elif self.level == 2:
+        else:
+            #NOTE: We are not loading a fits file and updating certain koa_status cols for DRP
             self.filepath = None 
             pass
         log.info(f"Using fits filepath: {self.filepath}")
@@ -348,7 +346,7 @@ class DEP:
         '''
 
         #define some handy utdate vars here after loading fits (dependent on set_koaid())
-        if self.level in (0,1):
+        if self.level == 0:
             self.utdate = self.get_keyword('DATE-OBS', useMap=False)
             self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
             hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
@@ -356,9 +354,9 @@ class DEP:
             self.utc = self.get_keyword('UTC', useMap=True)
             self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
             if not self.update_koa_status('utdatetime', self.utdatetime): return False
-        elif self.level == 2:
+        else:
             dirpath = self.status['stage_file']
-            if dirpath.endswith('/'): dirpath = dirpath[:-1]
+            if dirpath.endswith('/redux'): dirpath = dirpath[:-6]
             self.utdatedir = os.path.basename(dirpath)
             self.utdate = self.utdatedir[0:4]+'-'+self.utdatedir[4:6]+'-'+self.utdatedir[6:8]
             self.utc = ''
@@ -456,7 +454,7 @@ class DEP:
 
         #rename
         lev = f'lev{self.level}'
-        if self.level == 0:
+        if self.level in (0,1):
             newfile = f"{self.dirs[lev]}/{self.koaid}.log"
         else:
             newfile = f"{self.dirs[lev]}/dep_{lev}_{self.utdatedir}.log"
@@ -633,12 +631,15 @@ class DEP:
         This is important if we are reprocessing data.
         '''
 
+#todo: get this working for levN
+        if self.level > 0:
+            return True
+
         if not self.koaid or len(self.koaid) < 20:
             self.log_error('INVALID_KOAID')
             return False
 
         #delete files matching KOAID*
-#todo: get this working for levN
         try:
             log.info(f'Deleting local files in {self.levdir}')
             for path in Path(self.levdir).rglob(f'*{self.koaid}*'):
@@ -874,7 +875,7 @@ class DEP:
             files = self.get_drp_files_list(datadir, koaid, self.level)
             for srcfile in files:
                 try:
-                    idx = srcfile.rfind('_DRP/') + 14 # example "/foo/KCWI_DRP/yyyymmdd/redux/file.fits"
+                    idx = srcfile.rfind(self.utdatedir+'/') + 9 # example "/foo/KCWI_DRP/yyyymmdd/redux/file.fits"
                     destfile = f"{outdir}/{srcfile[idx:]}"
                     log.info(f"Copying {srcfile} to {destfile}")
                     os.makedirs(os.path.dirname(destfile), exist_ok=True)
