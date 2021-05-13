@@ -14,6 +14,7 @@ import math
 from skimage import exposure
 import traceback
 import glob
+from pathlib import Path
 
 import logging
 log = logging.getLogger('koa_dep')
@@ -369,11 +370,11 @@ class Kcwi(instrument.Instrument):
 
         Raw ingest (KOA level 1)
             icubed.fits files 
-            calibration validation (_arc and _bars < FRAMENO)
+            calibration validation (arc_ and bars_ < FRAMENO)
 
         Final ingest (KOA level 2)
-            icubes.fits or icubed.fits (if no flux standard)
-            calibration validation
+            icubes.fits or icubed.fits (if no flux standard)           
+            calibration validation (sky_ and scat_ == FRAMENO)
             QA (all plots in plots directory from pipeline)
             kcwi.proc
             all logs
@@ -382,15 +383,25 @@ class Kcwi(instrument.Instrument):
         files = []
 
         #back out of /redux/ subdir
-        if datadir.endswith('/'): datadir = datadir[:-1]
-        datadir = os.path.split(datadir)[0]
+        if level == 1:
+            if datadir.endswith('/'): datadir = datadir[:-1]
+            datadir = os.path.split(datadir)[0]
+
+        #get frameno
+        hdr = None
+        icubed = f"{datadir}/redux/{koaid}_icubed.fits"
+        icubes = f"{datadir}/redux/{koaid}_icubes.fits"
+        if os.path.isfile(icubed):
+            hdr = fits.getheader(icubed)
+        elif os.path.isfile(icubes):
+            hdr = fits.getheader(icubes)
+        if not hdr:
+            return False
+        frameno = hdr['FRAMENO']
 
         #level 1
-        if level == 1:
-            icubed = f"{datadir}/redux/{koaid}_icubed.fits"
-            if os.path.isfile(icubed):
-                files.append(icubed)
-            frameno = int(self.get_keyword('FRAMENO'))
+        if level >= 1:
+            files.append(f"{datadir}/redux/{koaid}_icubed.fits")
             for file in glob.glob(f"{datadir}/plots/*"):
                 fparts = os.path.basename(file).split('_')
                 if fparts[0] not in ('arc', 'bars'): continue
@@ -398,21 +409,36 @@ class Kcwi(instrument.Instrument):
                 if int(fparts[1]) >= frameno: continue
                 files.append(file)
 
-        #level 2
-        #todo: should we send the whole directory here?
-        elif level == 2:
-            proc = f"{datadir}/kcwi.proc"
-            if os.path.isfile(proc): files.append(proc)
-
-            icubes = f"{datadir}/redux/{koaid}_icubes.fits"
-            icubed = f"{datadir}/redux/{koaid}_icubed.fits"
-            if   os.path.isfile(icubes): files.append(icubes)
-            elif os.path.isfile(icubed): files.append(icubed)
-
+        #level 2 (note: includes level 1 stuff, see above)
+        if level == 2:
+            #files.append(f"{datadir}/kcwi_koarti.cfg") #todo
+            files.append(f"{datadir}/kcwi.proc")
+            files.append(f"{datadir}/redux/{koaid}_icubes.fits")
             for file in glob.glob(f"{datadir}/plots/*"):
+                fparts = os.path.basename(file).split('_')
+                if fparts[0] not in ('sky', 'scat'): continue
+                if not fparts[1].isdigit(): continue
+                if int(fparts[1]) != frameno: continue
                 files.append(file)
-
             for file in glob.glob(f"{datadir}/logs/*"):
                 files.append(file)
 
         return files
+
+
+    def get_unique_koaids_in_dir(self, datadir):
+        '''
+        Get a list of unique koaids by looking at all filenames in directory 
+        and regex matching a KOAID pattern.
+        '''
+        koaids = []
+        for path in Path(datadir).rglob('*'):
+            path = str(path)
+            fname = os.path.basename(path)
+            if not any(x in fname for x in ('_icubes', '_icubed')): continue
+            match = re.search(r'^(\D{2}\.\d{8}\.\d{5}\.\d{2})', fname)
+            if not match: continue
+            koaids.append(match.groups(1)[0])
+        koaids = list(set(koaids))
+        return koaids
+

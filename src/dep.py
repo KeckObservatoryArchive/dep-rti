@@ -23,6 +23,7 @@ import traceback
 import subprocess
 import pdb
 from pathlib import Path
+from pprint import pprint
 
 import metadata
 import update_koapi_send
@@ -152,7 +153,16 @@ class DEP:
         '''Run all prcessing steps required for archiving lev2.'''
 
         ok = True
-        #TODO
+        if ok: ok = self.get_status_record()
+        if ok: ok = self.init_processing()
+        if ok: ok = self.determine_filepath()
+        if ok: ok = self.init_processing2()
+        if ok: ok = self.cleanup_files()  
+        if ok: ok = self.change_logger()
+        if ok: ok = self.copy_drp_files()  
+        if ok: ok = self.create_md5sum()
+        if ok: ok = self.update_dep_stats()
+        if ok: ok = self.transfer_ipac()
         return ok
 
 
@@ -308,6 +318,9 @@ class DEP:
         if not self.update_koa_status('status_code', ''): return False
         if not self.update_koa_status('process_start_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')): return False
 
+        #handy list of files we will be transfering
+        self.xfr_files = []
+
         return True
 
 
@@ -323,7 +336,7 @@ class DEP:
             #todo: this is not ideal, could change per instrument
             self.filepath = f"{self.status['stage_file']}/{self.status['koaid']}_icubed.fits"
         elif self.level == 2:
-            #todo: 
+            self.filepath = None 
             pass
         log.info(f"Using fits filepath: {self.filepath}")
         return True
@@ -335,18 +348,24 @@ class DEP:
         '''
 
         #define some handy utdate vars here after loading fits (dependent on set_koaid())
-        self.utdate = self.get_keyword('DATE-OBS', useMap=False)
-        self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
-        hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
-        self.hstdate = hstdate.strftime('%Y-%m-%d')
-        self.utc = self.get_keyword('UTC', useMap=True)
-        self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
+        if self.level in (0,1):
+            self.utdate = self.get_keyword('DATE-OBS', useMap=False)
+            self.utdatedir = self.utdate.replace('/', '-').replace('-', '')
+            hstdate = dt.datetime.strptime(self.utdate, '%Y-%m-%d') - dt.timedelta(days=1)
+            self.hstdate = hstdate.strftime('%Y-%m-%d')
+            self.utc = self.get_keyword('UTC', useMap=True)
+            self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
+            if not self.update_koa_status('utdatetime', self.utdatetime): return False
+        elif self.level == 2:
+            dirpath = self.status['stage_file']
+            if dirpath.endswith('/'): dirpath = dirpath[:-1]
+            self.utdatedir = os.path.basename(dirpath)
+            self.utdate = self.utdatedir[0:4]+'-'+self.utdatedir[4:6]+'-'+self.utdatedir[6:8]
+            self.utc = ''
+            self.utdatetime = ''
 
         #create output dirs (this is dependent on utdatedir above)
         self.init_dirs()
-
-        #Update some details for this record
-        if not self.update_koa_status('utdatetime', self.utdatetime): return False
 
         return True
 
@@ -436,10 +455,11 @@ class DEP:
             return False
 
         #rename
-        koaid = self.get_keyword('KOAID')
-        koaid = koaid.replace('.fits', '')
         lev = f'lev{self.level}'
-        newfile = f"{self.dirs[lev]}/{koaid}.log"
+        if self.level == 0:
+            newfile = f"{self.dirs[lev]}/{self.koaid}.log"
+        else:
+            newfile = f"{self.dirs[lev]}/dep_{lev}_{self.utdatedir}.log"
         print(f"Logger renamed to {newfile}")
         log.info(f"Renaming log file from {fileHandler.baseFilename} to {newfile}")
         shutil.move(fileHandler.baseFilename, newfile)
@@ -622,6 +642,7 @@ class DEP:
         try:
             log.info(f'Deleting local files in {self.levdir}')
             for path in Path(self.levdir).rglob(f'*{self.koaid}*'):
+                path = str(path)
                 log.info(f"removing file: {path}")
                 os.remove(path)
         except Exception as e:
@@ -835,39 +856,72 @@ class DEP:
 
 
     def copy_drp_files(self):
-        '''Copy all DRP files to archive. File list differs per instrument.'''
+        '''
+        Copy all DRP files that will be archived to levN dir.
+        Store dict of files by koaid in self.drp_files for later use.
+        '''
 
-        koaid = self.status['koaid']
-        outdir = self.dirs[f'lev{self.level}']
+        #get list of koaids we are dealing with (lev1 is just one koaid)
         datadir = self.status['stage_file']
-        self.drp_files = self.get_drp_files_list(datadir, koaid, self.level)
-        self.file_list = []
-        for srcfile in self.drp_files:
-            try:
-                idx = srcfile.rfind('_DRP/') + 14 # example "/foo/KCWI_DRP/yyyymmdd/redux/file.fits"
-                destfile = f"{outdir}/{srcfile[idx:]}"
-                self.file_list.append(destfile)
-                log.info(f"Copying {srcfile} to {destfile}")
-                os.makedirs(os.path.dirname(destfile), exist_ok=True)
-                subprocess.call(['rsync', '-avz', srcfile, destfile])
-            except Exception as e:
-                self.log_error('FILE_COPY_ERROR', f"{srcfile} to {destfile}")
-                return False
+        if   self.level == 1: koaids = [self.status['koaid']]
+        elif self.level == 2: koaids = self.get_unique_koaids_in_dir(datadir)
+
+        #For each koaid, get associated drp files and copy them to outdir.
+        #Keep dict of files by koaid.
+        self.drp_files = {}
+        outdir = self.dirs[f'lev{self.level}']
+        for koaid in koaids:
+            files = self.get_drp_files_list(datadir, koaid, self.level)
+            for srcfile in files:
+                try:
+                    idx = srcfile.rfind('_DRP/') + 14 # example "/foo/KCWI_DRP/yyyymmdd/redux/file.fits"
+                    destfile = f"{outdir}/{srcfile[idx:]}"
+                    log.info(f"Copying {srcfile} to {destfile}")
+                    os.makedirs(os.path.dirname(destfile), exist_ok=True)
+                    subprocess.call(['rsync', '-avz', srcfile, destfile])
+
+                    if koaid not in self.drp_files: self.drp_files[koaid] = []
+                    self.drp_files[koaid].append(destfile)
+                    self.xfr_files.append(destfile)
+                except Exception as e:
+                    self.log_error('FILE_COPY_ERROR', f"{srcfile} to {destfile}")
+                    return False
 
         return True
       
 
+    def get_unique_koaids_in_dir(self, datadir):
+        '''
+        Get a list of unique koaids by looking at all filenames in directory 
+        and regex matching a KOAID pattern.
+        '''
+        koaids = []
+        for path in Path(datadir).rglob('*'):
+            path = str(path)
+            fname = os.path.basename(path)
+            match = re.search(r'^(\D{2}\.\d{8}\.\d{5}\.\d{2})', fname)
+            if not match: continue
+            koaids.append(match.groups(1)[0])
+        koaids = list(set(koaids))
+        return koaids
+
+
     def create_md5sum(self):
         '''Create ext.md5sum.table for all files matching KOAID*'''
+        #TODO: make_dir_md5_table excludes *.log, need drp log files.
         try:
             outdir = self.dirs[f'lev{self.level}']
-            md5Prepend = self.utdatedir+'.'
-            md5Outfile = f'{outdir}/{self.koaid}.md5sum.table'
-            log.info(f'Creating {md5Outfile}')
             if self.level == 0:
+                md5Outfile = f'{outdir}/{self.koaid}.md5sum.table'
+                log.info(f'Creating {md5Outfile}')
                 make_dir_md5_table(outdir, None, md5Outfile, regex=self.koaid)
-            else:
-                make_dir_md5_table(outdir, None, md5Outfile, fileList=self.file_list)                
+                self.xfr_files.append(md5Outfile)                
+            elif self.level in (1, 2):
+                for koaid, files in self.drp_files.items():
+                    md5Outfile = f'{outdir}/{koaid}.md5sum.table'
+                    log.info(f'Creating {md5Outfile}')
+                    make_dir_md5_table(outdir, None, md5Outfile, fileList=files)
+                    self.xfr_files.append(md5Outfile)                
             return True
         except Exception as e:
             self.log_error('CREATE_MD5_SUM_ERROR', str(e))
@@ -1049,11 +1103,12 @@ class DEP:
     def update_dep_stats(self):
         '''Record DEP stats before we xfr to ipac.'''
 
-        semid = self.get_semid()
-        if not self.update_koa_status('semid', semid): return False
+        if self.level == 0:
+            semid = self.get_semid()
+            if not self.update_koa_status('semid', semid): return False
 
-        koaimtyp = self.get_keyword('KOAIMTYP')
-        if not self.update_koa_status('koaimtyp', koaimtyp): return False
+            koaimtyp = self.get_keyword('KOAIMTYP')
+            if not self.update_koa_status('koaimtyp', koaimtyp): return False
 
         if not self.update_koa_status('process_dir', self.levdir): return False
 
@@ -1137,11 +1192,11 @@ class DEP:
             return False
 
         #get file list to send
-        files = self.get_koaid_files()
-        if self.level > 0:
-            for f in self.file_list:
-                if f not in files: files.append(f)
-        if len(files) == 0:
+        if self.level == 0:
+            koaid_files = self.get_koaid_files()
+            self.xfr_files += koaid_files
+        self.xfr_files = list(set(self.xfr_files))
+        if len(self.xfr_files) == 0:
             self.log_error('NO_TRANSFER_FILES', fromDir)
             return False
 
@@ -1158,7 +1213,7 @@ class DEP:
 
         toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}/'
         log.info(f'transferring directory {fromDir} to {toLocation}')
-        for srcfile in files:
+        for srcfile in self.xfr_files:
             idx = srcfile.find(f"/{self.instr}/{self.utdatedir}/") + len(self.instr) + 2 + 9
             srcfile = srcfile[:idx] + './' + srcfile[idx:]
             cmd = f'rsync -avzR {srcfile} {toLocation}'
