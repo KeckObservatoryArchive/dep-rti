@@ -539,6 +539,7 @@ class DEP:
                  f" status_code_ipac   = NULL, " 
                  f" process_dir        = NULL, "
                  f" archive_dir        = NULL, "
+                 f" creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}', "
                  f" process_start_time = NULL, "
                  f" process_end_time   = NULL, "
                  f" xfr_start_time     = NULL, "
