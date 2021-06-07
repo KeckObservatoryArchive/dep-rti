@@ -77,7 +77,7 @@ class Monitor():
     def __init__(self, instr):
 
         #input vars
-        self.instr = instr
+        self.instr = instr.upper()
 
         #init other vars
         self.queue = []
