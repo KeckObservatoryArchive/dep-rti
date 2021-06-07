@@ -873,14 +873,17 @@ class DEP:
         self.drp_files = {}
         outdir = self.dirs[f'lev{self.level}']
         for koaid in koaids:
+            if self.level == 2: self.koaid = koaid
             files = self.get_drp_files_list(datadir, koaid, self.level)
             for srcfile in files:
+                if not os.path.isfile(srcfile): continue
                 try:
                     idx = srcfile.rfind(self.utdatedir+'/') + 9 # example "/foo/KCWI_DRP/yyyymmdd/redux/file.fits"
                     destfile = f"{outdir}/{srcfile[idx:]}"
                     log.info(f"Copying {srcfile} to {destfile}")
                     os.makedirs(os.path.dirname(destfile), exist_ok=True)
-                    subprocess.call(['rsync', '-avz', srcfile, destfile])
+#                    subprocess.call(['rsync', '-avz', srcfile, destfile])
+                    subprocess.call(['rsync', '-az', srcfile, destfile])
 
                     if koaid not in self.drp_files: self.drp_files[koaid] = []
                     self.drp_files[koaid].append(destfile)
@@ -1213,20 +1216,30 @@ class DEP:
         if not self.update_koa_status('xfr_start_time', utstring): return False
         if not self.update_koa_status('status', 'TRANSFERRING'): return False
 
-        toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}/'
+        toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}/lev{self.level}/'
         log.info(f'transferring directory {fromDir} to {toLocation}')
-        for srcfile in self.xfr_files:
-            idx = srcfile.find(f"/{self.instr}/{self.utdatedir}/") + len(self.instr) + 2 + 9
-            srcfile = srcfile[:idx] + './' + srcfile[idx:]
-            cmd = f'rsync -avzR {srcfile} {toLocation}'
-            log.info(cmd)
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            output, error = proc.communicate()
-            if error:
-                print(error)
-                self.update_koa_status('xfr_start_time', None)
-                self.log_error('TRANSFER_ERROR')
-                return False
+
+        if self.level == 2:
+            xfrOutfile = f'{self.levdir}/{self.utdatedir}.xfr.table'
+        else:
+            xfrOutfile = f'{self.levdir}/{self.koaid}.xfr.table'
+        with open(xfrOutfile, 'w') as fp:
+            for srcfile in self.xfr_files:
+                file = srcfile.replace(f'{self.levdir}/', '')
+                fp.write(f'{file}\n')
+        stageDir = f'{toDir}/{self.instr}/{self.utdatedir}/lev{self.level}/'
+        cmd = f'ssh {account}@{server} mkdir -p {stageDir}'
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        output, error = proc.communicate()
+        cmd = f'rsync -avzR --no-t --files-from={xfrOutfile} {fromDir} {toLocation}'
+        log.info(cmd)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        output, error = proc.communicate()
+        if error:
+            print(error)
+            self.update_koa_status('xfr_start_time', None)
+            self.log_error('TRANSFER_ERROR')
+            return False
 
         # Transfer success
         utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
