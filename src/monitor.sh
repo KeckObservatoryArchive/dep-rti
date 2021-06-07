@@ -4,7 +4,7 @@
 source $HOME/.cshrc
 
 #Usage
-set all_services = ("kfcs" "kbds" "nids" "nsds" "deimosplus" "deifcs" "hiccd")
+set all_services = ("kfcs" "kbds" "deimosplus" "deifcs" "hiccd")
 if ($#argv == 0) then
 	echo "\nUSAGE: Specify space-seperated list of services to restart or 'all'"
 	echo "SERVICES: $all_services"

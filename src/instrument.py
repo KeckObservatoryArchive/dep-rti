@@ -499,6 +499,54 @@ class Instrument(dep.DEP):
             return True
 
 
+    def get_progid_from_schedule(self):
+        '''Try to set PROGID from the information in the telescope scheduel'''
+
+        #requires UTC value
+        ut = self.get_keyword('UTC')
+        if not ut: return 'NONE'
+        ut = ut.split(':')
+        ut = int(ut[0]) + (int(ut[1])/60.0)
+
+        #split night information based on OUTDIR
+        splitNight = -1 
+        splitMap = ['SKIP', '_A', '_B', '_C', '_D', '_E']
+        outdir = self.get_keyword('OUTDIR')
+        #is entry in splitMap found in OUTDIR?
+        splitLoc = [i for i in splitMap if outdir.endswith(i)]
+        if len(splitLoc) == 1:
+            splitNight = splitMap.index(splitLoc[0])
+
+        #get schedule information
+        api = self.config['API']['TELAPI']
+        url = f"{api}cmd=getSchedule&date={self.hstdate}&telnr={self.telnr}&instr={self.instr}"
+        log.info(f'checking schedule for PROGID: {url}')
+        data = self.get_api_data(url)
+        if data:
+            if isinstance(data, dict):
+                data = [data]
+            if len(data) == 1:
+                log.info(f"using the only scheduled entry: {data[0]['ProjCode']}")
+                return data[0]['ProjCode']
+            for num, entry in enumerate(data):
+                #if there was an OUTDIR match above, use it
+                if splitNight > -1:
+                    if splitNight == num+1:
+                        log.info(f"using schedule entry by OUTIDR: {entry['ProjCode']}")
+                        return entry['ProjCode']
+                    else:
+                        continue
+                #check if UTC between schedule start/end
+                start = entry['StartTime'].split(':')
+                start = int(start[0]) + (int(start[1])/60.0)
+                end = entry['EndTime'].split(':')
+                end = int(end[0]) + (int(end[1])/60.0)
+                if ut >= start and ut <= end:
+                    log.info(f"using schedule entry by UTC: {entry['ProjCode']}")
+                    return entry['ProjCode']
+        return 'NONE'
+
+
     def get_missing_progid(self):
         #todo: do simple progid assigment
         return "NONE"
@@ -511,8 +559,12 @@ class Instrument(dep.DEP):
         #If not found, then do simple assignment by time/observer/outdir(eng).
         progid = self.get_keyword('PROGNAME')
         if not progid:
-            #todo: (assign NONE if cannot determine)
-            progid = self.get_missing_progid()
+            #check telescope schedule
+            progid = self.get_progid_from_schedule()
+            print('----', progid)
+            if not progid:
+                #todo: (assign NONE if cannot determine)
+                progid = self.get_missing_progid()
 
         #valid progname?
         #todo: Make sure we are getting the full semid with underscore

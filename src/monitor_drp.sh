@@ -29,7 +29,7 @@ foreach instr ( $instrs )
 	set DEPDIR=`dirname $0`
 	set LOGFILE="/koadata/dep-drp-$instr.log"
 
-	set cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $instr >>& $LOGFILE"
+	set cmd="$PYTHON $DEPDIR/manager.py monitor_drp restart --extra $instr >>& $LOGFILE"
 	echo $cmd
 	eval "$cmd"
 
