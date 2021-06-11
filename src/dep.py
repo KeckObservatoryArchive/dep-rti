@@ -355,9 +355,7 @@ class DEP:
             self.utdatetime = f"{self.utdate} {self.utc[0:8]}" 
             if not self.update_koa_status('utdatetime', self.utdatetime): return False
         else:
-            dirpath = self.status['stage_file']
-            if dirpath.endswith('/redux'): dirpath = dirpath[:-6]
-            self.utdatedir = os.path.basename(dirpath)
+            self.utdatedir = self.status['koaid'].split('.')[1]
             self.utdate = self.utdatedir[0:4]+'-'+self.utdatedir[4:6]+'-'+self.utdatedir[6:8]
             self.utc = ''
             self.utdatetime = ''
@@ -871,15 +869,17 @@ class DEP:
         #For each koaid, get associated drp files and copy them to outdir.
         #Keep dict of files by koaid.
         self.drp_files = {}
-        outdir = self.dirs[f'lev{self.level}']
         for koaid in koaids:
             if self.level == 2: self.koaid = koaid
             files = self.get_drp_files_list(datadir, koaid, self.level)
             for srcfile in files:
                 if not os.path.isfile(srcfile): continue
                 try:
-                    idx = srcfile.rfind(self.utdatedir+'/') + 9 # example "/foo/KCWI_DRP/yyyymmdd/redux/file.fits"
-                    destfile = f"{outdir}/{srcfile[idx:]}"
+                    split = srcfile.split('/')
+                    outdir = self.dirs[f'lev{self.level}']
+                    if split[-2] in ['plots','redux','logs']:
+                        outdir = f'{outdir}/{split[-2]}'
+                    destfile = f"{outdir}/{os.path.basename(srcfile)}"
                     log.info(f"Copying {srcfile} to {destfile}")
                     os.makedirs(os.path.dirname(destfile), exist_ok=True)
 #                    subprocess.call(['rsync', '-avz', srcfile, destfile])
@@ -1229,6 +1229,7 @@ class DEP:
                 fp.write(f'{file}\n')
         stageDir = f'{toDir}/{self.instr}/{self.utdatedir}/lev{self.level}/'
         cmd = f'ssh {account}@{server} mkdir -p {stageDir}'
+        log.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
         cmd = f'rsync -avzR --no-t --files-from={xfrOutfile} {fromDir} {toLocation}'
