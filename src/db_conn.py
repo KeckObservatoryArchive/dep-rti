@@ -28,8 +28,6 @@ class db_conn(object):
     Inputs:
     - configFile: Filepath to yaml config file
     - configKey: Optionally define a config dict key if config is within a larger yaml file.
-
-    TODO: improve error/warning reporting and logging
     '''
 
     def __init__(self, configFile, configKey=None, persist=False):
@@ -100,7 +98,6 @@ class db_conn(object):
     def close(self, database=None):
 
         #close all connections unless they specify one
-        #todo: do we need to track the cursor and close it as well?
         for key, conn in self.conns.items():
             if database and key != database: 
                 continue
