@@ -377,20 +377,6 @@ class Instrument(dep.DEP):
         return True
 
 
-    def get_fileno(self):
-
-        #todo: do we need this function instead of using keyword mapping?  see subclass set_frameno
-        keys = self.fits_hdr
-
-        fileno = keys.get('FILENUM')
-        if (fileno == None): fileno = keys.get('FILENUM2')
-        if (fileno == None): fileno = keys.get('FRAMENO')
-        if (fileno == None): fileno = keys.get('IMGNUM')
-        if (fileno == None): fileno = keys.get('FRAMENUM')
-
-        return fileno
-
-
     def set_semester(self):
         """
         Determines the Keck observing semester from the DATE-OBS keyword in header
