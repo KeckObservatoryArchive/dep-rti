@@ -61,27 +61,6 @@ class Instrument(dep.DEP):
     def set_koaimtyp(self) : raise NotImplementedError("Abstract method not implemented!")
 
 
-    def run_dqa_funcs(self, funcs):
-        '''
-        Run a list of functions by name.  If the function returns False or throws exception,
-        check if it is a critical function before breaking processing.
-        '''
-        for f in funcs:
-            name = f.get('name')
-            crit = f.get('crit')
-            args = f.get('args', {})
-            log.info(f'Running DQA function: {name}')
-            try: 
-                ok = getattr(self, name)(**args)
-            except Exception as e: 
-                etype = 'ERROR' if crit else 'WARN'
-                self.log_error(etype, 'CODE_ERROR', traceback.format_exc())
-                ok = False
-            if not ok and crit:
-                return False
-        return True
-
-
     def get_keyword(self, keyword, useMap=True, default=None, ext=0):
         '''
         Gets keyword value from the FITS header as defined in keymap class variable.  

@@ -101,69 +101,94 @@ class DEP:
     def process_lev0(self):
         '''Run all prcessing steps required for archiving lev0.'''
 
-        ok = True
-        if ok: ok = self.check_status_db_entry()
-        if ok: ok = self.get_status_record()
-        if ok: ok = self.init_processing()
-        if ok: ok = self.determine_filepath()
-        if ok: ok = self.load_fits()
-        if ok: ok = self.set_koaid_by_level()
-        if ok: ok = self.init_processing2()
-        if ok: ok = self.check_koaid_db_entry()
-        if ok: ok = self.cleanup_files()  
-        if ok: ok = self.change_logger()
-        if ok: ok = self.validate_fits()
-        if ok: ok = self.run_psfr()
-        if ok: ok = self.run_dqa()
-        if ok: ok = self.write_lev0_fits_file() 
-        if ok:      self.make_jpg()
-        if ok:      self.set_filesize_mb()
-        if ok: ok = self.create_meta()
-        if ok:      self.create_ext_meta()
-        if ok: ok = self.run_drp()
-        if ok: ok = self.create_md5sum()
-        if ok: ok = self.update_dep_stats()
-        if ok: ok = self.transfer_ipac()
-        if ok:      self.check_koapi_send()
-        if ok:      self.add_header_to_db()
-        if ok:      self.copy_raw_fits()  
-        return ok
+        funcs = [
+            {'name': 'get_status_record',     'crit': True},
+            {'name': 'check_status_db_entry', 'crit': True},
+            {'name': 'get_status_record',     'crit': True},
+            {'name': 'init_processing',       'crit': True},
+            {'name': 'determine_filepath',    'crit': True},
+            {'name': 'load_fits',             'crit': True},
+            {'name': 'set_koaid_by_level',    'crit': True},
+            {'name': 'init_processing2',      'crit': True},
+            {'name': 'check_koaid_db_entry',  'crit': True},
+            {'name': 'cleanup_files',         'crit': True},
+            {'name': 'change_logger',         'crit': True},
+            {'name': 'validate_fits',         'crit': True},
+            {'name': 'run_psfr',              'crit': True},
+            {'name': 'run_dqa',               'crit': True},
+            {'name': 'write_lev0_fits_file',   'crit': True},
+            {'name': 'make_jpg',              'crit': False},
+            {'name': 'set_filesize_mb',       'crit': False},
+            {'name': 'create_meta',           'crit': True},
+            {'name': 'create_ext_meta',       'crit': False},
+            {'name': 'run_drp',               'crit': True},
+            {'name': 'create_md5sum',         'crit': True},
+            {'name': 'update_dep_stats',      'crit': True},
+            {'name': 'transfer_ipac',         'crit': True},
+            {'name': 'check_koapi_send',      'crit': False},
+            {'name': 'add_header_to_db',      'crit': False},
+            {'name': 'copy_raw_fits',         'crit': False},
+        ]
+        return self.run_functions(funcs)
 
 
     def process_lev1(self):
         '''Run all prcessing steps required for archiving lev1.'''
 
-        ok = True
-        if ok: ok = self.get_status_record()
-        if ok: ok = self.init_processing()
-        if ok: ok = self.determine_filepath()
-        if ok: ok = self.set_koaid_by_level()
-        if ok: ok = self.init_processing2()
-        if ok: ok = self.cleanup_files()  
-        if ok: ok = self.change_logger()
-        if ok: ok = self.copy_drp_files()  
-        if ok: ok = self.create_md5sum()
-        if ok: ok = self.update_dep_stats()
-        if ok: ok = self.transfer_ipac()
-        return ok
+        funcs = [
+            {'name': 'get_status_record',    'crit': True},
+            {'name': 'init_processing',      'crit': True},
+            {'name': 'determine_filepath',   'crit': True},
+            {'name': 'set_koaid_by_level',   'crit': True},
+            {'name': 'init_processing2',     'crit': True},
+            {'name': 'cleanup_files',        'crit': True},
+            {'name': 'change_logger',        'crit': True},
+            {'name': 'copy_drp_files',       'crit': True},
+            {'name': 'create_md5sum',        'crit': True},
+            {'name': 'update_dep_stats',     'crit': True},
+            {'name': 'transfer_ipac',        'crit': True},
+        ]
+        return self.run_functions(funcs)
+
 
 
     def process_lev2(self):
         '''Run all prcessing steps required for archiving lev2.'''
 
-        ok = True
-        if ok: ok = self.get_status_record()
-        if ok: ok = self.init_processing()
-        if ok: ok = self.determine_filepath()
-        if ok: ok = self.set_koaid_by_level()
-        if ok: ok = self.init_processing2()
-        if ok: ok = self.cleanup_files()  
-        if ok: ok = self.change_logger()
-        if ok: ok = self.copy_drp_files()  
-        if ok: ok = self.create_md5sum()
-        if ok: ok = self.update_dep_stats()
-        if ok: ok = self.transfer_ipac()
-        return ok
+        funcs = [
+            {'name': 'get_status_record',    'crit': True},
+            {'name': 'init_processing',      'crit': True},
+            {'name': 'determine_filepath',   'crit': True},
+            {'name': 'set_koaid_by_level',   'crit': True},
+            {'name': 'init_processing2',     'crit': True},
+            {'name': 'cleanup_files',        'crit': True},
+            {'name': 'change_logger',        'crit': True},
+            {'name': 'copy_drp_files',       'crit': True},
+            {'name': 'create_md5sum',        'crit': True},
+            {'name': 'update_dep_stats',     'crit': True},
+            {'name': 'transfer_ipac',        'crit': True},
+        ]
+        return self.run_functions(funcs)
+
+
+    def run_functions(self, funcs):
+        '''
+        Run a list of functions by name.  If the function returns False or throws exception,
+        check if it is a critical function before breaking processing.
+        '''
+        for f in funcs:
+            name = f.get('name')
+            crit = f.get('crit')
+            args = f.get('args', {})
+            log.info(f'Running process function: {name}')
+            try: 
+                ok = getattr(self, name)(**args)
+            except Exception as e: 
+                self.log_error('CODE_ERROR', traceback.format_exc())
+                ok = False
+            if not ok and crit:
+                return False
+        return True
 
 
     def init(self):

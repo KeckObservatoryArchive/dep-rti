@@ -71,7 +71,7 @@ class Lris(instrument.Instrument):
             {'name':'set_dqa_vers',     'crit': False},
             {'name':'set_dqa_date',     'crit': False},
         ]
-        return self.run_dqa_funcs(funcs)
+        return self.run_functions(funcs)
 
 
     @staticmethod

@@ -51,7 +51,7 @@ class Nirc2(instrument.Instrument):
             {'name':'set_dqa_vers',     'crit': False},
             {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
         ]
-        return self.run_dqa_funcs(funcs)
+        return self.run_functions(funcs)
 
 
     def get_dir_list(self):

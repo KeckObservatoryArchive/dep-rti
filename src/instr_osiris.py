@@ -53,7 +53,7 @@ class Osiris(instrument.Instrument):
             {'name':'set_dqa_date',     'crit': True},
             {'name':'set_dqa_vers',     'crit': True},
         ]
-        return self.run_dqa_funcs(funcs)
+        return self.run_functions(funcs)
 
 
     def get_dir_list(self):
