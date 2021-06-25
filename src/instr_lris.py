@@ -80,8 +80,8 @@ class Lris(instrument.Instrument):
         Function to generate the paths to all the LRIS accounts, including engineering
         Returns the list of paths
         '''
-        #todo: note: idl dep searches /s/sdata/2* , though it is known that the dirs are 241/242/243
-        #todo: note: There are subdirs /lris11/ thru /lris20/, though it is known that these are not used
+        #note: idl dep searches /s/sdata/2* , though it is known that the dirs are 241/242/243
+        #note: There are subdirs /lris11/ thru /lris20/, though it is known that these are not used
         dirs = []
         path = '/s/sdata24'
         for i in range(1,4):

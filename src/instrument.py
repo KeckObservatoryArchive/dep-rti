@@ -70,6 +70,7 @@ class Instrument(dep.DEP):
             name = f.get('name')
             crit = f.get('crit')
             args = f.get('args', {})
+            log.info(f'Running DQA function: {name}')
             try: 
                 ok = getattr(self, name)(**args)
             except Exception as e: 

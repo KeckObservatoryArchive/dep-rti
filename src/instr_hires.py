@@ -838,7 +838,8 @@ class Hires(instrument.Instrument):
             ## = 01, 02, 03...
         '''
 
-        # TODO: Can we merge this with instrument.make_jpg()?
+        # TODO: Can we utilize instrument.make_jpg() to reduce duplicate code?  
+        # Perhaps add an 'ext' param to make_jpg().
 
         # file to convert is lev0Dir/KOAID
 

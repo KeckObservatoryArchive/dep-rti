@@ -80,10 +80,6 @@ class Mosfire(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword.
         '''
-        #todo: make this a common instrument.py function for all instruments (small differences)
-
-        # log.info('set_elaptime: determining ELAPTIME from ITIME/COADDS')
-
         #skip if it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
 
@@ -104,8 +100,6 @@ class Mosfire(instrument.Instrument):
         """
         Determine image type based on instrument keyword configuration
         """
-
-        # log.info('set_koaimtyp: setting KOAIMTYP keyword value')
 
         # Default KOAIMTYP value
         koaimtyp = 'undefined'
