@@ -36,7 +36,7 @@ class Kcwi(instrument.Instrument):
         funcs = [
             {'name':'set_telnr',       'crit': True},
             {'name':'set_ut',          'crit': True},
-            {'name':'set_telescope',   'crit': True},
+            {'name':'set_telescope',   'crit': False},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
             {'name':'set_frameno',     'crit': True},
@@ -98,6 +98,7 @@ class Kcwi(instrument.Instrument):
         '''
         Set telescope to Keck 2
         '''
+        if self.get_keyword('TELESCOP') != None: return True
         self.set_keyword('TELESCOP','Keck II','KOA: Telescope name')
         return True
 
