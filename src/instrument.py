@@ -377,32 +377,6 @@ class Instrument(dep.DEP):
         return True
 
 
-
-    def get_outdir(self):
-        '''
-        Returns outdir if keyword exists, else derive from filename
-        '''
-
-        #return by keyword index if it exists
-        outdir = self.get_keyword('OUTDIR')
-        if (outdir != None) : return outdir
-
-        #Returns the OUTDIR associated with the filename, else returns None.
-        #OUTDIR = [/s]/sdata####/account/YYYYmmmDD
-        #todo: should we look for '/s/' and subtract one from index?
-        #NOTE: for reprocessing old data that doesn't have OUTDIR keyword, this matches
-        #on /stage/ or /storageserver/ instead of /s/, which still gets the job done.  not ideal.
-        try:
-            filename = self.filepath
-            start = filename.find('/s')
-            end = filename.rfind('/')
-            return filename[start:end]
-        except:
-            #todo: really return "None"?
-            return "None"
-
-
-
     def get_fileno(self):
 
         #todo: do we need this function instead of using keyword mapping?  see subclass set_frameno
