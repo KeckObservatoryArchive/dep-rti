@@ -136,28 +136,6 @@ class Nirspec(instrument.Instrument):
         return True
 
 
-    def set_ofName(self):
-        """
-        Adds OFNAME keyword to header
-        """
-
-        #OFNAME was added as a native NIRSPEC keyword around 20190405
-        if self.get_keyword('OFNAME', False) != None: return True
-
-        #get value
-        ofName = self.get_keyword('OFNAME')
-        if (ofName == None):
-            self.log_warn("SET_OFNAME_ERROR")
-            return False
-
-        #add *.fits to output if it does not exist (to fix old files)
-        if (ofName.endswith('.fits') == False) : ofName += '.fits'
-
-        #update
-        self.set_keyword('OFNAME', ofName, 'KOA: Original file name')
-        return True
-
-
     def set_koaimtyp(self):
         '''
         Fixes missing KOAIMTYP keyword.

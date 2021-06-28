@@ -690,6 +690,7 @@ class DEP:
 
     def validate_fits(self):
         '''Basic checks for valid FITS before proceeding with archiving'''
+
         #check no data
         if len(self.fits_hdu) == 0:
             self.log_invalid('NO_FITS_HDUS')
@@ -710,22 +711,12 @@ class DEP:
                 self.log_invalid('FILEPATH_REJECT')
                 return False
 
-        # Get fits header (check for bad header)
-        try:
-            if self.instr == 'NIRC2':
-              header0 = fits.getheader(self.filepath, ignore_missing_end=True)
-              header0['INSTRUME'] = 'NIRC2'
-            else:
-              header0 = fits.getheader(self.filepath)
-        except:
-            self.log_invalid('UNREADABLE_FITS')
-            return False
-
         # Construct the original file name
-        filename, stat = self.construct_filename(self.instr, self.filepath, header0)
-        if stat is not True:
-            self.log_invalid(stat)
+        res = self.set_ofName()
+        if res is False:
+            self.log_invalid('BAD_OFNAME')
             return False
+        filename = self.get_keyword('OFNAME')
 
         # Make sure constructed filename matches basename.
         basename = os.path.basename(self.filepath)
@@ -735,59 +726,6 @@ class DEP:
             return False
 
         return True
-
-
-    def construct_filename(self, instr, fitsFile, keywords):
-        """Constructs the original filename from the fits header keywords"""
-
-        #TODO: REMOVE THIS OR CLEAN IT UP AND MOVE TO INSTRUMENT CLASSES
-
-        if instr in ['MOSFIRE', 'NIRES', 'NIRSPEC', 'OSIRIS']:
-            try:
-                outfile = keywords['DATAFILE']
-                if '.fits' not in outfile:
-                    outfile = ''.join((outfile, '.fits'))
-                return outfile, True
-            except KeyError:
-                return '', 'BAD_OUTFILE'
-        elif instr in ['KCWI']:
-            try:
-                outfile = keywords['OFNAME']
-                return outfile, True
-            except KeyError:
-                return '', 'BAD_OUTFILE'
-        else:
-            try:
-                outfile = keywords['OUTFILE']
-            except KeyError:
-                try:
-                    outfile = keywords['ROOTNAME']
-                except KeyError:
-                    try:
-                        outfile = keywords['FILENAME']
-                    except KeyError:
-                        return '', 'BAD_OUTFILE'
-
-        # Get the frame number of the file
-        if outfile[:2] == 'kf':   frameno = keywords['IMGNUM']
-        elif instr == 'MOSFIRE':  frameno = keywords['FRAMENUM']
-        elif instr == 'NIRES':    garbage, frameno = keywords['DATAFILE'].split('_')
-        else:
-            try:
-                frameno = keywords['FRAMENO']
-            except KeyError:
-                try:
-                    frameno = keywords['FILENUM']
-                except KeyError:
-                    try:
-                        frameno = keywords['FILENUM2']
-                    except KeyError:
-                        return '', 'BAD_FRAMENO'
-
-        #Pad frameno and construct filename
-        frameno = str(frameno).strip().zfill(4)
-        filename = f'{outfile.strip()}{frameno}.fits'
-        return filename, True
 
 
     def create_meta(self):

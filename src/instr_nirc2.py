@@ -34,7 +34,7 @@ class Nirc2(instrument.Instrument):
             {'name':'set_semester',     'crit': True},
             {'name':'set_prog_info',    'crit': True},
             {'name':'set_propint',      'crit': True},
-            {'name':'set_ofname',       'crit': True},
+            {'name':'set_ofName',       'crit': True},
             {'name':'set_wavelengths',  'crit': False},
             {'name':'set_detdisp',      'crit': False},
             {'name':'set_wcs',          'crit': False},
@@ -382,13 +382,16 @@ class Nirc2(instrument.Instrument):
         
         return True
 
-    def set_ofname(self):
+    def set_ofName(self):
         '''
         Sets OFNAME to value of FILENAME
         '''
-        log.info('set_ofname: setting OFNAME = FILENAME')
-        self.set_keyword('OFNAME',self.get_keyword('FILENAME'),'KOA: Original Filename')
+        filename = self.get_keyword('FILENAME', False)
+        if filename == None:
+            log.warning('set_ofName: Could not determine OFNAME')
+            return False
 
+        self.set_keyword('OFNAME', filename,'KOA: Original Filename')
         return True
 
     def set_instr_status(self):

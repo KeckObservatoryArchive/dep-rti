@@ -325,7 +325,6 @@ class Instrument(dep.DEP):
         return True
        
 
-
     def set_utc(self):
         '''
         Checks to see if we have a UTC time keyword, and if it needs to be fixed or created.

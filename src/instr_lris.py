@@ -50,7 +50,7 @@ class Lris(instrument.Instrument):
             {'name':'set_telnr',        'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
             {'name':'set_ut',           'crit': True},
-            {'name':'set_ofname',       'crit': True},
+            {'name':'set_ofName',       'crit': True},
             {'name':'set_frameno',      'crit': True},
             {'name':'set_semester',     'crit': True},
             {'name':'set_prog_info',    'crit': True},
@@ -119,7 +119,7 @@ class Lris(instrument.Instrument):
         return ok
 
 
-    def set_ofname(self):
+    def set_ofName(self):
         '''
         Sets OFNAME keyword from OUTFILE and FRAMENO
         '''

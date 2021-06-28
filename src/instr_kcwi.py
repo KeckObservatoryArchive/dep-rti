@@ -443,3 +443,7 @@ class Kcwi(instrument.Instrument):
         koaids = list(set(koaids))
         return koaids
 
+
+    def create_ext_meta(self):
+        '''Override parent function'''
+        return True
