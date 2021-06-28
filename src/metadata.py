@@ -128,7 +128,6 @@ def create_metadata_file(filename, keyDefs):
         for index, row in keyDefs.iterrows():
             out.write('|' + row['metaDataType'].ljust(row['colSize']))
         out.write("|\n")
-        #todo: add units?
         for index, row in keyDefs.iterrows():
             out.write('|' + ''.ljust(row['colSize']))
         out.write("|\n")

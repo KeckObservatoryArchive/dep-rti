@@ -102,7 +102,6 @@ class DEP:
         '''Run all prcessing steps required for archiving lev0.'''
 
         funcs = [
-            {'name': 'get_status_record',     'crit': True},
             {'name': 'check_status_db_entry', 'crit': True},
             {'name': 'get_status_record',     'crit': True},
             {'name': 'init_processing',       'crit': True},
@@ -700,7 +699,7 @@ class DEP:
         for hdu in self.fits_hdu:
             hdu_type = str(type(hdu))
             if 'CorruptedHDU' in hdu_type:
-                log.error('CORRUPTED_HDU')
+                self.log_invalid('CORRUPTED_HDU')
                 return False
 
         #certain text in filepath is indication that it should not be archived.
@@ -792,8 +791,6 @@ class DEP:
 
 
     def create_meta(self):
-        log.info('Creating metadata')
-
         extra_meta = {}
         koaid = self.get_keyword('KOAID')
         extra_meta[koaid] = self.extra_meta
@@ -813,18 +810,12 @@ class DEP:
         '''
         #todo: put in warnings for empty ext headers
 
-        if self.instr in ('KCWI'):
-            return True
-        log.info(f'Making FITS extension metadata files for: {self.koaid}')
-
         #read extensions and write to file
-        #todo: do we need to fits.open here again?
         filename = os.path.basename(self.outfile)
-        hdus = fits.open(self.outfile)
-        for i in range(0, len(hdus)):
+        for i in range(0, len(self.fits_hdu)):
             #wrap in try since some ext headers have been found to be corrupted
             try:
-                hdu = hdus[i]
+                hdu = self.fits_hdu[i]
                 if 'TableHDU' not in str(type(hdu)): continue
 
                 #calc col widths
@@ -843,7 +834,8 @@ class DEP:
                 dataStr += r'\ Extended Header Name: ' + hdu.name + "\n"
 
                 #add header
-                #TODO: NOTE: Found that all ext data is stored as strings regardless of type it seems to hardcoding to 'char' for now.
+                #NOTE: Found that all ext data is stored as strings regardless of type 
+                #it seems, so hardcoding to 'char' for now.
                 for idx, cw in enumerate(colWidths):
                     dataStr += '|' + hdu.data.columns.names[idx].ljust(cw)
                 dataStr += "|\n"
@@ -873,8 +865,9 @@ class DEP:
                 with open(outFilepath, 'w') as f:
                     f.write(dataStr)
 
-            except:
+            except Exception as e:
                 self.log_warn('EXT_HEADER_FILE', f' HDU index {i}')
+                log.error(str(e))
                 return False
 
         return True
@@ -938,7 +931,6 @@ class DEP:
 
     def create_md5sum(self):
         '''Create ext.md5sum.table for all files matching KOAID*'''
-        #TODO: make_dir_md5_table excludes *.log, need drp log files.
         try:
             outdir = self.dirs[f'lev{self.level}']
             if self.level == 0:
@@ -1012,7 +1004,6 @@ class DEP:
             log.info(query)
             result = self.db.query('koa', query)
             if result is False: 
-                #todo: what can we do if THIS fails??  Email admins direct?
                 log.error(f'STATUS QUERY FAILED: {query}')
                 return False
 
@@ -1023,28 +1014,6 @@ class DEP:
         #call check_dep_status_errors
         if status == 'ERROR' and not self.dev:
             check_dep_status_errors.main()
-
-
-    def verify_date(self, date=''):
-        """
-        Verify that date value has format yyyy-mm-dd
-            yyyy >= 1990
-            mm between 01 and 12
-            dd between 01 and 31
-        """        
-        #TODO: Do we need this function?
-        # Verify correct format (yyyy-mm-dd or yyyy/mm/dd)
-        assert date != '', 'date value is blank'
-        assert re.search(r'\d\d\d\d[-/]\d\d[-/]\d\d', date), 'unknown date format'
-        
-        # Switch to yyyy-mm-dd format and split into individual elements        
-        date = date.replace('/', '-')
-        year, month, day = date.split('-')
-        
-        # Check date components
-        assert int(year) >= 1990, 'year value must be 1990 or larger'
-        assert int(month) >= 1 and int(month) <= 12, 'month value must be between 1 and 12'
-        assert int(day) >= 1 and int(day) <= 31, 'day value must be between 1 and 31'
 
 
     def verify_utc(self, utc=''):
@@ -1287,8 +1256,6 @@ class DEP:
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_koa_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
-            # todo: Need to remove this line when API is fixed
-            if isinstance(apiData, str): apiData = json.loads(apiData)                     
             if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
                 self.log_error('IPAC_API_ERROR', apiUrl)
                 self.update_koa_status('status', 'ERROR')
