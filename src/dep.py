@@ -271,7 +271,8 @@ class DEP:
         if not self.dbid: 
             self.level = 0
         else:
-            self.get_status_record()
+            res = self.get_status_record()
+            if not res: return False
             self.level = self.status['level']
         return True
 
@@ -318,9 +319,8 @@ class DEP:
         query = f"select * from koa_status where id={self.dbid}"
         self.status = self.db.query('koa', query, getOne=True)
         if not self.status:
-            self.log_invalid('DB_ID_NOT_FOUND', query)
+            self.log_error('DB_ID_NOT_FOUND', query)
             return False
-
         return True
 
 
