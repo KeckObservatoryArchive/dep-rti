@@ -185,11 +185,7 @@ class Mosfire(instrument.Instrument):
         Adds wavelength keywords.
         # https://www2.keck.hawaii.edu/inst/mosfire/filters.html
         """
-
-        # log.info('set_wavelengths: setting wavelength keyword values')
-
         # Filter lookup (filter: [central, fwhm])
-
         wave = {}
         wave['Y'] = [1.048, 0.152]
         wave['J'] = [1.253, 0.200]

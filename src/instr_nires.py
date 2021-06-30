@@ -88,9 +88,6 @@ class Nires(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword.
         '''
-
-        # log.info('set_elaptime: determining ELAPTIME from ITIME/COADDS')
-
         #skip if it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
 
@@ -113,9 +110,6 @@ class Nires(instrument.Instrument):
         # https://www.keck.hawaii.edu/realpublic/inst/nires/genspecs.html
         # NOTE: kfilter is always on for imag
         '''
-
-        # log.info('set_wavelengths: setting wavelength keyword values')
-
         instr = self.get_keyword('INSTR')
 
         #imaging (K-filter always on):
@@ -137,9 +131,6 @@ class Nires(instrument.Instrument):
         '''
         Adds nominal spectral resolution keyword
         '''
-
-        # log.info('set_specres: setting SPECRES keyword values')
-
         instr = self.get_keyword('INSTR')
         if (instr == 'spec'):
             specres = 2700.0
@@ -179,7 +170,6 @@ class Nires(instrument.Instrument):
         #add keyword for 'imag' only
         instr = self.get_keyword('INSTR')
         if (instr == 'imag'):
-            # log.info('set_filter: setting FILTER keyword value')
             filt = 'Kp'
             self.set_keyword('FILTER' , filt, 'KOA: Filter')
         return True
@@ -193,7 +183,6 @@ class Nires(instrument.Instrument):
         #add keywords for 'spec' only
         instr = self.get_keyword('INSTR')
         if (instr == 'spec'):
-            # log.info('set_slit_dims: setting slit keyword values')
             slitlen  = 18.1
             slitwidt = 0.5
             self.set_keyword('SLITLEN'  , slitlen,  'KOA: Slit length projected on sky')
@@ -206,9 +195,6 @@ class Nires(instrument.Instrument):
         Fixes missing KOAIMTYP keyword.
         This is derived from OBSTYPE keyword.
         '''
-
-        # log.info('set_koaimtyp: setting KOAIMTYP keyword value from OBSTYPE')
-
         #get obstype value
         obstype = self.get_keyword('OBSTYPE')
 

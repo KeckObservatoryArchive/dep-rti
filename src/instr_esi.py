@@ -87,18 +87,10 @@ class Esi(instrument.Instrument):
         """
         Uses get_koaimtyp to set KOAIMTYP
         """
-
-        #log.info('set_koaimtyp: setting KOAIMTYP keyword value')
-
         koaimtyp = self.get_koaimtyp()
-
-        # Warn if undefined
         if koaimtyp == 'undefined':
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
-
-        # Update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
-
         return True
 
     def set_ofName(self):
@@ -109,7 +101,7 @@ class Esi(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            log.warning('set_ofName: Could not determine OFNAME')
+            self.log_warn('SET_OFNAME_ERROR')
             return False
     
         frameno = str(frameno).zfill(4)
@@ -269,9 +261,6 @@ class Esi(instrument.Instrument):
         '''
         Adds wavelength keywords.
         '''
-
-        # log.info('set_wavelengths: setting wavelength keyword values')
-
         # Default null values
         wavered = wavecntr = waveblue = 'null'
 
@@ -314,9 +303,6 @@ class Esi(instrument.Instrument):
         '''
         Adds nominal spectral resolution keyword
         '''
-
-        # log.info('set_specres: setting SPECRES keyword values')
-
         specres = 'null'
         obsmode   = self.get_keyword("OBSMODE")
         if obsmode in ('low', 'high'):

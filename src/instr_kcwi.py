@@ -170,7 +170,6 @@ class Kcwi(instrument.Instrument):
         '''
         itime  = self.get_keyword('ITIME')
         coadds = self.get_keyword('COADDS')
-        #use elaptime if set, otherwise check other keywords
         if self.get_keyword('ELAPTIME') is not None:
             elaptime = self.get_keyword('ELAPTIME')
         elif self.get_keyword('EXPTIME') is not None:
@@ -183,8 +182,8 @@ class Kcwi(instrument.Instrument):
             elaptime = round(itime*coadds,4)
             log.info('set_elaptime: Setting ELAPTIME from ITIME*COADDS')
         else:
-            elaptime = ''
-            log.warning('set_elaptime: no methods possible for setting elaptime')
+            self.log_warn('SET_ELAPTIME_ERROR')
+            return False
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
         return True
 

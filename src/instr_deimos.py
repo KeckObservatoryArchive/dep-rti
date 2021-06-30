@@ -159,12 +159,10 @@ class Deimos(instrument.Instrument):
         '''
         Sets OFNAME keyword from OUTFILE and FRAMENO
         '''
-
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            log.info('set_ofName: Could not determine OFNAME')
-            ofname = ''
+            self.log_warn('SET_OFNAME_ERROR')
             return False
         
         frameno = str(frameno).zfill(4)
@@ -270,9 +268,7 @@ class Deimos(instrument.Instrument):
         if filter == None:
             log.info('set_filter: Could not set filter, no DWFILNAM value')
         else:
-            log.info('set_filter: Adding FILTER keyword')
             self.set_keyword('FILTER', filter, 'KOA: Filter name')
-        
         return True
 
 
@@ -286,9 +282,7 @@ class Deimos(instrument.Instrument):
         if mjd == None:
             log.info('set_mjd: Could not set MJD, no MJD-OBS value')
         else:
-            log.info('set_mjd: Adding MJD keyword')
             self.set_keyword('MJD', float(mjd), 'KOA: Modified julian day')
-        
         return True
 
 
@@ -309,10 +303,7 @@ class Deimos(instrument.Instrument):
         MOS if:      GRATENAM != ["Mirror", "Unknown", "None", (blank)]
                      AND
                      SLMSKNAM != ["LVM*", "Long*"]
-        '''
-
-        log.info('set_obsmode: Adding OBSMODE keyword')
-        
+        '''        
         obsmode = 'null'
         
         gratname = self.get_keyword('GRATENAM', default='').lower()
@@ -346,10 +337,7 @@ class Deimos(instrument.Instrument):
         Adds the NEXTEN keyword and sets its value to the number of
         imaging extensions for this file.
         '''
-
-        log.info('set_nexten: Adding NEXTEN keyword')
         self.set_keyword('NEXTEN', int(len(self.fits_hdu))-1, 'KOA: Number of image extensions')
-
         return True
 
 
@@ -359,9 +347,6 @@ class Deimos(instrument.Instrument):
         keyword is set equal to the DETSEC keyword value from the image
         headers.  ## = 01 to 16.
         '''
-
-        log.info('set_detsec: Adding DETSEC## keywords')
-
         maxExtensions = 16
         for i in range(1, maxExtensions+1):
             key = f'DETSEC{str(i).zfill(2)}'
@@ -382,24 +367,19 @@ class Deimos(instrument.Instrument):
         Determines number of saturated pixels and adds NPIXSAT to header
         NPIXSAT is the sum of all image extensions.
         '''
-
-        log.info('set_npixsat: setting pixel saturation keyword value')
-
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
-
         if satVal == None:
-            log.warning("set_npixsat: Could not find SATURATE keyword")
-        else:
-            nPixSat = 0
-            for ext in range(1, len(self.fits_hdu)):
-                image = self.fits_hdu[ext].data
-                if 'ndarray' not in str(type(image)): continue
-                pixSat = image[np.where(image >= satVal)]
-                nPixSat += len(image[np.where(image >= satVal)])
+            self.log_warn("SET_NPIXSAT", "No saturate value")
+            return False
 
-            self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
-
+        nPixSat = 0
+        for ext in range(1, len(self.fits_hdu)):
+            image = self.fits_hdu[ext].data
+            if 'ndarray' not in str(type(image)): continue
+            pixSat = image[np.where(image >= satVal)]
+            nPixSat += len(image[np.where(image >= satVal)])
+        self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
         return True
 
 

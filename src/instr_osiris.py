@@ -6,6 +6,7 @@ import datetime as dt
 from common import *
 from math import ceil
 import numpy as np
+import subprocess
 
 import logging
 log = logging.getLogger('koa_dep')
@@ -13,9 +14,9 @@ log = logging.getLogger('koa_dep')
 
 class Osiris(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer):
+    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
 
-        super().__init__(instr, filepath, reprocess, transfer)
+        super().__init__(instr, filepath, reprocess, transfer, dbid)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'
@@ -43,7 +44,7 @@ class Osiris(instrument.Instrument):
             {'name':'set_wcs_keywords', 'crit': False},
             {'name':'set_image_stats',  'crit': False},
             #{'name':'set_gain_and_rn', 'crit': False},
-            {'name':'set_npixsat()',    'crit': False},
+            {'name':'set_npixsat',      'crit': False},
             {'name':'set_nlinear',      'crit': False},
             {'name':'set_scale',        'crit': False},
             {'name':'check_nonint_vals','crit': False},
@@ -185,7 +186,8 @@ class Osiris(instrument.Instrument):
             elif 'c' in datafile:
                 koaimtyp = 'calib'
         except Exception as e:
-            log.error('set_koaimtype: ' + str(e))
+            self.log_error('SET_KOAIMTYP', str(e))
+            return False
 
         #warn if undefined
         if (koaimtyp == 'undefined'):
@@ -276,9 +278,6 @@ class Osiris(instrument.Instrument):
         '''
         Populates filter from ifilter or sfilter
         '''
-
-        log.info('set_wavelengths: setting FILTER keyword value')
-
         instr = self.get_keyword('INSTR')
         ifilter = self.get_keyword('IFILTER', default='')
         sfilter = self.get_keyword('SFILTER', default='')
@@ -295,17 +294,21 @@ class Osiris(instrument.Instrument):
 
 
     def set_npixsat(self):
-        satVal = self.get_keyword('COADDS')*self.get_keyword('SATURATE')
-        return super().set_npixsat(satVal=satVal)
+        '''Determines number of saturated pixels and adds NPIXSAT to header'''
+        coadds = self.get_keyword('COADDS')
+        saturate = self.get_keyword('SATURATE')
+        if coadds is None or saturate is None:
+            self.log_warn("SET_NPIXSAT", f'{coadds}, {saturate}')
+            return False
+
+        satval = coadds * saturate
+        return super().set_npixsat(satVal=satval, ext=0)
 
 
     def set_wavelengths(self):
         '''
         Set wavelength values based off filters used
         '''
-
-        log.info('set_wavelengths: setting WAVE keyword values from FILTER')
-
         waveblue = wavecntr = wavered = 'null'
 
         wave = {}
@@ -362,41 +365,31 @@ class Osiris(instrument.Instrument):
         '''
         Determines number of saturated pixels above linearity, adds NLINEAR to header
         '''
-
-        log.info('set_nlinear: setting number of pixels above linearity keyword value')
-
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
-            
         if satVal == None:
-            log.warning("set_nlinear: Could not find SATURATE keyword")
-        else:
-            satVal = 0.8 * satVal * self.get_keyword('COADDS')
-            image = self.fits_hdu[0].data     
-            linSat = image[np.where(image >= satVal)]
-            nlinSat = len(image[np.where(image >= satVal)])
-            self.set_keyword('NLINEAR', nlinSat, 'KOA: Number of pixels above linearity')
-            self.set_keyword('NONLIN', int(satVal), 'KOA: 3% nonlinearity level (80% full well)')
+            self.log_warn("SET_NLINEAR_ERROR")
+            return False
 
+        satVal = 0.8 * satVal * self.get_keyword('COADDS')
+        image = self.fits_hdu[0].data     
+        linSat = image[np.where(image >= satVal)]
+        nlinSat = len(image[np.where(image >= satVal)])
+        self.set_keyword('NLINEAR', nlinSat, 'KOA: Number of pixels above linearity')
+        self.set_keyword('NONLIN', int(satVal), 'KOA: 3% nonlinearity level (80% full well)')
         return True
 
     def set_scale(self):
         '''
         Sets scale
         '''       
-
-        log.info('set_scale: setting SCALE from SSCALE')
-
         sscale = self.get_keyword('SSCALE')
         instr = self.get_keyword('INSTR')
-        
         if "imag" in instr:
             scale = 0.02
         else:
             scale = sscale
-        
         self.set_keyword('SCALE', scale, 'KOA: Scale')
-        
         return True
 
     def check_nonint_vals(self):
@@ -404,9 +397,6 @@ class Osiris(instrument.Instrument):
         This checks certain keywords for decimal values less than one and converts them to zero.
         NOTE: This is a direct port from old IDL code.  Not sure what it is for.
         '''
-
-        log.info('check_nonint_vals: checking SHTRANG, SHTRACT and IHTRACT')
-
         kws = ['SHTRANG', 'SHTRACT', 'IHTRACT']
         for kw in kws:
             val = self.get_keyword(kw)
@@ -441,7 +431,10 @@ class Osiris(instrument.Instrument):
         Run the OSIRIS DRP on vm-koaserver2
         '''
 
-        import subprocess
+        drp = self.config.get(self.instr, {}).get('DRP')
+        if not drp:
+            log.info("No DRP defined.")
+            return True
 
         cmd = []
         for word in self.config[self.instr]['DRP'].split(' '):

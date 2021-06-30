@@ -126,7 +126,7 @@ class Lris(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            log.warning('set_ofName: Could not determine OFNAME')
+            self.log_warn('SET_OFNAME_ERROR')
             return False
     
         frameno = str(frameno).zfill(4)
@@ -586,7 +586,6 @@ class Lris(instrument.Instrument):
             log.info('set_skypa: Could not set skypa')
             return True
         skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)
-        log.info('set_skypa: Setting skypa')
         self.set_keyword('SKYPA', round(skypa, 4), 'KOA: Position angle on sky (deg)')
 
         return True
@@ -662,21 +661,20 @@ class Lris(instrument.Instrument):
     def set_npixsat(self, satVal=None):
         '''
         Determines number of saturated pixels and adds NPIXSAT to header
+        NPIXSAT is the sum of all image extensions.
         '''
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
-
         if satVal == None:
-            log.warning("set_npixsat: Could not find SATURATE keyword")
-        else:
-            nPixSat = 0
-            for ext in range(1, self.nexten+1):
-                image = self.fits_hdu[ext].data
-                pixSat = image[np.where(image >= satVal)]
-                nPixSat += len(image[np.where(image >= satVal)])
+            self.log_warn("SET_NPIXSAT", "No saturate value")
+            return False
 
-            self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
-
+        nPixSat = 0
+        for ext in range(1, self.nexten+1):
+            image = self.fits_hdu[ext].data
+            pixSat = image[np.where(image >= satVal)]
+            nPixSat += len(image[np.where(image >= satVal)])
+        self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
         return True
 
 

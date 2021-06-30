@@ -313,7 +313,7 @@ class Instrument(dep.DEP):
             dateObs = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             dateObs = dateObs.strftime('%Y-%m-%d')
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
-            log.warning('set_dateObs: set DATE-OBS value from FITS file time')
+            self.log_warn('SET_DATEOBS_WARN', 'Set DATE-OBS value from FITS file time')
 
         # If good match, just take first 10 chars (some dates have 'T' format and extra time)
         if len(dateObs) > 10:
@@ -352,12 +352,11 @@ class Instrument(dep.DEP):
             utc = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             utc = utc.strftime('%H:%M:%S.00')
             update = True
-            log.warning('set_utc: set UTC value from FITS file time')
+            self.log_warn('SET_UTC_WARN', 'Set UTC value from FITS file time')
         #update/add if need be
         if update:
             self.set_keyword('UTC', utc, 'KOA: UTC keyword corrected')
         return True
-
 
 
     def set_ut(self):
@@ -673,12 +672,13 @@ class Instrument(dep.DEP):
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
         if satVal == None:
-            log.warning("set_npixsat: Could not find SATURATE keyword")
-        else:
-            image = self.fits_hdu[ext].data     
-            pixSat = image[np.where(image >= satVal)]
-            nPixSat = len(image[np.where(image >= satVal)])
-            self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels',ext=ext)
+            self.log_warn("SET_NPIXSAT", "No saturate value.")
+            return False
+
+        image = self.fits_hdu[ext].data     
+        pixSat = image[np.where(image >= satVal)]
+        nPixSat = len(image[np.where(image >= satVal)])
+        self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels',ext=ext)
         return True
 
 
@@ -872,9 +872,6 @@ class Instrument(dep.DEP):
         """
         Adds FRAMENO keyword to header if it doesn't exist
         """
-
-        # log.info('set_frameno: setting FRAMNO keyword value from FRAMENUM')
-
         #skip if it exists
         if self.get_keyword('FRAMENO', False) != None: return True
 

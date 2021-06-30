@@ -94,6 +94,7 @@ class DEP:
             ok = False
             self.log_error('CODE_ERROR', traceback.format_exc())
 
+        #handle any log_error, log_warn or log_invalid calls
         self.handle_dep_errors()
         return ok
 
@@ -115,7 +116,7 @@ class DEP:
             {'name': 'validate_fits',         'crit': True},
             {'name': 'run_psfr',              'crit': True},
             {'name': 'run_dqa',               'crit': True},
-            {'name': 'write_lev0_fits_file',   'crit': True},
+            {'name': 'write_lev0_fits_file',  'crit': True},
             {'name': 'make_jpg',              'crit': False},
             {'name': 'set_filesize_mb',       'crit': False},
             {'name': 'create_meta',           'crit': True},
@@ -804,7 +805,7 @@ class DEP:
                     f.write(dataStr)
 
             except Exception as e:
-                self.log_warn('EXT_HEADER_FILE', f' HDU index {i}')
+                self.log_warn('EXT_HEADER_FILE', str(e))
                 log.error(str(e))
                 return False
 
@@ -919,6 +920,13 @@ class DEP:
 
 
     def handle_dep_errors(self):
+        '''
+        Errors are serious and will set the koa_status.status to "ERROR" and will
+        call the check_dep_status_errors email script.
+        Warnings are less serious and will only set koa_status.status_code and will
+        not call the check_dep_status_errors email script.
+        Invalids are those errors that we know can be fully ignored.
+        '''
 
         #if not errors or warnings, return
         if not self.invalids and not self.errors and not self.warnings:
