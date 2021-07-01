@@ -1,4 +1,3 @@
-
 ## Tag and Release Process
 
 Before tagging:

@@ -738,9 +738,18 @@ class DEP:
 
         keydefs = f"{self.config['MISC']['METADATA_TABLES_DIR']}/KOA_{self.instr}_Keyword_Table.txt"
         metaoutfile =  self.levdir + '/' + self.koaid + '.metadata.table'
-        ok = metadata.make_metadata( keydefs, metaoutfile, filepath=self.outfile, 
-                                     extraMeta=extra_meta, keyskips=self.keyskips)   
-        return ok
+        md = metadata.Metadata(keydefs, metaoutfile, fitsfile=self.outfile, 
+                               extraMeta=extra_meta, keyskips=self.keyskips,
+                               dev=self.dev)
+        try:      
+            warns = md.make_metadata()
+        except Exception as err:
+            self.log_error('METADATA_ERROR', str(err))
+            return False
+        else:
+            for warn in warns:
+                    self.log_warn(warn['code'], warn['msg'])
+            return True
 
 
     def create_ext_meta(self):
@@ -959,7 +968,7 @@ class DEP:
 
         #call check_dep_status_errors
         if status == 'ERROR' and not self.dev:
-            check_dep_status_errors.main()
+            check_dep_status_errors.main(dev=self.dev, admin_email=self.config['REPORT']['ADMIN_EMAIL'])
 
 
     def verify_utc(self, utc=''):
