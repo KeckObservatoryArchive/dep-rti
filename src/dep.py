@@ -814,7 +814,7 @@ class DEP:
                     f.write(dataStr)
 
             except Exception as e:
-                self.log_warn('EXT_HEADER_FILE', str(e))
+                self.log_warn('EXT_HEADER_FILE_ERROR', str(e))
                 log.error(str(e))
                 return False
 
@@ -919,9 +919,10 @@ class DEP:
 
         #process it
         log.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
-        ok = update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
-        if not ok:
-            self.log_warn('CHECK_KOAPI_SEND', f"{self.utdate}, {semid}, {self.instr}")
+        try:
+            update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
+        except Exception as e:
+            self.log_warn('CHECK_KOAPI_SEND_ERROR', f"{self.utdate}, {semid}, {self.instr}")
             return False
 
         #NOTE: This should not hold up archiving
@@ -1019,7 +1020,7 @@ class DEP:
         url = api + 'ktn='+semid+'&cmd=getAllocInst&json=True'
         data = self.get_api_data(url)
         if not data or not data.get('success'):
-            self.log_warn('API_ERROR', url)
+            self.log_warn('PROP_API_ERROR', url)
             return default
         else:
             val = data.get('data', {}).get('AllocInst', default)
@@ -1033,7 +1034,7 @@ class DEP:
         url = api + 'ktn='+semid+'&cmd=getPI&json=True'
         data = self.get_api_data(url)
         if not data or not data.get('success'):
-            self.log_warn('API_ERROR', url)
+            self.log_warn('PROP_API_ERROR', url)
             return default
         else:
             val = data.get('data', {}).get('LastName', default)
@@ -1047,7 +1048,7 @@ class DEP:
         url = api + 'ktn='+semid+'&cmd=getTitle&json=True'
         data = self.get_api_data(url)
         if not data or not data.get('success'):
-            self.log_warn('API_ERROR', url)
+            self.log_warn('PROP_API_ERROR', url)
             return default
         else:
             val = data.get('data', {}).get('ProgramTitle', default)
@@ -1154,6 +1155,12 @@ class DEP:
             self.log_error('NO_TRANSFER_FILES', fromDir)
             return False
 
+        #make sure all files exist
+        for file in self.xfr_files:
+            if not os.path.isfile(file):
+                self.log_error('TRANSFER_FILE_MISSING', file)
+                return False
+
         # xfr config parameters
         server = self.config['KOAXFR']['SERVER']
         account = self.config['KOAXFR']['ACCOUNT']
@@ -1186,9 +1193,8 @@ class DEP:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
         if error:
-            print(error)
             self.update_koa_status('xfr_start_time', None)
-            self.log_error('TRANSFER_ERROR')
+            self.log_error('TRANSFER_ERROR', error)
             return False
 
         # Transfer success
@@ -1197,9 +1203,9 @@ class DEP:
         if not self.update_koa_status('status', 'TRANSFERRED'): return False
 
         # Send API request to archive the data set
-        if not api:
-            log.warning('IPAC API not defined in config. NOT NOTIFYING IPAC.')
-            return True
+        if not api and not self.dev:
+            self.log_error('IPAC_API_UNDEFINED')
+            return False
         else:
             if self.level in (0,1):
                 apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev{self.level}'
@@ -1211,12 +1217,10 @@ class DEP:
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_koa_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
-            if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
-                self.log_error('IPAC_API_ERROR', apiUrl)
-                self.update_koa_status('status', 'ERROR')
-                self.update_koa_status('status_code', 'IPAC_NOTIFY_ERROR')
-                return False
             log.info(f"IPAC API response: {apiData}")
+            if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
+                self.log_error('IPAC_NOTIFY_ERROR', apiUrl)
+                return False
 
         return True
 

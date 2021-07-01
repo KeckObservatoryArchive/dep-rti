@@ -298,7 +298,7 @@ class Osiris(instrument.Instrument):
         coadds = self.get_keyword('COADDS')
         saturate = self.get_keyword('SATURATE')
         if coadds is None or saturate is None:
-            self.log_warn("SET_NPIXSAT", f'{coadds}, {saturate}')
+            self.log_warn("SET_NPIXSAT_ERROR", f'{coadds}, {saturate}')
             return False
 
         satval = coadds * saturate

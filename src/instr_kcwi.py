@@ -308,7 +308,7 @@ class Kcwi(instrument.Instrument):
         elif mode == 'stat':
             pa1 = float(pa)+float(parantel)-float(el)
         else:
-            self.log_warn("WCS_INDETERMINATE_MODE", mode)
+            self.log_warn("SET_WCS_ERROR", mode)
             return False
 
         #get correct units and formatting

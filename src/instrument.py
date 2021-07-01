@@ -500,7 +500,7 @@ class Instrument(dep.DEP):
             progid = 'ENG'
             valid = True
         if not valid:
-            self.log_warn('INVALID_PROGID', str(progid))
+            self.log_warn('INVALID_PROGID_WARN', str(progid))
         progid = progid.strip().upper()
 
         #add semester?
@@ -567,7 +567,7 @@ class Instrument(dep.DEP):
             url = api + 'ktn='+semid+'&cmd=getApprovedPP&json=True'
             data = self.get_api_data(url)
             if not data or not data.get('success'):
-                self.log_warn('API_ERROR', url)
+                self.log_warn('PROPINT_ERROR', url)
                 propint = 18
             else:
                 propint = data.get('data', {}).get('ProprietaryPeriod', 18)
@@ -581,7 +581,7 @@ class Instrument(dep.DEP):
                 log.info(f"Changing PROPINT from {self.extra_meta['PROPINT']} to 0")
                 self.extra_meta['PROPINT'] = 0
         except Exception as e:
-            self.log_error('CHECK_ZERO_PROPINT', str(e))
+            self.log_warn('CHECK_ZERO_PROPINT_FAIL', str(e))
 
         return True
 
@@ -672,7 +672,7 @@ class Instrument(dep.DEP):
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
         if satVal == None:
-            self.log_warn("SET_NPIXSAT", "No saturate value.")
+            self.log_warn("SET_NPIXSAT_ERROR", "No saturate value.")
             return False
 
         image = self.fits_hdu[ext].data     
@@ -718,7 +718,7 @@ class Instrument(dep.DEP):
         #get value
         ofName = self.get_keyword('OFNAME')
         if (ofName == None): 
-            self.log_warn('SET_OFNAME_FAIL')
+            self.log_error('SET_OFNAME_NAME')
             return False
 
         #add *.fits to output if it does not exist (to fix old files)
@@ -812,7 +812,7 @@ class Instrument(dep.DEP):
             if koaid in files:
                 fits_filepath = f'{root}/{koaid}'
         if not fits_filepath:
-            self.log_warn('MAKE_JPG_FITS_ERROR', koaid)
+            self.log_warn('MAKE_JPG_ERROR', koaid)
             return False
         outdir = os.path.dirname(fits_filepath)
 

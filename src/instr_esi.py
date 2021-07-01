@@ -101,7 +101,7 @@ class Esi(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            self.log_warn('SET_OFNAME_ERROR')
+            self.log_error('SET_OFNAME_ERROR')
             return False
     
         frameno = str(frameno).zfill(4)

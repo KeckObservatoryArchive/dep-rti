@@ -162,7 +162,7 @@ class Deimos(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            self.log_warn('SET_OFNAME_ERROR')
+            self.log_error('SET_OFNAME_ERROR')
             return False
         
         frameno = str(frameno).zfill(4)
@@ -370,7 +370,7 @@ class Deimos(instrument.Instrument):
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
         if satVal == None:
-            self.log_warn("SET_NPIXSAT", "No saturate value")
+            self.log_warn("SET_NPIXSAT_ERROR", "No saturate value")
             return False
 
         nPixSat = 0

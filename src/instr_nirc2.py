@@ -376,7 +376,7 @@ class Nirc2(instrument.Instrument):
         '''
         filename = self.get_keyword('FILENAME', False)
         if filename == None:
-            self.log_warn('SET_OFNAME_ERROR')
+            self.log_error('SET_OFNAME_ERROR')
             return False
 
         self.set_keyword('OFNAME', filename,'KOA: Original Filename')
