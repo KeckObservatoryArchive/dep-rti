@@ -13,11 +13,12 @@ import db_conn
 
 #globals
 MAX_EMAIL_SEC = 2*60*60
+ADMIN_EMAIL = 'koaadmin@keck.hawaii.edu'
 
 
-def main(instr=None, dev=False):
+def main(instr=None, dev=False, admin_email=ADMIN_EMAIL):
 
-    print(f"\n{dt.datetime.now()} Running {sys.argv}")
+    print(f"\n{dt.datetime.now()} Running {os.path.basename(__file__)}")
 
     #cd to script dir so relative paths work
     os.chdir(sys.path[0])
@@ -76,7 +77,7 @@ def main(instr=None, dev=False):
     #email and insert new record
     print(msg)
     if not dev:
-        email_admin(msg, dev=dev)
+        email_admin(msg, admin_email=admin_email)
         db.query('koa', 'insert into dep_error_notify set email_time=NOW()')
 
 
@@ -94,18 +95,12 @@ def gen_table_report(name, rows):
     return txt
 
 
-def email_admin(body, dev=False):
-
-    subject = os.path.basename(__file__) + " report"
+def email_admin(body, admin_email):
 
     msg = MIMEText(body)
     msg['From'] = 'koaadmin@keck.hawaii.edu'
-    if dev:
-        msg['To'] = 'jriley@keck.hawaii.edu'
-        msg['Subject'] = '[TEST] ' + subject
-    else:
-        msg['To'] = 'koaadmin@keck.hawaii.edu'
-        msg['Subject'] = subject
+    msg['To'] = admin_email
+    msg['Subject'] = os.path.basename(__file__) + " report"
     s = smtplib.SMTP('localhost')
     s.send_message(msg)
     s.quit()
