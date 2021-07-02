@@ -13,12 +13,11 @@ import db_conn
 
 #globals
 MAX_EMAIL_SEC = 2*60*60
-ADMIN_EMAIL = 'koaadmin@keck.hawaii.edu'
 
 
-def main(instr=None, dev=False, admin_email=ADMIN_EMAIL):
+def main(instr=None, dev=False):
 
-    print(f"\n{dt.datetime.now()} Running {os.path.basename(__file__)}")
+    print(f"\n{dt.datetime.now()} Running {sys.argv}")
 
     #cd to script dir so relative paths work
     os.chdir(sys.path[0])
@@ -39,6 +38,10 @@ def main(instr=None, dev=False, admin_email=ADMIN_EMAIL):
             if diff.total_seconds() < MAX_EMAIL_SEC:
                 print("Already sent a recent error email.")
                 return
+
+    #query for last error
+    q = ("select * from koa_status where status='ERROR' order by id desc limit 1")
+    lasterror = db.query('koa', q, getOne=True)
 
     #query for all ERRORs
     q = ("select instrument, count(*) as count, status_code, status_code_ipac from koa_status "
@@ -68,18 +71,33 @@ def main(instr=None, dev=False, admin_email=ADMIN_EMAIL):
     #msg
     msg = ''
     if errors: 
+        msg += gen_last_error_report(lasterror)
         msg += gen_table_report('errors', errors)
     if warns: 
         msg += gen_table_report('warnings', warns)
     if stuck: 
         msg += gen_table_report('stuck', stuck)
+    msg += ("\n\nReminder: This script runs once per day on cron.  Otherwise, it is triggered "
+            "by new DEP errors and will only email once per hour.  You may want to manually run "
+            " this script or monitor koa_status for other chronic errors in that hour window.")
 
     #email and insert new record
     print(msg)
     if not dev:
-        email_admin(msg, admin_email=admin_email)
+        email_admin(msg, dev=dev)
         db.query('koa', 'insert into dep_error_notify set email_time=NOW()')
 
+
+def gen_last_error_report(row):
+    if not row: return
+    txt = ("\n=== Most recent error ==="
+            f"\n{row['instrument']}"
+            f"\tid: {row['id']}"
+            f"\terr: {row['status_code']}"
+            f"\tkoaid: {row['koaid']}"
+            f"\tofname: {row['ofname']}"
+            "\n")
+    return txt
 
 def gen_table_report(name, rows):
     if not rows: return
@@ -95,12 +113,18 @@ def gen_table_report(name, rows):
     return txt
 
 
-def email_admin(body, admin_email):
+def email_admin(body, dev=False):
+
+    subject = os.path.basename(__file__) + " report"
 
     msg = MIMEText(body)
     msg['From'] = 'koaadmin@keck.hawaii.edu'
-    msg['To'] = admin_email
-    msg['Subject'] = os.path.basename(__file__) + " report"
+    if dev:
+        msg['To'] = 'jriley@keck.hawaii.edu'
+        msg['Subject'] = '[TEST] ' + subject
+    else:
+        msg['To'] = 'koaadmin@keck.hawaii.edu'
+        msg['Subject'] = subject
     s = smtplib.SMTP('localhost')
     s.send_message(msg)
     s.quit()
