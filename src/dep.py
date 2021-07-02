@@ -478,10 +478,10 @@ class DEP:
         Otherwise, we can just use what is in DB.
         '''
         if self.level == 0:
-            self.set_koaid()
+            return self.set_koaid()
         else:
             self.koaid = self.status['koaid']
-        return True
+            return True
 
 
     def load_fits(self):
