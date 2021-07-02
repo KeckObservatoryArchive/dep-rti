@@ -150,9 +150,11 @@ class Instrument(dep.DEP):
         """
 
         # Get the prefix for the correct instrument and configuration
-        self.set_instr()
+        if not self.set_instr():
+            return False
         self.prefix = self.get_prefix()
-        if self.prefix == '': return False
+        if self.prefix == '': 
+            return False
 
         # Extract the UTC time and date observed from the header
         self.set_utc()
@@ -257,7 +259,7 @@ class Instrument(dep.DEP):
         if (outdir and '/mira' in outdir) : ok = False
 
         #No DCS keywords, check others
-        if (not ok):
+        if not ok:
             filname = self.get_keyword('FILNAME')
             if (filname and self.instr in filname): ok = True
 
@@ -273,7 +275,7 @@ class Instrument(dep.DEP):
                 log.info('set_instr: fixing INSTRUME value')
 
         #log err
-        if (not ok):
+        if not ok:
             self.log_error('SET_INSTR_ERROR')
 
         return ok
