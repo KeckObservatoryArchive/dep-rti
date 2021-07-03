@@ -369,7 +369,8 @@ class Kcwi(instrument.Instrument):
         Return list of files to archive for DRP specific to KCWI.
 
         Raw ingest (KOA level 1)
-            icubed.fits files 
+            icubed.fits files
+            icubes.fits files
             calibration validation (arc_ and bars_ < FRAMENO)
 
         Final ingest (KOA level 2)
@@ -401,7 +402,12 @@ class Kcwi(instrument.Instrument):
 
         #level 1
         if level >= 1:
-            files.append(f"{datadir}/redux/{koaid}_icubed.fits")
+            searchfiles = [
+                f"{datadir}/redux/{koaid}_icubed.fits",
+                f"{datadir}/redux/{koaid}_icubes.fits"
+            ]
+            for f in searchfiles:
+                if os.path.isfile(f): files.append(f)
             for file in glob.glob(f"{datadir}/plots/*"):
                 fparts = os.path.basename(file).split('_')
                 if fparts[0] not in ('arc', 'bars', 'bias'): continue
@@ -411,9 +417,12 @@ class Kcwi(instrument.Instrument):
 
         #level 2 (note: includes level 1 stuff, see above)
         if level == 2:
-            #files.append(f"{datadir}/kcwi_koarti.cfg") #todo
-            files.append(f"{datadir}/kcwi.proc")
-            files.append(f"{datadir}/redux/{koaid}_icubes.fits")
+            searchfiles = [
+                f"{datadir}/kcwi.proc",
+                # f"{datadir}/kcwi_koarti.cfg" #todo
+            ]
+            for f in searchfiles:
+                if os.path.isfile(f): files.append(f)
             for file in glob.glob(f"{datadir}/plots/*"):
                 fparts = os.path.basename(file).split('_')
                 if fparts[0] not in ('sky', 'scat', 'std'): continue
