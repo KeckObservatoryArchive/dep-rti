@@ -87,7 +87,7 @@ class Monitor():
         self.queue = []
         self.procs = []
         self.max_procs = 10
-        self.last_queue_check = time.time()
+        self.last_queue_check = None
         self.last_email_times = {}
         self.db = None
 
@@ -274,8 +274,8 @@ class Monitor():
         outside of nominal operation, this will pick it up.
         '''
         now = time.time()
-        diff = int(now - self.last_queue_check)
-        if diff >= QUEUE_CHECK_SEC:
+        diff = int(now - self.last_queue_check) if self.last_queue_check else 0
+        if diff >= QUEUE_CHECK_SEC or not self.last_queue_check:
             self.check_queue()
 
         #call this function every N seconds
