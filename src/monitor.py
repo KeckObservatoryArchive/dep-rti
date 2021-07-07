@@ -59,7 +59,7 @@ def main():
     try:
         monitor = Monitor(args.service)
     except Exception as error:
-        handle_error('MONITOR_ERROR', traceback.format_exc())
+        handle_error('MONITOR_ERROR', traceback.format_exc(), service=args.service)
         sys.exit(1)
 
     #stay alive until control-C to exit
