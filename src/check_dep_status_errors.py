@@ -40,18 +40,20 @@ def main(instr=None, dev=False):
                 return
 
     #query for last error
-    q = ("select * from koa_status where status='ERROR' order by id desc limit 1")
+    q = ("select * from koa_status where status='ERROR' and reviewed=0 order by id desc limit 1")
     lasterror = db.query('koa', q, getOne=True)
 
     #query for all ERRORs
     q = ("select instrument, count(*) as count, status_code, status_code_ipac from koa_status "
          " where status='ERROR' "
+         " and reviewed=0 "
          " group by instrument, status_code, status_code_ipac order by instrument asc")
     errors = db.query('koa', q)
 
     #query for any records that have blank status but have status code.
     q = ("select instrument, count(*) as count, status_code from koa_status "
          " where status='COMPLETE' and status_code is not NULL and status_code != '' "
+         "  and reviewed=0 "
          " group by instrument, status_code order by instrument asc")
     warns = db.query('koa', q)
 
@@ -60,6 +62,7 @@ def main(instr=None, dev=False):
     q = ("select instrument, count(*) as count from koa_status "
         " where status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED') "
          " and creation_time < (NOW() - INTERVAL 15 MINUTE + INTERVAL 10 HOUR) "
+         " and reviewed=0 "
          " group by instrument order by instrument asc")
     stuck = db.query('koa', q)
 
