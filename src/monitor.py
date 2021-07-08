@@ -202,7 +202,7 @@ class Monitor():
 
         #check for back to back duplicate broadcast (catch race condition)
         if not stage_file:
-            if status in ('QUEUED', 'PROCESSING'):
+            if status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED'):
                 self.log.warning(f"Filepath '{filepath}' duplicate broadcast same as {row['id']}. Skipping.")
                 return True            
             else:
