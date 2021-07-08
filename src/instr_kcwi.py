@@ -54,7 +54,7 @@ class Kcwi(instrument.Instrument):
             {'name':'set_dqa_vers',    'crit': False},
             {'name':'set_dqa_date',    'crit': False},
         ]
-        return self.run_dqa_funcs(funcs)
+        return self.run_functions(funcs)
 
 
     def get_dir_list(self):
@@ -170,7 +170,6 @@ class Kcwi(instrument.Instrument):
         '''
         itime  = self.get_keyword('ITIME')
         coadds = self.get_keyword('COADDS')
-        #use elaptime if set, otherwise check other keywords
         if self.get_keyword('ELAPTIME') is not None:
             elaptime = self.get_keyword('ELAPTIME')
         elif self.get_keyword('EXPTIME') is not None:
@@ -183,8 +182,8 @@ class Kcwi(instrument.Instrument):
             elaptime = round(itime*coadds,4)
             log.info('set_elaptime: Setting ELAPTIME from ITIME*COADDS')
         else:
-            elaptime = ''
-            log.warning('set_elaptime: no methods possible for setting elaptime')
+            self.log_warn('SET_ELAPTIME_ERROR')
+            return False
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
         return True
 
@@ -309,7 +308,7 @@ class Kcwi(instrument.Instrument):
         elif mode == 'stat':
             pa1 = float(pa)+float(parantel)-float(el)
         else:
-            self.log_warn("WCS_INDETERMINATE_MODE", mode)
+            self.log_warn("SET_WCS_ERROR", mode)
             return False
 
         #get correct units and formatting
@@ -370,7 +369,8 @@ class Kcwi(instrument.Instrument):
         Return list of files to archive for DRP specific to KCWI.
 
         Raw ingest (KOA level 1)
-            icubed.fits files 
+            icubed.fits files
+            icubes.fits files
             calibration validation (arc_ and bars_ < FRAMENO)
 
         Final ingest (KOA level 2)
@@ -402,7 +402,12 @@ class Kcwi(instrument.Instrument):
 
         #level 1
         if level >= 1:
-            files.append(f"{datadir}/redux/{koaid}_icubed.fits")
+            searchfiles = [
+                f"{datadir}/redux/{koaid}_icubed.fits",
+                f"{datadir}/redux/{koaid}_icubes.fits"
+            ]
+            for f in searchfiles:
+                if os.path.isfile(f): files.append(f)
             for file in glob.glob(f"{datadir}/plots/*"):
                 fparts = os.path.basename(file).split('_')
                 if fparts[0] not in ('arc', 'bars', 'bias'): continue
@@ -412,9 +417,12 @@ class Kcwi(instrument.Instrument):
 
         #level 2 (note: includes level 1 stuff, see above)
         if level == 2:
-            #files.append(f"{datadir}/kcwi_koarti.cfg") #todo
-            files.append(f"{datadir}/kcwi.proc")
-            files.append(f"{datadir}/redux/{koaid}_icubes.fits")
+            searchfiles = [
+                f"{datadir}/kcwi.proc",
+                # f"{datadir}/kcwi_koarti.cfg" #todo
+            ]
+            for f in searchfiles:
+                if os.path.isfile(f): files.append(f)
             for file in glob.glob(f"{datadir}/plots/*"):
                 fparts = os.path.basename(file).split('_')
                 if fparts[0] not in ('sky', 'scat', 'std'): continue
@@ -443,3 +451,7 @@ class Kcwi(instrument.Instrument):
         koaids = list(set(koaids))
         return koaids
 
+
+    def create_ext_meta(self):
+        '''Override parent function'''
+        return True

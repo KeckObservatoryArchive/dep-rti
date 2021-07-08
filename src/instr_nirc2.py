@@ -34,7 +34,7 @@ class Nirc2(instrument.Instrument):
             {'name':'set_semester',     'crit': True},
             {'name':'set_prog_info',    'crit': True},
             {'name':'set_propint',      'crit': True},
-            {'name':'set_ofname',       'crit': True},
+            {'name':'set_ofName',       'crit': True},
             {'name':'set_wavelengths',  'crit': False},
             {'name':'set_detdisp',      'crit': False},
             {'name':'set_wcs',          'crit': False},
@@ -51,7 +51,7 @@ class Nirc2(instrument.Instrument):
             {'name':'set_dqa_vers',     'crit': False},
             {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
         ]
-        return self.run_dqa_funcs(funcs)
+        return self.run_functions(funcs)
 
 
     def get_dir_list(self):
@@ -84,8 +84,6 @@ class Nirc2(instrument.Instrument):
         '''
         Check OUTDIR to verify NIRC2 and add INSTRUME
         '''
-
-        log.info('set_instr: setting INSTRUME to NIRC2')
         if 'nirc' in self.get_keyword('OUTDIR'):
             #update instrument
             self.set_keyword('INSTRUME', 'NIRC2', 'KOA: Instrument')
@@ -101,7 +99,6 @@ class Nirc2(instrument.Instrument):
         koaimtyp = self.get_koaimtyp()
         if koaimtyp in ['flatTBD','specTBD','telTBD']:
             koaimtyp = self.set_caltype(koaimtyp)
-        #warn if undefined
         if (koaimtyp == 'undefined'):
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
@@ -187,7 +184,6 @@ class Nirc2(instrument.Instrument):
                 imagetyp = 'dark'
             print('Image Type: ',imagetyp)
 
-#        log.info('get_koaimtyp: getting KOAIMTYP')
         return imagetyp
 
     def set_wavelengths(self):
@@ -213,7 +209,6 @@ class Nirc2(instrument.Instrument):
         self.set_keyword('WAVERED',maxwave,'KOA: Maximum Wavelength')
         self.set_keyword('WAVEBLUE',minwave,'KOA: Minimum Wavelength')
         self.set_keyword('WAVECNTR',cenwave,'KOA: Center Wavelength')
-        log.info('set_wavelengths: setting WAVERED, WAVEBLUE, WAVECNTR')
         return True
 
     def set_detdisp(self):
@@ -240,16 +235,12 @@ class Nirc2(instrument.Instrument):
         self.set_keyword('DISPERS',disp,'KOA: Dispersion')
         self.set_keyword('DETGAIN',4,'KOA: Detector Gain')
         self.set_keyword('DETRN',39,'KOA: Detector Read Noise')
-        log.info('set_detdisp: setting DETMODE, DETGAIN, DETRN, DISPERS')
         return True
 
     def set_wcs(self):
         '''
         Set the WCS keywords for NIRC2 images
         '''
-
-        log.info('set_wcs: Setting WCS keywords')
-
         pixscale = radecsys = wcsdim = 'null'
         crval1 = crval2 = crpix1 = crpix2 = 'null'
         cd1_1 = cd1_2 = cd2_1 = cd2_2 = 'null'
@@ -362,8 +353,6 @@ class Nirc2(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword
         '''
-        log.info('set_elaptime: determining ELAPTIME from ITIME')
-
         #skip it it exists
         if self.get_keyword('ELAPTIME', False) != None: 
             return True
@@ -371,7 +360,6 @@ class Nirc2(instrument.Instrument):
         #get necessary keywords
         itime  = self.get_keyword('ITIME')
         coadds = self.get_keyword('COADDS')
-        #if exposure time or # of exposures doesn't exist, throw error
         if (itime == None or coadds == None):
             self.log_warn("SET_ELAPTIME_ERROR")
             return False
@@ -382,13 +370,16 @@ class Nirc2(instrument.Instrument):
         
         return True
 
-    def set_ofname(self):
+    def set_ofName(self):
         '''
         Sets OFNAME to value of FILENAME
         '''
-        log.info('set_ofname: setting OFNAME = FILENAME')
-        self.set_keyword('OFNAME',self.get_keyword('FILENAME'),'KOA: Original Filename')
+        filename = self.get_keyword('FILENAME', False)
+        if filename == None:
+            self.log_error('SET_OFNAME_ERROR')
+            return False
 
+        self.set_keyword('OFNAME', filename,'KOA: Original Filename')
         return True
 
     def set_instr_status(self):
@@ -429,21 +420,17 @@ class Nirc2(instrument.Instrument):
         '''
         Determines number of saturated pixels above linearity, adds NLINEAR to header
         '''
-        log.info('set_nlinear: setting number of pixels above linearity keyword value')
-
         if satVal == None:
-            satVal = self.get_keyword('COADDS')*5000.0
-            #satVal = self.get_keyword('SATURATE')
-            
+            satVal = self.get_keyword('COADDS')*5000.0            
         if satVal == None:
-            log.warning("set_nlinear: Could not find SATURATE keyword")
-        else:
-            image = self.fits_hdu[0].data     
-            linSat = image[np.where(image >= satVal)]
-            nlinSat = len(image[np.where(image >= satVal)])
-            self.set_keyword('NLINEAR', nlinSat, 'KOA: Number of pixels above linearity')
-            self.set_keyword('NONLIN', int(satVal), 'KOA: 3% nonlinearity level (80% full well)')
+            self.log_warn("SET_NLINEAR_ERROR")
+            return False
 
+        image = self.fits_hdu[0].data     
+        linSat = image[np.where(image >= satVal)]
+        nlinSat = len(image[np.where(image >= satVal)])
+        self.set_keyword('NLINEAR', nlinSat, 'KOA: Number of pixels above linearity')
+        self.set_keyword('NONLIN', int(satVal), 'KOA: 3% nonlinearity level (80% full well)')
         return True
 
     def set_caltype(self,imagetyp):
@@ -487,9 +474,6 @@ class Nirc2(instrument.Instrument):
         '''
         Calculates S/N for CCD image
         '''
-
-        log.info('set_sig2nois: Adding SIG2NOIS')
-
         image = self.fits_hdu[0].data
 
         naxis1 = self.get_keyword('NAXIS1')

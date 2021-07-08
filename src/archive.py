@@ -84,7 +84,6 @@ class Archive():
         print("STARTING PROCESSING")
 
         #cd to script dir so relative paths work
-        #todo: is this needed?  Does it work for both cmd line and monitor call?
         os.chdir(sys.path[0])
 
         #load config file

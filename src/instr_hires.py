@@ -62,7 +62,7 @@ class Hires(instrument.Instrument):
             {'name':'set_dqa_vers',     'crit': False},
             {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
         ]
-        return self.run_dqa_funcs(funcs)
+        return self.run_functions(funcs)
 
 
     def get_dir_list(self):
@@ -104,8 +104,6 @@ class Hires(instrument.Instrument):
         '''
 
         koaimtyp = self.get_koaimtyp()
-        
-        #warn if undefined
         if (koaimtyp == 'undefined'):
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
@@ -220,7 +218,7 @@ class Hires(instrument.Instrument):
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            log.info('set_ofName: Could not determine OFNAME')
+            self.log_error('SET_OFNAME_ERROR')
             ofname = ''
             return False
         
@@ -389,8 +387,6 @@ class Hires(instrument.Instrument):
         inststat = -1 (missing keywords)
         '''
 
-        log.info('set_instr_status: Setting ...')
-
         inststat = 1
         koaimtyp = self.get_keyword('IMAGETYP', default='')
         
@@ -472,8 +468,6 @@ class Hires(instrument.Instrument):
         '''
         Determine slit scales from decker name
         '''
-        log.info('set_slit_values: Setting slit scale keywords')
-
         slitlen = slitwidt = spatscal = specres = 'null'
         f15PlateScale = 0.7235 # mm/arcsec
         lambdaRes     = 5019.5 # A, res blaze order 71
@@ -552,9 +546,6 @@ class Hires(instrument.Instrument):
         '''
         Assign values for CCD gain and read noise
         '''
-
-        log.info('set_gain: Setting CCDGN and CCDRN keywords')
-
         gain = {}
         gain['low']  = [1.20, 1.95, 1.13, 2.09, 1.26, 2.09]
         gain['high'] = [0.48, 0.78, 0.45, 0.84, 0.50, 0.89]
@@ -608,10 +599,7 @@ class Hires(instrument.Instrument):
             return True
 
         skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)
-
-        log.info('set_skypa: Setting skypa')
         self.set_keyword('SKYPA', round(skypa, 4), 'KOA: Position angle on sky (deg)')
-
         return True
     
     
@@ -619,9 +607,6 @@ class Hires(instrument.Instrument):
         '''
         Determine if file is part of a subexposure sequence
         '''
-
-        log.info('set_subexp: Setting SUBEXP')
-
         subexp = 'False'
         comment = ''
 
@@ -783,9 +768,6 @@ class Hires(instrument.Instrument):
         '''
         Calculates S/N for middle CCD image
         '''
-
-        log.info('set_sig2nois: Adding SIG2NOIS')
-
         numamps = self.get_numamps()
 
         # Middle extension
@@ -819,9 +801,7 @@ class Hires(instrument.Instrument):
         '''
         HIRES needs PROPINT1, 2, 3 and PROPMIN
         '''
-
         if self.extra_meta['PROPINT']:
-            log.info('fix_propint: Adding PROPINT1, PROPINT2 and PROPINT3')
             self.extra_meta['PROPINT1'] = self.extra_meta['PROPINT']
             self.extra_meta['PROPINT2'] = self.extra_meta['PROPINT']
             self.extra_meta['PROPINT3'] = self.extra_meta['PROPINT']
@@ -838,7 +818,8 @@ class Hires(instrument.Instrument):
             ## = 01, 02, 03...
         '''
 
-        # TODO: Can we merge this with instrument.make_jpg()?
+        # TODO: Can we utilize instrument.make_jpg() to reduce duplicate code?  
+        # Perhaps add an 'ext' param to make_jpg().
 
         # file to convert is lev0Dir/KOAID
 
@@ -848,9 +829,8 @@ class Hires(instrument.Instrument):
             if koaid in files:
                 filePath = ''.join((root, '/', koaid))
         if not filePath or not os.path.isfile(filePath):
-            self.log_warn('MAKE_JPG_FITS_ERROR')
+            self.log_warn('MAKE_JPG_ERROR')
             return False
-        log.info('make_jpg: converting {} to jpeg format'.format(filePath))
 
         koaid = filePath.replace('.fits', '')
         for ext in range(1, len(self.fits_hdu)):
@@ -880,7 +860,7 @@ class Hires(instrument.Instrument):
                 os.remove(pngFile)
                 plt.close()
             except:
-                self.log_error("MAKE_JPG_ERROR", jpgFile)
+                self.log_warn("MAKE_JPG_ERROR", jpgFile)
                 return False
 
         return True
@@ -889,24 +869,20 @@ class Hires(instrument.Instrument):
     def set_npixsat(self, satVal=None):
         '''
         Determines number of saturated pixels and adds NPIXSAT to header
+        NPIXSAT is the sum of all image extensions.
         '''
-
-        log.info('set_npixsat: setting pixel saturation keyword value')
-
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
-
         if satVal == None:
-            log.warning("set_npixsat: Could not find SATURATE keyword")
-        else:
-            nPixSat = 0
-            for ext in range(1, len(self.fits_hdu)):
-                image = self.fits_hdu[ext].data
-                pixSat = image[np.where(image >= satVal)]
-                nPixSat += len(image[np.where(image >= satVal)])
+            self.log_warn("SET_NPIXSAT_ERROR", "No saturate value")
+            return False
 
-            self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
-
+        nPixSat = 0
+        for ext in range(1, len(self.fits_hdu)):
+            image = self.fits_hdu[ext].data
+            pixSat = image[np.where(image >= satVal)]
+            nPixSat += len(image[np.where(image >= satVal)])
+        self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
         return True
 
 

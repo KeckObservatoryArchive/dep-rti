@@ -49,7 +49,7 @@ class Nirspec(instrument.Instrument):
             {'name':'set_oa',           'crit': False},
             {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
         ]
-        return self.run_dqa_funcs(funcs)
+        return self.run_functions(funcs)
 
 
     def get_dir_list(self):
@@ -136,28 +136,6 @@ class Nirspec(instrument.Instrument):
         return True
 
 
-    def set_ofName(self):
-        """
-        Adds OFNAME keyword to header
-        """
-
-        #OFNAME was added as a native NIRSPEC keyword around 20190405
-        if self.get_keyword('OFNAME', False) != None: return True
-
-        #get value
-        ofName = self.get_keyword('OFNAME')
-        if (ofName == None):
-            self.log_warn("SET_OFNAME_ERROR")
-            return False
-
-        #add *.fits to output if it does not exist (to fix old files)
-        if (ofName.endswith('.fits') == False) : ofName += '.fits'
-
-        #update
-        self.set_keyword('OFNAME', ofName, 'KOA: Original file name')
-        return True
-
-
     def set_koaimtyp(self):
         '''
         Fixes missing KOAIMTYP keyword.
@@ -190,8 +168,6 @@ class Nirspec(instrument.Instrument):
 
         #use algorithm
         else:
-            log.info('set_koaimtyp: setting KOAIMTYP keyword value from algorithm')
-
             calmpos = self.get_keyword('CALMPOS', default='').lower()
             calppos = self.get_keyword('CALPPOS', default='').lower()
             #calcpos doesn't exist in header
@@ -248,8 +224,6 @@ class Nirspec(instrument.Instrument):
 
         if self.get_keyword('FILTER', False) != None: return True
 
-        log.info('set_filter: setting FILTER keyword from SCIFILT1/2')
-
         scifilt1 = self.get_keyword('SCIFILT1', default='')
         scifilt2 = self.get_keyword('SCIFILT2', default='')
 
@@ -273,9 +247,6 @@ class Nirspec(instrument.Instrument):
         '''
         Sets WAVEBLUE, CNTR, RED based on FILTER value
         '''
-
-        log.info('set_wavelengths: setting WAVE keyword values from FILTER')
-
         filters = {}
         filters['UNKNOWN']   = {'blue':'null', 'cntr':'null', 'red':'null'}
         filters['BLANK']     = {'blue':'null', 'cntr':'null', 'red':'null'}
@@ -321,16 +292,11 @@ class Nirspec(instrument.Instrument):
         '''
         Sets the ISAO keyword value: NIRSPEC = no, NIRSPAO = yes 
         '''
-        
-        log.info('set_isao: setting ISAO keyword values from INSTRUME')
-
         isao = 'no'
         instrume = self.get_keyword('INSTRUME')
         if instrume == 'NIRSPAO':
             isao = 'yes'
-
         self.set_keyword('ISAO', isao, 'KOA: Is this NIRSPAO data?')
-
         return True
 
 
@@ -349,7 +315,6 @@ class Nirspec(instrument.Instrument):
         spatscal = pscale
 
         if 'NS' in self.get_keyword('KOAID'):
-            log.info('set_dispers: setting DISPERS and DISPSCAL keyword values')
 
             slitname = self.get_keyword('SLITNAME')
             isao = self.get_keyword('ISAO')

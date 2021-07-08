@@ -50,7 +50,7 @@ class Lris(instrument.Instrument):
             {'name':'set_telnr',        'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
             {'name':'set_ut',           'crit': True},
-            {'name':'set_ofname',       'crit': True},
+            {'name':'set_ofName',       'crit': True},
             {'name':'set_frameno',      'crit': True},
             {'name':'set_semester',     'crit': True},
             {'name':'set_prog_info',    'crit': True},
@@ -71,7 +71,7 @@ class Lris(instrument.Instrument):
             {'name':'set_dqa_vers',     'crit': False},
             {'name':'set_dqa_date',     'crit': False},
         ]
-        return self.run_dqa_funcs(funcs)
+        return self.run_functions(funcs)
 
 
     @staticmethod
@@ -80,8 +80,8 @@ class Lris(instrument.Instrument):
         Function to generate the paths to all the LRIS accounts, including engineering
         Returns the list of paths
         '''
-        #todo: note: idl dep searches /s/sdata/2* , though it is known that the dirs are 241/242/243
-        #todo: note: There are subdirs /lris11/ thru /lris20/, though it is known that these are not used
+        #note: idl dep searches /s/sdata/2* , though it is known that the dirs are 241/242/243
+        #note: There are subdirs /lris11/ thru /lris20/, though it is known that these are not used
         dirs = []
         path = '/s/sdata24'
         for i in range(1,4):
@@ -119,14 +119,14 @@ class Lris(instrument.Instrument):
         return ok
 
 
-    def set_ofname(self):
+    def set_ofName(self):
         '''
         Sets OFNAME keyword from OUTFILE and FRAMENO
         '''
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
-            log.warning('set_ofName: Could not determine OFNAME')
+            self.log_error('SET_OFNAME_ERROR')
             return False
     
         frameno = str(frameno).zfill(4)
@@ -586,7 +586,6 @@ class Lris(instrument.Instrument):
             log.info('set_skypa: Could not set skypa')
             return True
         skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)
-        log.info('set_skypa: Setting skypa')
         self.set_keyword('SKYPA', round(skypa, 4), 'KOA: Position angle on sky (deg)')
 
         return True
@@ -662,21 +661,20 @@ class Lris(instrument.Instrument):
     def set_npixsat(self, satVal=None):
         '''
         Determines number of saturated pixels and adds NPIXSAT to header
+        NPIXSAT is the sum of all image extensions.
         '''
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
-
         if satVal == None:
-            log.warning("set_npixsat: Could not find SATURATE keyword")
-        else:
-            nPixSat = 0
-            for ext in range(1, self.nexten+1):
-                image = self.fits_hdu[ext].data
-                pixSat = image[np.where(image >= satVal)]
-                nPixSat += len(image[np.where(image >= satVal)])
+            self.log_warn("SET_NPIXSAT_ERROR", "No saturate value")
+            return False
 
-            self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
-
+        nPixSat = 0
+        for ext in range(1, self.nexten+1):
+            image = self.fits_hdu[ext].data
+            pixSat = image[np.where(image >= satVal)]
+            nPixSat += len(image[np.where(image >= satVal)])
+        self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
         return True
 
 

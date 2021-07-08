@@ -45,6 +45,7 @@ PROC_CHECK_SEC = 1.0
 KTL_START_RETRY_SEC = 60.0
 SERVICE_CHECK_SEC = 60.0
 QUEUE_CHECK_SEC = 60.0
+EMAIL_INTERVAL_MINUTES = 60
 
 
 def main():
@@ -59,7 +60,7 @@ def main():
     try:
         monitor = Monitor(args.service)
     except Exception as error:
-        handle_error('MONITOR_ERROR', traceback.format_exc())
+        handle_error('MONITOR_ERROR', traceback.format_exc(), service=args.service)
         sys.exit(1)
 
     #stay alive until control-C to exit
@@ -87,7 +88,7 @@ class Monitor():
         self.queue = []
         self.procs = []
         self.max_procs = 10
-        self.last_queue_check = time.time()
+        self.last_queue_check = None
         self.last_email_times = {}
         self.db = None
 
@@ -201,7 +202,7 @@ class Monitor():
 
         #check for back to back duplicate broadcast (catch race condition)
         if not stage_file:
-            if status in ('QUEUED', 'PROCESSING'):
+            if status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED'):
                 self.log.warning(f"Filepath '{filepath}' duplicate broadcast same as {row['id']}. Skipping.")
                 return True            
             else:
@@ -274,8 +275,8 @@ class Monitor():
         outside of nominal operation, this will pick it up.
         '''
         now = time.time()
-        diff = int(now - self.last_queue_check)
-        if diff >= QUEUE_CHECK_SEC:
+        diff = int(now - self.last_queue_check) if self.last_queue_check else 0
+        if diff >= QUEUE_CHECK_SEC or not self.last_queue_check:
             self.check_queue()
 
         #call this function every N seconds
@@ -434,7 +435,6 @@ class KtlMonitor():
     def on_new_file(self, keyword):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
         try:
-
             #Assume first read after a full restart is old
             if self.last_mtime is None:
                 self.log.debug(f'Skipping (assuming first broadcast is old)')
@@ -532,7 +532,7 @@ def handle_error(errcode, text='', instr='', service='', check_time=True):
         if not last_email_times: last_email_times = {}
         last_time = last_email_times.get(errcode)
         now = dt.datetime.now()
-        if last_time and last_time + dt.timedelta(minutes=60) > now:
+        if last_time and last_time + dt.timedelta(minutes=EMAIL_INTERVAL_MINUTES) > now:
             return
         last_email_times[errcode] = now
 

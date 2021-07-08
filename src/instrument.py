@@ -61,26 +61,6 @@ class Instrument(dep.DEP):
     def set_koaimtyp(self) : raise NotImplementedError("Abstract method not implemented!")
 
 
-    def run_dqa_funcs(self, funcs):
-        '''
-        Run a list of functions by name.  If the function returns False or throws exception,
-        check if it is a critical function before breaking processing.
-        '''
-        for f in funcs:
-            name = f.get('name')
-            crit = f.get('crit')
-            args = f.get('args', {})
-            try: 
-                ok = getattr(self, name)(**args)
-            except Exception as e: 
-                etype = 'ERROR' if crit else 'WARN'
-                self.log_error(etype, 'CODE_ERROR', traceback.format_exc())
-                ok = False
-            if not ok and crit:
-                return False
-        return True
-
-
     def get_keyword(self, keyword, useMap=True, default=None, ext=0):
         '''
         Gets keyword value from the FITS header as defined in keymap class variable.  
@@ -170,9 +150,11 @@ class Instrument(dep.DEP):
         """
 
         # Get the prefix for the correct instrument and configuration
-        self.set_instr()
+        if not self.set_instr():
+            return False
         self.prefix = self.get_prefix()
-        if self.prefix == '': return False
+        if self.prefix == '': 
+            return False
 
         # Extract the UTC time and date observed from the header
         self.set_utc()
@@ -234,7 +216,7 @@ class Instrument(dep.DEP):
         for kw, vals in keyvals.items():
             hdrval = self.get_keyword(kw, default='')
             for val in vals:
-                if val in hdrval:
+                if val.lower() in hdrval.lower():
                     return True
         if self.check_zero_propint(): return True
         return False
@@ -277,7 +259,7 @@ class Instrument(dep.DEP):
         if (outdir and '/mira' in outdir) : ok = False
 
         #No DCS keywords, check others
-        if (not ok):
+        if not ok:
             filname = self.get_keyword('FILNAME')
             if (filname and self.instr in filname): ok = True
 
@@ -293,7 +275,7 @@ class Instrument(dep.DEP):
                 log.info('set_instr: fixing INSTRUME value')
 
         #log err
-        if (not ok):
+        if not ok:
             self.log_error('SET_INSTR_ERROR')
 
         return ok
@@ -333,7 +315,7 @@ class Instrument(dep.DEP):
             dateObs = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             dateObs = dateObs.strftime('%Y-%m-%d')
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
-            log.warning('set_dateObs: set DATE-OBS value from FITS file time')
+            self.log_warn('SET_DATEOBS_WARN', 'Set DATE-OBS value from FITS file time')
 
         # If good match, just take first 10 chars (some dates have 'T' format and extra time)
         if len(dateObs) > 10:
@@ -344,7 +326,6 @@ class Instrument(dep.DEP):
 
         return True
        
-
 
     def set_utc(self):
         '''
@@ -373,12 +354,11 @@ class Instrument(dep.DEP):
             utc = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             utc = utc.strftime('%H:%M:%S.00')
             update = True
-            log.warning('set_utc: set UTC value from FITS file time')
+            self.log_warn('SET_UTC_WARN', 'Set UTC value from FITS file time')
         #update/add if need be
         if update:
             self.set_keyword('UTC', utc, 'KOA: UTC keyword corrected')
         return True
-
 
 
     def set_ut(self):
@@ -395,46 +375,6 @@ class Instrument(dep.DEP):
         #copy to UT
         self.set_keyword('UT', utc, 'KOA: Observing time')
         return True
-
-
-
-    def get_outdir(self):
-        '''
-        Returns outdir if keyword exists, else derive from filename
-        '''
-
-        #return by keyword index if it exists
-        outdir = self.get_keyword('OUTDIR')
-        if (outdir != None) : return outdir
-
-        #Returns the OUTDIR associated with the filename, else returns None.
-        #OUTDIR = [/s]/sdata####/account/YYYYmmmDD
-        #todo: should we look for '/s/' and subtract one from index?
-        #NOTE: for reprocessing old data that doesn't have OUTDIR keyword, this matches
-        #on /stage/ or /storageserver/ instead of /s/, which still gets the job done.  not ideal.
-        try:
-            filename = self.filepath
-            start = filename.find('/s')
-            end = filename.rfind('/')
-            return filename[start:end]
-        except:
-            #todo: really return "None"?
-            return "None"
-
-
-
-    def get_fileno(self):
-
-        #todo: do we need this function instead of using keyword mapping?  see subclass set_frameno
-        keys = self.fits_hdr
-
-        fileno = keys.get('FILENUM')
-        if (fileno == None): fileno = keys.get('FILENUM2')
-        if (fileno == None): fileno = keys.get('FRAMENO')
-        if (fileno == None): fileno = keys.get('IMGNUM')
-        if (fileno == None): fileno = keys.get('FRAMENUM')
-
-        return fileno
 
 
     def set_semester(self):
@@ -526,13 +466,13 @@ class Instrument(dep.DEP):
             if isinstance(data, dict):
                 data = [data]
             if len(data) == 1:
-                log.info(f"using the only scheduled entry: {data[0]['ProjCode']}")
+                log.warning(f"Assigning PROGID by only scheduled entry: {data[0]['ProjCode']}")
                 return data[0]['ProjCode']
             for num, entry in enumerate(data):
                 #if there was an OUTDIR match above, use it
                 if splitNight > -1:
                     if splitNight == num+1:
-                        log.info(f"using schedule entry by OUTIDR: {entry['ProjCode']}")
+                        log.warning(f"Assigning PROGID by OUTDIR index match: {entry['ProjCode']}")
                         return entry['ProjCode']
                     else:
                         continue
@@ -542,14 +482,9 @@ class Instrument(dep.DEP):
                 end = entry['EndTime'].split(':')
                 end = int(end[0]) + (int(end[1])/60.0)
                 if ut >= start and ut <= end:
-                    log.info(f"using schedule entry by UTC: {entry['ProjCode']}")
+                    log.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
                     return entry['ProjCode']
         return 'NONE'
-
-
-    def get_missing_progid(self):
-        #todo: do simple progid assigment
-        return "NONE"
 
 
     def set_prog_info(self):
@@ -559,21 +494,15 @@ class Instrument(dep.DEP):
         #If not found, then do simple assignment by time/observer/outdir(eng).
         progid = self.get_keyword('PROGNAME')
         if not progid:
-            #check telescope schedule
             progid = self.get_progid_from_schedule()
-            print('----', progid)
-            if not progid:
-                #todo: (assign NONE if cannot determine)
-                progid = self.get_missing_progid()
 
         #valid progname?
-        #todo: Make sure we are getting the full semid with underscore
         valid = self.is_progid_valid(progid)
         if self.is_engineering():
             progid = 'ENG'
             valid = True
         if not valid:
-            self.log_warn('INVALID_PROGID', str(progid))
+            self.log_warn('INVALID_PROGID_WARN', str(progid))
         progid = progid.strip().upper()
 
         #add semester?
@@ -640,7 +569,7 @@ class Instrument(dep.DEP):
             url = api + 'ktn='+semid+'&cmd=getApprovedPP&json=True'
             data = self.get_api_data(url)
             if not data or not data.get('success'):
-                self.log_warn('API_ERROR', url)
+                self.log_warn('PROPINT_ERROR', url)
                 propint = 18
             else:
                 propint = data.get('data', {}).get('ProprietaryPeriod', 18)
@@ -654,7 +583,7 @@ class Instrument(dep.DEP):
                 log.info(f"Changing PROPINT from {self.extra_meta['PROPINT']} to 0")
                 self.extra_meta['PROPINT'] = 0
         except Exception as e:
-            self.log_error('CHECK_ZERO_PROPINT', str(e))
+            self.log_warn('CHECK_ZERO_PROPINT_FAIL', str(e))
 
         return True
 
@@ -745,12 +674,13 @@ class Instrument(dep.DEP):
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
         if satVal == None:
-            log.warning("set_npixsat: Could not find SATURATE keyword")
-        else:
-            image = self.fits_hdu[ext].data     
-            pixSat = image[np.where(image >= satVal)]
-            nPixSat = len(image[np.where(image >= satVal)])
-            self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels',ext=ext)
+            self.log_warn("SET_NPIXSAT_ERROR", "No saturate value.")
+            return False
+
+        image = self.fits_hdu[ext].data     
+        pixSat = image[np.where(image >= satVal)]
+        nPixSat = len(image[np.where(image >= satVal)])
+        self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels',ext=ext)
         return True
 
 
@@ -790,7 +720,7 @@ class Instrument(dep.DEP):
         #get value
         ofName = self.get_keyword('OFNAME')
         if (ofName == None): 
-            self.log_warn('SET_OFNAME_FAIL')
+            self.log_error('SET_OFNAME_NAME')
             return False
 
         #add *.fits to output if it does not exist (to fix old files)
@@ -839,7 +769,6 @@ class Instrument(dep.DEP):
     def set_telnr(self):
         '''
         Gets telescope number for instrument via API
-        #todo: Replace API call with hard-coded/config?
         '''
         url = f"{self.config['API']['TELAPI']}cmd=getTelnr&instr={self.instr.upper()}"
         data = self.get_api_data(url, getOne=True)
@@ -885,7 +814,7 @@ class Instrument(dep.DEP):
             if koaid in files:
                 fits_filepath = f'{root}/{koaid}'
         if not fits_filepath:
-            self.log_warn('MAKE_JPG_FITS_ERROR', koaid)
+            self.log_warn('MAKE_JPG_ERROR', koaid)
             return False
         outdir = os.path.dirname(fits_filepath)
 
@@ -945,9 +874,6 @@ class Instrument(dep.DEP):
         """
         Adds FRAMENO keyword to header if it doesn't exist
         """
-
-        # log.info('set_frameno: setting FRAMNO keyword value from FRAMENUM')
-
         #skip if it exists
         if self.get_keyword('FRAMENO', False) != None: return True
 

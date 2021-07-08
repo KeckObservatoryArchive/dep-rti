@@ -47,7 +47,7 @@ class Mosfire(instrument.Instrument):
             {'name':'set_dqa_date',     'crit': False},
             {'name':'set_dqa_vers',     'crit': False},
         ]
-        return self.run_dqa_funcs(funcs)
+        return self.run_functions(funcs)
 
 
     @staticmethod
@@ -80,10 +80,6 @@ class Mosfire(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword.
         '''
-        #todo: make this a common instrument.py function for all instruments (small differences)
-
-        # log.info('set_elaptime: determining ELAPTIME from ITIME/COADDS')
-
         #skip if it exists
         if self.get_keyword('ELAPTIME', False) != None: return True
 
@@ -104,8 +100,6 @@ class Mosfire(instrument.Instrument):
         """
         Determine image type based on instrument keyword configuration
         """
-
-        # log.info('set_koaimtyp: setting KOAIMTYP keyword value')
 
         # Default KOAIMTYP value
         koaimtyp = 'undefined'
@@ -191,11 +185,7 @@ class Mosfire(instrument.Instrument):
         Adds wavelength keywords.
         # https://www2.keck.hawaii.edu/inst/mosfire/filters.html
         """
-
-        # log.info('set_wavelengths: setting wavelength keyword values')
-
         # Filter lookup (filter: [central, fwhm])
-
         wave = {}
         wave['Y'] = [1.048, 0.152]
         wave['J'] = [1.253, 0.200]

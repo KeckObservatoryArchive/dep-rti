@@ -94,6 +94,7 @@ class DEP:
             ok = False
             self.log_error('CODE_ERROR', traceback.format_exc())
 
+        #handle any log_error, log_warn or log_invalid calls
         self.handle_dep_errors()
         return ok
 
@@ -101,69 +102,93 @@ class DEP:
     def process_lev0(self):
         '''Run all prcessing steps required for archiving lev0.'''
 
-        ok = True
-        if ok: ok = self.check_status_db_entry()
-        if ok: ok = self.get_status_record()
-        if ok: ok = self.init_processing()
-        if ok: ok = self.determine_filepath()
-        if ok: ok = self.load_fits()
-        if ok: ok = self.set_koaid_by_level()
-        if ok: ok = self.init_processing2()
-        if ok: ok = self.check_koaid_db_entry()
-        if ok: ok = self.cleanup_files()  
-        if ok: ok = self.change_logger()
-        if ok: ok = self.validate_fits()
-        if ok: ok = self.run_psfr()
-        if ok: ok = self.run_dqa()
-        if ok: ok = self.write_lev0_fits_file() 
-        if ok:      self.make_jpg()
-        if ok:      self.set_filesize_mb()
-        if ok: ok = self.create_meta()
-        if ok:      self.create_ext_meta()
-        if ok: ok = self.run_drp()
-        if ok: ok = self.create_md5sum()
-        if ok: ok = self.update_dep_stats()
-        if ok: ok = self.transfer_ipac()
-        if ok:      self.check_koapi_send()
-        if ok:      self.add_header_to_db()
-        if ok:      self.copy_raw_fits()  
-        return ok
+        funcs = [
+            {'name': 'check_status_db_entry', 'crit': True},
+            {'name': 'get_status_record',     'crit': True},
+            {'name': 'init_processing',       'crit': True},
+            {'name': 'determine_filepath',    'crit': True},
+            {'name': 'load_fits',             'crit': True},
+            {'name': 'set_koaid_by_level',    'crit': True},
+            {'name': 'init_processing2',      'crit': True},
+            {'name': 'check_koaid_db_entry',  'crit': True},
+            {'name': 'cleanup_files',         'crit': True},
+            {'name': 'change_logger',         'crit': True},
+            {'name': 'validate_fits',         'crit': True},
+            {'name': 'run_psfr',              'crit': True},
+            {'name': 'run_dqa',               'crit': True},
+            {'name': 'write_lev0_fits_file',  'crit': True},
+            {'name': 'make_jpg',              'crit': False},
+            {'name': 'set_filesize_mb',       'crit': False},
+            {'name': 'create_meta',           'crit': True},
+            {'name': 'create_ext_meta',       'crit': False},
+            {'name': 'run_drp',               'crit': True},
+            {'name': 'create_md5sum',         'crit': True},
+            {'name': 'update_dep_stats',      'crit': True},
+            {'name': 'transfer_ipac',         'crit': True},
+            {'name': 'check_koapi_send',      'crit': False},
+            {'name': 'add_header_to_db',      'crit': False},
+            {'name': 'copy_raw_fits',         'crit': False},
+        ]
+        return self.run_functions(funcs)
 
 
     def process_lev1(self):
         '''Run all prcessing steps required for archiving lev1.'''
 
-        ok = True
-        if ok: ok = self.get_status_record()
-        if ok: ok = self.init_processing()
-        if ok: ok = self.determine_filepath()
-        if ok: ok = self.set_koaid_by_level()
-        if ok: ok = self.init_processing2()
-        if ok: ok = self.cleanup_files()  
-        if ok: ok = self.change_logger()
-        if ok: ok = self.copy_drp_files()  
-        if ok: ok = self.create_md5sum()
-        if ok: ok = self.update_dep_stats()
-        if ok: ok = self.transfer_ipac()
-        return ok
+        funcs = [
+            {'name': 'get_status_record',    'crit': True},
+            {'name': 'init_processing',      'crit': True},
+            {'name': 'determine_filepath',   'crit': True},
+            {'name': 'set_koaid_by_level',   'crit': True},
+            {'name': 'init_processing2',     'crit': True},
+            {'name': 'cleanup_files',        'crit': True},
+            {'name': 'change_logger',        'crit': True},
+            {'name': 'copy_drp_files',       'crit': True},
+            {'name': 'create_md5sum',        'crit': True},
+            {'name': 'update_dep_stats',     'crit': True},
+            {'name': 'transfer_ipac',        'crit': True},
+        ]
+        return self.run_functions(funcs)
+
 
 
     def process_lev2(self):
         '''Run all prcessing steps required for archiving lev2.'''
 
-        ok = True
-        if ok: ok = self.get_status_record()
-        if ok: ok = self.init_processing()
-        if ok: ok = self.determine_filepath()
-        if ok: ok = self.set_koaid_by_level()
-        if ok: ok = self.init_processing2()
-        if ok: ok = self.cleanup_files()  
-        if ok: ok = self.change_logger()
-        if ok: ok = self.copy_drp_files()  
-        if ok: ok = self.create_md5sum()
-        if ok: ok = self.update_dep_stats()
-        if ok: ok = self.transfer_ipac()
-        return ok
+        funcs = [
+            {'name': 'get_status_record',    'crit': True},
+            {'name': 'init_processing',      'crit': True},
+            {'name': 'determine_filepath',   'crit': True},
+            {'name': 'set_koaid_by_level',   'crit': True},
+            {'name': 'init_processing2',     'crit': True},
+            {'name': 'cleanup_files',        'crit': True},
+            {'name': 'change_logger',        'crit': True},
+            {'name': 'copy_drp_files',       'crit': True},
+            {'name': 'create_md5sum',        'crit': True},
+            {'name': 'update_dep_stats',     'crit': True},
+            {'name': 'transfer_ipac',        'crit': True},
+        ]
+        return self.run_functions(funcs)
+
+
+    def run_functions(self, funcs):
+        '''
+        Run a list of functions by name.  If the function returns False or throws exception,
+        check if it is a critical function before breaking processing.
+        '''
+        for f in funcs:
+            name = f.get('name')
+            crit = f.get('crit')
+            args = f.get('args', {})
+            log.info(f'Running process function: {name}')
+            try: 
+                ok = getattr(self, name)(**args)
+            except Exception as e: 
+                self.log_error('CODE_ERROR', traceback.format_exc())
+                ok = False
+            if not ok and crit:
+                return False
+        return True
 
 
     def init(self):
@@ -247,7 +272,8 @@ class DEP:
         if not self.dbid: 
             self.level = 0
         else:
-            self.get_status_record()
+            res = self.get_status_record()
+            if not res: return False
             self.level = self.status['level']
         return True
 
@@ -294,9 +320,8 @@ class DEP:
         query = f"select * from koa_status where id={self.dbid}"
         self.status = self.db.query('koa', query, getOne=True)
         if not self.status:
-            self.log_invalid('DB_ID_NOT_FOUND', query)
+            self.log_error('DB_ID_NOT_FOUND', query)
             return False
-
         return True
 
 
@@ -666,6 +691,7 @@ class DEP:
 
     def validate_fits(self):
         '''Basic checks for valid FITS before proceeding with archiving'''
+
         #check no data
         if len(self.fits_hdu) == 0:
             self.log_invalid('NO_FITS_HDUS')
@@ -675,7 +701,7 @@ class DEP:
         for hdu in self.fits_hdu:
             hdu_type = str(type(hdu))
             if 'CorruptedHDU' in hdu_type:
-                log.error('CORRUPTED_HDU')
+                self.log_invalid('CORRUPTED_HDU')
                 return False
 
         #certain text in filepath is indication that it should not be archived.
@@ -686,22 +712,12 @@ class DEP:
                 self.log_invalid('FILEPATH_REJECT')
                 return False
 
-        # Get fits header (check for bad header)
-        try:
-            if self.instr == 'NIRC2':
-              header0 = fits.getheader(self.filepath, ignore_missing_end=True)
-              header0['INSTRUME'] = 'NIRC2'
-            else:
-              header0 = fits.getheader(self.filepath)
-        except:
-            self.log_invalid('UNREADABLE_FITS')
-            return False
-
         # Construct the original file name
-        filename, stat = self.construct_filename(self.instr, self.filepath, header0)
-        if stat is not True:
-            self.log_invalid(stat)
+        res = self.set_ofName()
+        if res is False:
+            self.log_invalid('BAD_OFNAME')
             return False
+        filename = self.get_keyword('OFNAME')
 
         # Make sure constructed filename matches basename.
         basename = os.path.basename(self.filepath)
@@ -713,62 +729,7 @@ class DEP:
         return True
 
 
-    def construct_filename(self, instr, fitsFile, keywords):
-        """Constructs the original filename from the fits header keywords"""
-
-        #TODO: REMOVE THIS OR CLEAN IT UP AND MOVE TO INSTRUMENT CLASSES
-
-        if instr in ['MOSFIRE', 'NIRES', 'NIRSPEC', 'OSIRIS']:
-            try:
-                outfile = keywords['DATAFILE']
-                if '.fits' not in outfile:
-                    outfile = ''.join((outfile, '.fits'))
-                return outfile, True
-            except KeyError:
-                return '', 'BAD_OUTFILE'
-        elif instr in ['KCWI']:
-            try:
-                outfile = keywords['OFNAME']
-                return outfile, True
-            except KeyError:
-                return '', 'BAD_OUTFILE'
-        else:
-            try:
-                outfile = keywords['OUTFILE']
-            except KeyError:
-                try:
-                    outfile = keywords['ROOTNAME']
-                except KeyError:
-                    try:
-                        outfile = keywords['FILENAME']
-                    except KeyError:
-                        return '', 'BAD_OUTFILE'
-
-        # Get the frame number of the file
-        if outfile[:2] == 'kf':   frameno = keywords['IMGNUM']
-        elif instr == 'MOSFIRE':  frameno = keywords['FRAMENUM']
-        elif instr == 'NIRES':    garbage, frameno = keywords['DATAFILE'].split('_')
-        else:
-            try:
-                frameno = keywords['FRAMENO']
-            except KeyError:
-                try:
-                    frameno = keywords['FILENUM']
-                except KeyError:
-                    try:
-                        frameno = keywords['FILENUM2']
-                    except KeyError:
-                        return '', 'BAD_FRAMENO'
-
-        #Pad frameno and construct filename
-        frameno = str(frameno).strip().zfill(4)
-        filename = f'{outfile.strip()}{frameno}.fits'
-        return filename, True
-
-
     def create_meta(self):
-        log.info('Creating metadata')
-
         extra_meta = {}
         koaid = self.get_keyword('KOAID')
         extra_meta[koaid] = self.extra_meta
@@ -777,9 +738,18 @@ class DEP:
 
         keydefs = f"{self.config['MISC']['METADATA_TABLES_DIR']}/KOA_{self.instr}_Keyword_Table.txt"
         metaoutfile =  self.levdir + '/' + self.koaid + '.metadata.table'
-        ok = metadata.make_metadata( keydefs, metaoutfile, filepath=self.outfile, 
-                                     extraMeta=extra_meta, keyskips=self.keyskips)   
-        return ok
+        md = metadata.Metadata(keydefs, metaoutfile, fitsfile=self.outfile, 
+                               extraMeta=extra_meta, keyskips=self.keyskips,
+                               dev=self.dev)
+        try:      
+            warns = md.make_metadata()
+        except Exception as err:
+            self.log_error('METADATA_ERROR', str(err))
+            return False
+        else:
+            for warn in warns:
+                    self.log_warn(warn['code'], warn['msg'])
+            return True
 
 
     def create_ext_meta(self):
@@ -788,18 +758,12 @@ class DEP:
         '''
         #todo: put in warnings for empty ext headers
 
-        if self.instr in ('KCWI'):
-            return True
-        log.info(f'Making FITS extension metadata files for: {self.koaid}')
-
         #read extensions and write to file
-        #todo: do we need to fits.open here again?
         filename = os.path.basename(self.outfile)
-        hdus = fits.open(self.outfile)
-        for i in range(0, len(hdus)):
+        for i in range(0, len(self.fits_hdu)):
             #wrap in try since some ext headers have been found to be corrupted
             try:
-                hdu = hdus[i]
+                hdu = self.fits_hdu[i]
                 if 'TableHDU' not in str(type(hdu)): continue
 
                 #calc col widths
@@ -818,7 +782,8 @@ class DEP:
                 dataStr += r'\ Extended Header Name: ' + hdu.name + "\n"
 
                 #add header
-                #TODO: NOTE: Found that all ext data is stored as strings regardless of type it seems to hardcoding to 'char' for now.
+                #NOTE: Found that all ext data is stored as strings regardless of type 
+                #it seems, so hardcoding to 'char' for now.
                 for idx, cw in enumerate(colWidths):
                     dataStr += '|' + hdu.data.columns.names[idx].ljust(cw)
                 dataStr += "|\n"
@@ -848,8 +813,9 @@ class DEP:
                 with open(outFilepath, 'w') as f:
                     f.write(dataStr)
 
-            except:
-                self.log_warn('EXT_HEADER_FILE', f' HDU index {i}')
+            except Exception as e:
+                self.log_warn('EXT_HEADER_FILE_ERROR', str(e))
+                log.error(str(e))
                 return False
 
         return True
@@ -913,7 +879,6 @@ class DEP:
 
     def create_md5sum(self):
         '''Create ext.md5sum.table for all files matching KOAID*'''
-        #TODO: make_dir_md5_table excludes *.log, need drp log files.
         try:
             outdir = self.dirs[f'lev{self.level}']
             if self.level == 0:
@@ -954,9 +919,10 @@ class DEP:
 
         #process it
         log.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
-        ok = update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
-        if not ok:
-            self.log_warn('CHECK_KOAPI_SEND', f"{self.utdate}, {semid}, {self.instr}")
+        try:
+            update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
+        except Exception as e:
+            self.log_warn('CHECK_KOAPI_SEND_ERROR', f"{self.utdate}, {semid}, {self.instr}")
             return False
 
         #NOTE: This should not hold up archiving
@@ -964,6 +930,13 @@ class DEP:
 
 
     def handle_dep_errors(self):
+        '''
+        Errors are serious and will set the koa_status.status to "ERROR" and will
+        call the check_dep_status_errors email script.
+        Warnings are less serious and will only set koa_status.status_code and will
+        not call the check_dep_status_errors email script.
+        Invalids are those errors that we know can be fully ignored.
+        '''
 
         #if not errors or warnings, return
         if not self.invalids and not self.errors and not self.warnings:
@@ -987,7 +960,6 @@ class DEP:
             log.info(query)
             result = self.db.query('koa', query)
             if result is False: 
-                #todo: what can we do if THIS fails??  Email admins direct?
                 log.error(f'STATUS QUERY FAILED: {query}')
                 return False
 
@@ -997,29 +969,7 @@ class DEP:
 
         #call check_dep_status_errors
         if status == 'ERROR' and not self.dev:
-            check_dep_status_errors.main()
-
-
-    def verify_date(self, date=''):
-        """
-        Verify that date value has format yyyy-mm-dd
-            yyyy >= 1990
-            mm between 01 and 12
-            dd between 01 and 31
-        """        
-        #TODO: Do we need this function?
-        # Verify correct format (yyyy-mm-dd or yyyy/mm/dd)
-        assert date != '', 'date value is blank'
-        assert re.search(r'\d\d\d\d[-/]\d\d[-/]\d\d', date), 'unknown date format'
-        
-        # Switch to yyyy-mm-dd format and split into individual elements        
-        date = date.replace('/', '-')
-        year, month, day = date.split('-')
-        
-        # Check date components
-        assert int(year) >= 1990, 'year value must be 1990 or larger'
-        assert int(month) >= 1 and int(month) <= 12, 'month value must be between 1 and 12'
-        assert int(day) >= 1 and int(day) <= 31, 'day value must be between 1 and 31'
+            check_dep_status_errors.main(dev=self.dev, admin_email=self.config['REPORT']['ADMIN_EMAIL'])
 
 
     def verify_utc(self, utc=''):
@@ -1070,7 +1020,7 @@ class DEP:
         url = api + 'ktn='+semid+'&cmd=getAllocInst&json=True'
         data = self.get_api_data(url)
         if not data or not data.get('success'):
-            self.log_warn('API_ERROR', url)
+            self.log_warn('PROP_API_ERROR', url)
             return default
         else:
             val = data.get('data', {}).get('AllocInst', default)
@@ -1084,7 +1034,7 @@ class DEP:
         url = api + 'ktn='+semid+'&cmd=getPI&json=True'
         data = self.get_api_data(url)
         if not data or not data.get('success'):
-            self.log_warn('API_ERROR', url)
+            self.log_warn('PROP_API_ERROR', url)
             return default
         else:
             val = data.get('data', {}).get('LastName', default)
@@ -1098,7 +1048,7 @@ class DEP:
         url = api + 'ktn='+semid+'&cmd=getTitle&json=True'
         data = self.get_api_data(url)
         if not data or not data.get('success'):
-            self.log_warn('API_ERROR', url)
+            self.log_warn('PROP_API_ERROR', url)
             return default
         else:
             val = data.get('data', {}).get('ProgramTitle', default)
@@ -1205,6 +1155,12 @@ class DEP:
             self.log_error('NO_TRANSFER_FILES', fromDir)
             return False
 
+        #make sure all files exist
+        for file in self.xfr_files:
+            if not os.path.isfile(file):
+                self.log_error('TRANSFER_FILE_MISSING', file)
+                return False
+
         # xfr config parameters
         server = self.config['KOAXFR']['SERVER']
         account = self.config['KOAXFR']['ACCOUNT']
@@ -1237,9 +1193,8 @@ class DEP:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
         if error:
-            print(error)
             self.update_koa_status('xfr_start_time', None)
-            self.log_error('TRANSFER_ERROR')
+            self.log_error('TRANSFER_ERROR', error)
             return False
 
         # Transfer success
@@ -1248,9 +1203,9 @@ class DEP:
         if not self.update_koa_status('status', 'TRANSFERRED'): return False
 
         # Send API request to archive the data set
-        if not api:
-            log.warning('IPAC API not defined in config. NOT NOTIFYING IPAC.')
-            return True
+        if not api and not self.dev:
+            self.log_error('IPAC_API_UNDEFINED')
+            return False
         else:
             if self.level in (0,1):
                 apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev{self.level}'
@@ -1262,14 +1217,10 @@ class DEP:
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_koa_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
-            # todo: Need to remove this line when API is fixed
-            if isinstance(apiData, str): apiData = json.loads(apiData)                     
-            if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
-                self.log_error('IPAC_API_ERROR', apiUrl)
-                self.update_koa_status('status', 'ERROR')
-                self.update_koa_status('status_code', 'IPAC_NOTIFY_ERROR')
-                return False
             log.info(f"IPAC API response: {apiData}")
+            if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
+                self.log_error('IPAC_NOTIFY_ERROR', apiUrl)
+                return False
 
         return True
 
