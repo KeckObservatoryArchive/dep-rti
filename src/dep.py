@@ -717,7 +717,7 @@ class DEP:
         if res is False:
             self.log_invalid('BAD_OFNAME')
             return False
-        filename = self.get_keyword('OFNAME')
+        filename = self.get_keyword('OFNAME', False)
 
         # Make sure constructed filename matches basename.
         basename = os.path.basename(self.filepath)
