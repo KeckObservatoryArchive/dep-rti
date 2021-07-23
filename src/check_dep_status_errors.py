@@ -15,7 +15,7 @@ import db_conn
 MAX_EMAIL_SEC = 2*60*60
 
 
-def main(instr=None, dev=False):
+def main(dev=False, admin_email=None):
 
     print(f"\n{dt.datetime.now()} Running {sys.argv}")
 
@@ -86,9 +86,11 @@ def main(instr=None, dev=False):
 
     #email and insert new record
     print(msg)
-    if not dev:
-        email_admin(msg, dev=dev)
+    if not dev and admin_email:
+        email_admin(msg, dev=dev, to=admin_email)
         db.query('koa', 'insert into dep_error_notify set email_time=NOW()')
+    else:
+        print("\nNOT SENDING EMAIL")
 
 
 def gen_last_error_report(row):
@@ -116,18 +118,19 @@ def gen_table_report(name, rows):
     return txt
 
 
-def email_admin(body, dev=False):
+def email_admin(body, dev=False, to=None):
+
+    if not to: 
+        return
+    print(f"\nEmailing {to}")
 
     subject = os.path.basename(__file__) + " report"
+    if dev: subject = '[TEST] ' + subject
 
     msg = MIMEText(body)
     msg['From'] = 'koaadmin@keck.hawaii.edu'
-    if dev:
-        msg['To'] = 'jriley@keck.hawaii.edu'
-        msg['Subject'] = '[TEST] ' + subject
-    else:
-        msg['To'] = 'koaadmin@keck.hawaii.edu'
-        msg['Subject'] = subject
+    msg['To'] = to
+    msg['Subject'] = subject
     s = smtplib.SMTP('localhost')
     s.send_message(msg)
     s.quit()
@@ -138,8 +141,8 @@ def email_admin(body, dev=False):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--instr", type=str, default=None, help='Specific instrument to check, otherwise check all.')
-    parser.add_argument("--dev", dest="dev", default=False, action="store_true")
+    parser.add_argument("--admin_email", type=str, default=None, help='Admin email to send to.')
+    parser.add_argument("--dev", dest="dev", default=False, action="store_true", help="If true, will email and check/update dep_email_notify.")
     args = parser.parse_args()
 
-    main(instr=args.instr, dev=args.dev)
+    main(dev=args.dev, admin_email=args.admin_email)
