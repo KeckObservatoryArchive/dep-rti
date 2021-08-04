@@ -10,6 +10,13 @@ Define instrument keywords to monitor that indicate a new datafile was written.
 
 instr_keymap = {
 
+    'koa': {
+        'instr'    :  'KCWI',
+        'trigger'  :  'LOUTFILE',
+        'val'      :  None,
+        'heartbeat': ['DISPCLK', 1]
+    },
+
     'kfcs': {
         'instr'    :  'KCWI',
         'trigger'  :  'LASTFILE',
