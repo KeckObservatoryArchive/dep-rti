@@ -801,7 +801,7 @@ class Hires(instrument.Instrument):
         '''
         HIRES needs PROPINT1, 2, 3 and PROPMIN
         '''
-        if self.extra_meta['PROPINT']:
+        if 'PROPINT' in self.extra_meta.keys():
             self.extra_meta['PROPINT1'] = self.extra_meta['PROPINT']
             self.extra_meta['PROPINT2'] = self.extra_meta['PROPINT']
             self.extra_meta['PROPINT3'] = self.extra_meta['PROPINT']
