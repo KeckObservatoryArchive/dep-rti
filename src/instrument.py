@@ -354,7 +354,7 @@ class Instrument(dep.DEP):
             utc = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             utc = utc.strftime('%H:%M:%S.00')
             update = True
-            self.warning('SET_UTC_WARN: Set UTC value from FITS file time')
+            log.warning('SET_UTC_WARN: Set UTC value from FITS file time')
         #update/add if need be
         if update:
             self.set_keyword('UTC', utc, 'KOA: UTC keyword corrected')
