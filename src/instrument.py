@@ -315,7 +315,7 @@ class Instrument(dep.DEP):
             dateObs = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             dateObs = dateObs.strftime('%Y-%m-%d')
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
-            self.log_warn('SET_DATEOBS_WARN', 'Set DATE-OBS value from FITS file time')
+            log.warning('SET_DATEOBS_WARN', 'Set DATE-OBS value from FITS file time')
 
         # If good match, just take first 10 chars (some dates have 'T' format and extra time)
         if len(dateObs) > 10:
