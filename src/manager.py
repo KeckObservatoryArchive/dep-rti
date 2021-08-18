@@ -32,12 +32,12 @@ def is_server_running(server, interpreter=None, port=None, extra=False, report=F
         # if pinfo['username'] != current_user:
         #     continue
 
-        found = 0
+        found = False
         for name in list1:
             for cmd in pinfo['cmdline']:
-                if name in cmd: 
-                    found += 1
-        if found >= len(list1):
+                if server in cmd and name in cmd:
+                    found = True
+        if found:
             matches.append(pinfo)
 
     if len(matches) == 0:
