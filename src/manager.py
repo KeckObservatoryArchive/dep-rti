@@ -29,14 +29,15 @@ def is_server_running(server, interpreter=None, port=None, extra=False, report=F
     for proc in psutil.process_iter():
         pinfo = proc.as_dict(attrs=['name', 'username', 'pid', 'cmdline'])
 
-        # if pinfo['username'] != current_user:
-        #     continue
-
         found = False
-        for name in list1:
-            for cmd in pinfo['cmdline']:
-                if server in cmd and name in cmd:
-                    found = True
+        p_info = pinfo['cmdline']
+        if not p_info:
+            continue
+
+        if server in p_info:
+            match = set(p_info).intersection(set(list1))
+            if match == set(list1):
+                found = True
         if found:
             matches.append(pinfo)
 
