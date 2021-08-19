@@ -21,8 +21,8 @@ def is_server_running(server, interpreter=None, port=None, extra=False, report=F
     '''
     matches = []
     current_user = getpass.getuser()
-    chk_set = set()
-    chk_set.append(server)
+    chk_set = {server}
+    
     if port:        chk_set.add(port)
     if extra:       chk_set.add(extra)
     if interpreter: chk_set.add(interpreter)
