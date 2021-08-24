@@ -21,26 +21,27 @@ def is_server_running(server, interpreter=None, port=None, extra=False, report=F
     '''
     matches = []
     current_user = getpass.getuser()
-    list1 = []
-    list1.append(server)
-    if port:        list1.append(port)
-    if extra:       list1.append(extra)
-    if interpreter: list1.append(interpreter)
+    chk_set = {server}
+    
+    if port:        chk_set.add(port)
+    if extra:       chk_set.add(extra)
+    if interpreter: chk_set.add(interpreter)
     for proc in psutil.process_iter():
         pinfo = proc.as_dict(attrs=['name', 'username', 'pid', 'cmdline'])
 
-        # if pinfo['username'] != current_user:
-        #     continue
+        p_info = pinfo['cmdline']
+        if not p_info:
+            continue
 
-        found = 0
-        for name in list1:
-            for cmd in pinfo['cmdline']:
-                if name in cmd: 
-                    found += 1
-        if found >= len(list1):
+        found = False
+        if server in p_info:
+            match = set(p_info).intersection(chk_set)
+            if match == chk_set:
+                found = True
+        if found:
             matches.append(pinfo)
 
-    if len(matches) == 0:
+    if not matches:
         if report: print("WARN: NO MATCHING PROCESSES FOUND")
         return 0
     elif len(matches) > 1:
