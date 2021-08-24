@@ -13,9 +13,9 @@ log = logging.getLogger('koa_dep')
 
 class Esi(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
 
-        super().__init__(instr, filepath, reprocess, transfer)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
         # Set any unique keyword index values here
         self.keymap['UTC']      = 'UT'        

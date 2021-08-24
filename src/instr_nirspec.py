@@ -13,9 +13,9 @@ log = logging.getLogger('koa_dep')
 
 class Nirspec(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
 
-        super().__init__(instr, filepath, reprocess, transfer)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
         #set any unique keyword index values here
         self.keymap['OFNAME'] = 'DATAFILE'
@@ -27,8 +27,6 @@ class Nirspec(instrument.Instrument):
 
         funcs = [
             {'name':'set_telnr',        'crit': True},
-            {'name':'set_dqa_date',     'crit': True},
-            {'name':'set_dqa_vers',     'crit': True},
             {'name':'set_ut',           'crit': True},
             {'name':'set_elaptime',     'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
@@ -48,6 +46,8 @@ class Nirspec(instrument.Instrument):
             {'name':'set_npixsat',      'crit': False},
             {'name':'set_oa',           'crit': False},
             {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+            {'name':'set_dqa_date',     'crit': False},
+            {'name':'set_dqa_vers',     'crit': False},
         ]
         return self.run_functions(funcs)
 
@@ -157,9 +157,6 @@ class Nirspec(instrument.Instrument):
             'domearc' : 'domearc',
             'arclamp' : 'arclamp',
             'flatlamp': 'flatlamp',
-#            'astro'   : 'object',   #NOTE: old val
-#            'star'    : 'object',   #NOTE: old val
-#            'calib'   : 'undefined' #NOTE: old val
         }
 
         #first use OBSTYPE value

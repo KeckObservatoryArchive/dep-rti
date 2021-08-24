@@ -34,9 +34,9 @@ log = logging.getLogger('koa_dep')
 
 class Instrument(dep.DEP):
 
-    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
 
-        super().__init__(instr, filepath, reprocess, transfer, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
         # Common keywords used in code that can be mapped to actual keyword per instrument 
         # so a call to get_keyword can be used generically.  Overwrite values in instr_[instr].py
@@ -125,10 +125,10 @@ class Instrument(dep.DEP):
         '''
 
         #skip if it exists
-        koaid = self.get_keyword('KOAID', False)
-        if koaid != None: 
-            self.koaid = koaid.replace('.fits', '')
-            return True
+#        koaid = self.get_keyword('KOAID', False)
+#        if koaid != None: 
+#            self.koaid = koaid.replace('.fits', '')
+#            return True
 
         #make it
         koaid = self.make_koaid()
@@ -492,7 +492,9 @@ class Instrument(dep.DEP):
 
         #Get PROGNAME from header and use for PROGID
         #If not found, then do simple assignment by time/observer/outdir(eng).
-        progid = self.get_keyword('PROGNAME')
+        progid = self.progid
+        if not progid:
+            progid = self.get_keyword('PROGNAME')
         if not progid:
             progid = self.get_progid_from_schedule()
 
