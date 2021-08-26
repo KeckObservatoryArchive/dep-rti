@@ -37,13 +37,14 @@ log = logging.getLogger('koa_dep')
 
 class DEP:
 
-    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
 
         #class inputs
         self.instr     = instr.upper()
         self.filepath  = filepath
         self.reprocess = reprocess
         self.transfer  = transfer
+        self.progid    = progid
         self.dbid      = dbid
 
         #init other vars

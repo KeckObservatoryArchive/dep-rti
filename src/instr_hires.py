@@ -21,9 +21,9 @@ log = logging.getLogger('koa_dep')
 
 class Hires(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
 
-        super().__init__(instr, filepath, reprocess, transfer, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']   = 'OUTFILE'
@@ -801,7 +801,7 @@ class Hires(instrument.Instrument):
         '''
         HIRES needs PROPINT1, 2, 3 and PROPMIN
         '''
-        if self.extra_meta['PROPINT']:
+        if 'PROPINT' in self.extra_meta.keys():
             self.extra_meta['PROPINT1'] = self.extra_meta['PROPINT']
             self.extra_meta['PROPINT2'] = self.extra_meta['PROPINT']
             self.extra_meta['PROPINT3'] = self.extra_meta['PROPINT']

@@ -10,6 +10,7 @@ import smtplib
 from email.mime.text import MIMEText
 import datetime as dt
 import db_conn
+import socket
 
 #globals
 MAX_EMAIL_SEC = 2*60*60
@@ -125,6 +126,7 @@ def email_admin(body, dev=False, to=None):
     print(f"\nEmailing {to}")
 
     subject = os.path.basename(__file__) + " report"
+    subject = subject + ' (' + socket.gethostname() + ')'
     if dev: subject = '[TEST] ' + subject
 
     msg = MIMEText(body)
