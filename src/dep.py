@@ -246,6 +246,7 @@ class DEP:
             Path(os.path.dirname(logFile)).mkdir(parents=True, exist_ok=True)
         except Exception as e:
             print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
+            self.log_error('WRITE_ERROR')
             return False
 
         #Remove all handlers
@@ -527,6 +528,8 @@ class DEP:
             self.log_error('FITS_FILE_TYPE_ERROR', str(e))
             if os.path.isfile(self.filepath):
                 log.error('Got a FITS_FILE_TYPE_ERROR, but os.path.isfile is OK.')
+            else:
+                self.log_error('FITS_NOT_FOUND', self.filepath)
             return False
 
         #check file not found and file empty
