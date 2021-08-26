@@ -112,13 +112,11 @@ class Monitor():
 
         self.monitor()
 
-
     def __del__(self):
 
         #Close the database connection
         if self.db:
             self.db.close()
-
 
     def monitor(self):
 
@@ -129,7 +127,6 @@ class Monitor():
         #start interval to monitor DEP processes for completion
         self.process_monitor()
         self.queue_monitor()
-
 
     def process_monitor(self):
         '''Remove any processes from list that are complete.'''
@@ -150,7 +147,6 @@ class Monitor():
         #call this function every N seconds
         #NOTE: we could do this faster
         threading.Timer(PROC_CHECK_SEC, self.process_monitor).start()
-
 
     def add_to_queue(self, filepath):
         '''Add a file to queue for processing'''
@@ -423,7 +419,7 @@ class KtlMonitor():
         except Exception as e:
             self.check_failed = True
             self.log.debug(f"{self.instr} KTL service '{self.servicename}' heartbeat read failed.")
-            self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', servicename)
+            self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.servicename)
         else:
             if self.check_failed:
                 self.log.debug(f"KTL service {self.servicename} read successful afer prior failure.")
