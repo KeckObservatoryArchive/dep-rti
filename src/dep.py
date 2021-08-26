@@ -241,6 +241,7 @@ class DEP:
             Path(os.path.dirname(logFile)).mkdir(parents=True, exist_ok=True)
         except Exception as e:
             print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
+            self.log_error('WRITE_ERROR')
             return False
 
         #Remove all handlers
