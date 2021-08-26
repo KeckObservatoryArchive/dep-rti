@@ -484,6 +484,12 @@ class Instrument(dep.DEP):
                 if ut >= start and ut <= end:
                     log.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
                     return entry['ProjCode']
+                if num == 0 and ut < start:
+                    log.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
+                    return entry['ProjCode']
+                if num == len(data)-1 and ut > end:
+                    log.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
+                    return entry['ProjCode']
         return 'NONE'
 
 
