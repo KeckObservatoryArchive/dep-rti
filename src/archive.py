@@ -95,6 +95,8 @@ class Archive():
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
 
+#TODO it never enters process,  never enters init
+        print(f"WHat {self.filepath} {self.files} {self.dbid}")
         #routing
         if self.filepath:
             self.process_file(filepath=self.filepath)
@@ -121,7 +123,8 @@ class Archive():
         '''Creates instrument object by name and starts processing.'''
         module = importlib.import_module('instr_' + self.instr.lower())
         instr_class = getattr(module, self.instr.capitalize())
-        instr_obj = instr_class(self.instr, filepath, self.reprocess, self.transfer, self.progid, dbid=dbid)
+        instr_obj = instr_class(self.instr, filepath, self.reprocess,
+                                self.transfer, self.progid, dbid=dbid)
 
         ok = instr_obj.process()
         if not ok:

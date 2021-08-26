@@ -51,17 +51,17 @@ def update_koapi_send(utdate, semid, instr=None):
     # if existing entry see if we need to update (next day DEP only) or add a new one
     else:
         for row in rows:
-            #print ("updateKoapiSend: DB Record found: " + row['semid']+" "+row['utdate_beg']+" "+row['utdate_end'])
+            # print ("updateKoapiSend: DB Record found: " + row['semid']+" "+row['utdate_beg']+" "+row['utdate_end'])
             ut  = dt.datetime.strptime(utdate       + ' 00:00:00' , '%Y-%m-%d %H:%M:%S')
             end = dt.datetime.strptime(row['utdate_end'] + ' 00:00:00' , '%Y-%m-%d %H:%M:%S')
             diff_sec = int((ut - end).total_seconds())
             diff_day = int(diff_sec / 86400)
 
             if (diff_day == 0):
-                #print("updateKoapiSend: Same day. No update required")
+                # print("updateKoapiSend: Same day. No update required")
                 break
             elif (diff_day == 1):
-                #print("updateKoapiSend: Updating entry for semid")
+                # print("updateKoapiSend: Updating entry for semid")
                 query = f"update koapi_send set utdate_end='{utdate}', send_data=1, send_dvd=1 "
                 query += f" where semid='{semid}' and utdate_beg='{row['utdate_beg']}' "
                 if instr: query += f" and instr='{instr}' " 
