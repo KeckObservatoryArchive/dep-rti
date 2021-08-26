@@ -522,6 +522,8 @@ class DEP:
             self.log_error('FITS_FILE_TYPE_ERROR', str(e))
             if os.path.isfile(self.filepath):
                 log.error('Got a FITS_FILE_TYPE_ERROR, but os.path.isfile is OK.')
+            else:
+                self.log_error('FITS_NOT_FOUND', self.filepath)
             return False
 
         #check file not found and file empty
