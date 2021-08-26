@@ -96,7 +96,6 @@ class Archive():
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
 
 #TODO it never enters process,  never enters init
-        print(f"WHat {self.filepath} {self.files} {self.dbid}")
         #routing
         if self.filepath:
             self.process_file(filepath=self.filepath)
