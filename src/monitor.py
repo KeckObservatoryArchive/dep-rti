@@ -464,7 +464,7 @@ class KtlMonitor():
                 return
 
             #Some filepaths do not add the /s/ to the path which we need
-            if not filepath.startswith('/s/'):
+            if filepath.startswith('/sdata'):
                 filepath = f'/s{filepath}' 
 
             #check for invalid filepath
