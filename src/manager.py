@@ -21,33 +21,34 @@ def is_server_running(server, interpreter=None, port=None, extra=False, report=F
     '''
     matches = []
     current_user = getpass.getuser()
-    list1 = []
-    list1.append(server)
-    if port:        list1.append(port)
-    if extra:       list1.append(extra)
-    if interpreter: list1.append(interpreter)
+    chk_set = {server}
+
+    if port:        chk_set.add(port)
+    if extra:       chk_set.add(extra)
+    if interpreter: chk_set.add(interpreter)
     for proc in psutil.process_iter():
         pinfo = proc.as_dict(attrs=['name', 'username', 'pid', 'cmdline'])
 
-        # if pinfo['username'] != current_user:
-        #     continue
+        p_info = pinfo['cmdline']
+        if not p_info:
+            continue
 
-        found = 0
-        for name in list1:
-            for cmd in pinfo['cmdline']:
-                if name in cmd: 
-                    found += 1
-        if found >= len(list1):
+        found = False
+        if server in p_info:
+            match = set(p_info).intersection(chk_set)
+            if match == chk_set:
+                found = True
+        if found:
             matches.append(pinfo)
 
-    if len(matches) == 0:
+    if not matches:
         if report: print("WARN: NO MATCHING PROCESSES FOUND")
         return 0
     elif len(matches) > 1:
-        if report: print ("WARN: MULTIPLE MATCHES: \n" + str(matches))
+        if report: print("WARN: MULTIPLE MATCHES: \n" + str(matches))
         return matches[0]['pid']
     else:
-        if report: print ("FOUND PROCESS: " + str(matches[0]))
+        if report: print("FOUND PROCESS: " + str(matches[0]))
         return matches[0]['pid']
 
 
@@ -89,28 +90,27 @@ def process_start(pid, server, interpreter=None, port=None, extra=None):
         try:
             p = subprocess.Popen(cmd)
         except Exception as e:
-            print ('Error running command: ' + str(e))
-        print ('Done')
+            print('Error running command: ' + str(e))
+        print('Done')
 
 
-#===================================== MAiN ===================================
+# ===================================== MAiN ===================================
 
 # Define input parameters
 parser = argparse.ArgumentParser(description='manager.py input parameters')
 parser.add_argument('server', type=str, help='flask server module name')
 parser.add_argument('command', type=str, help='start, stop, restart, check')
-parser.add_argument("--port", type=str, dest="port", default=None, 
+parser.add_argument("--port", type=str, dest="port", default=None,
                     help="Port to use for finding existing process and --port option to forward to app.")
-parser.add_argument("--extra", type=str, dest="extra", default=None, 
-                    help="Extra arguemnts string to pass to app")
+parser.add_argument("--extra", type=str, dest="extra", default=None, help="Extra arguemnts string to pass to app")
 parser.add_argument("--interpreter", type=str, default=None, help="Interpreter to call")
 
 # Get input parameters
 args = parser.parse_args()
-server  = args.server
+server = args.server
 command = args.command
-port    = args.port
-extra   = args.extra
+port = args.port
+extra = args.extra
 interpreter = args.interpreter
 
 # Verify command
@@ -126,7 +126,6 @@ assert os.path.isfile(server), print(f'server module {server} does not exist')
 
 # Check if server is running
 pid = is_server_running(server, interpreter=interpreter, port=port, extra=extra)
-
 # Do the request
 if command == 'stop':
     pid = process_stop(pid)

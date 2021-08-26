@@ -34,9 +34,9 @@ log = logging.getLogger('koa_dep')
 
 class Instrument(dep.DEP):
 
-    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
 
-        super().__init__(instr, filepath, reprocess, transfer, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
         # Common keywords used in code that can be mapped to actual keyword per instrument 
         # so a call to get_keyword can be used generically.  Overwrite values in instr_[instr].py
@@ -315,7 +315,7 @@ class Instrument(dep.DEP):
             dateObs = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             dateObs = dateObs.strftime('%Y-%m-%d')
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
-            self.log_warn('SET_DATEOBS_WARN', 'Set DATE-OBS value from FITS file time')
+            log.warning('SET_DATEOBS_WARN: Set DATE-OBS value from FITS file time')
 
         # If good match, just take first 10 chars (some dates have 'T' format and extra time)
         if len(dateObs) > 10:
@@ -354,7 +354,7 @@ class Instrument(dep.DEP):
             utc = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             utc = utc.strftime('%H:%M:%S.00')
             update = True
-            self.log_warn('SET_UTC_WARN', 'Set UTC value from FITS file time')
+            log.warning('SET_UTC_WARN: Set UTC value from FITS file time')
         #update/add if need be
         if update:
             self.set_keyword('UTC', utc, 'KOA: UTC keyword corrected')
@@ -484,6 +484,12 @@ class Instrument(dep.DEP):
                 if ut >= start and ut <= end:
                     log.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
                     return entry['ProjCode']
+                if num == 0 and ut < start:
+                    log.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
+                    return entry['ProjCode']
+                if num == len(data)-1 and ut > end:
+                    log.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
+                    return entry['ProjCode']
         return 'NONE'
 
 
@@ -492,7 +498,9 @@ class Instrument(dep.DEP):
 
         #Get PROGNAME from header and use for PROGID
         #If not found, then do simple assignment by time/observer/outdir(eng).
-        progid = self.get_keyword('PROGNAME')
+        progid = self.progid
+        if not progid:
+            progid = self.get_keyword('PROGNAME')
         if not progid:
             progid = self.get_progid_from_schedule()
 
@@ -568,7 +576,7 @@ class Instrument(dep.DEP):
             api = self.config.get('API', {}).get('PROPAPI')
             url = api + 'ktn='+semid+'&cmd=getApprovedPP&json=True'
             data = self.get_api_data(url)
-            if not data or not data.get('success'):
+            if not data or not data.get('success') or data.get('data') == None:
                 self.log_warn('PROPINT_ERROR', url)
                 propint = 18
             else:
