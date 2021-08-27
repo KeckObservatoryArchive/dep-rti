@@ -12,6 +12,7 @@ log = logging.getLogger('koa_dep')
 
 
 class Mosfire(instrument.Instrument):
+
     def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
         super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
