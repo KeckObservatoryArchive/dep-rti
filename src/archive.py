@@ -95,7 +95,6 @@ class Archive():
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
 
-#TODO it never enters process,  never enters init
         #routing
         if self.filepath:
             self.process_file(filepath=self.filepath)
