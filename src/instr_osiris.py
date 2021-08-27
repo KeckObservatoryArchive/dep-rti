@@ -14,9 +14,8 @@ log = logging.getLogger('koa_dep')
 
 class Osiris(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, dbid=None):
-
-        super().__init__(instr, filepath, reprocess, transfer, dbid)
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'

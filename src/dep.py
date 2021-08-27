@@ -72,14 +72,11 @@ class DEP:
         if self.db:
             self.db.close()
 
-
     #abstract methods that must be implemented by inheriting classes
     def run_dqa(self) : raise NotImplementedError("Abstract method not implemented!")
 
-
     def process(self):
         '''Start processing based on level.'''
-
         # big catch for all unhandled exceptions
         try:
             ok = True
@@ -97,7 +94,6 @@ class DEP:
         # handle any log_error, log_warn or log_invalid calls
         self.handle_dep_errors()
         return ok
-
 
     def process_lev0(self):
         '''Run all prcessing steps required for archiving lev0.'''
@@ -131,7 +127,6 @@ class DEP:
         ]
         return self.run_functions(funcs)
 
-
     def process_lev1(self):
         '''Run all prcessing steps required for archiving lev1.'''
 
@@ -149,8 +144,6 @@ class DEP:
             {'name': 'transfer_ipac',        'crit': True},
         ]
         return self.run_functions(funcs)
-
-
 
     def process_lev2(self):
         '''Run all prcessing steps required for archiving lev2.'''
