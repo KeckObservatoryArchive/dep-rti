@@ -95,7 +95,7 @@ instr_keymap = {
         'instr'    :  'MOSFIRE',
         'trigger'  :  'LASTFILE',
         'val'      :  None,
-        'heartbeat':  'LASTALIVE'
+        'heartbeat':  ['ITERATION', 1]
     },
 
     'alad': {
