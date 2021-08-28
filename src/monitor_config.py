@@ -14,46 +14,53 @@ instr_keymap = {
         'instr'    :  'KCWI',
         'trigger'  :  'LOUTFILE',
         'val'      :  None,
-        'heartbeat': ['DISPCLK', 1]
+        'heartbeat': ['DISPCLK', 1],
+        'transfer' : 0
     },
 
     'kfcs': {
         'instr'    :  'KCWI',
         'trigger'  :  'LASTFILE',
         'val'      :  None,
-        'heartbeat':  ['ITERATION', 30]
+        'heartbeat':  ['ITERATION', 30],
+        'transfer' : 1
     },
     'kbds': {
         'instr'    :  'KCWI',
         'trigger'  :  'LOUTFILE',
         'val'      :  None,
-        'heartbeat': ['ITERATION', 1]
+        'heartbeat': ['ITERATION', 1],
+        'transfer' : 1
     },
 
     'nids': {
         'instr'    :  'NIRES',
         'trigger'  :  'LASTFILE',
         'val'      :  None,
-        'heartbeat':  ['ITERATION', 600]
+        'heartbeat':  ['ITERATION', 600],
+        'transfer' : 1
     },
     'nsds': {
         'instr'    :  'NIRES',
         'trigger'  :  'LASTFILE',
         'val'      :  None,
-        'heartbeat':  ['ITERATION', 600]
+        'heartbeat':  ['ITERATION', 600],
+        'transfer' : 1
     },
 
     'deimosplus': {
         'instr'    :  'DEIMOS',
         'trigger'  :  'LASTCCD',
         'val'      :  None,
-        'heartbeat':  ['UPTIME', 1]
+        'heartbeat':  ['UPTIME', 1],
+        'transfer' : 1
     },
     'deifcs': {
         'instr'    :  'DEIMOS',
         'trigger'  :  'FCSIMGFI',
         'val'      :  None,
-        'heartbeat':  '' # there is no keyword to track that this service is up
+        'heartbeat':  '', # there is no keyword to track that this service is up
+        'transfer' : 1
     },
 
     'esi': {
@@ -62,7 +69,8 @@ instr_keymap = {
         'val'      :  'false',
         'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'    :  {'LFRAMENO': 4},
-        'heartbeat':  '' # there is no keyword to track that this service is up
+        'heartbeat':  '', # there is no keyword to track that this service is up
+        'transfer' : 0
     },
 
     'hiccd': {
@@ -71,7 +79,8 @@ instr_keymap = {
         'val'      :  'false',
         'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'    :  {'LFRAMENO': 4},
-        'heartbeat':  ['INFOMCLK', 1]
+        'heartbeat':  ['INFOMCLK', 1],
+        'transfer' : 1
     },
 
     'lris': {
@@ -80,7 +89,8 @@ instr_keymap = {
         'val'      :  'false',
         'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'    :  {'LFRAMENO': 4},
-        'heartbeat':  '' # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+        'heartbeat':  '', # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+        'transfer' : 0
     },
     'lrisblue': {
         'instr'    :  'lris',
@@ -88,47 +98,53 @@ instr_keymap = {
         'val'      :  'false',
         'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'    :  {'LFRAMENO': 4},
-        'probe':  '' # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+        'probe':  '', # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+        'transfer' : 0
     },
 
     'mosfire': {
         'instr'    :  'MOSFIRE',
         'trigger'  :  'LASTFILE',
         'val'      :  None,
-        'heartbeat':  ['ITERATION', 1]
+        'heartbeat':  ['ITERATION', 1],
+        'transfer' : 0
     },
 
     'alad': {
         'instr'    :  'NIRC2',
         'trigger'  :  'LASTFILE', # could alternatively be FILERDY with val==0
         'val'      :  None,
-        'heartbeat':  ''  # alad doesn't have any keyword to track how long it's been up
+        'heartbeat':  '',  # alad doesn't have any keyword to track how long it's been up
+        'transfer' : 0
     },
 
     'nspec': {
         'instr'    :  'NIRSPEC',
         'trigger'  :  'LASTFILE',
         'val'      :  None,
-        'heartbeat':  'UPTIME'
+        'heartbeat':  'UPTIME',
+        'transfer' : 0
     },
     'nscam': {
         'instr'    :  'NIRSPEC',
         'trigger'  :  'LASTFILE',
         'val'      :  None,
-        'heartbeat':  'UPTIME'
+        'heartbeat':  'UPTIME',
+        'transfer' : 0
     },
 
     'osiris': {
         'instr'    :  'OSIRIS',
         'trigger'  :  'ILASTFILE',
         'val'      :  None,
-        'heartbeat':  'LASTALIVE'
+        'heartbeat':  'LASTALIVE',
+        'transfer' : 0
     },
-    #???
-    'osirisXXX': { 
+    'osiris???': {
         'instr'    :  'OSIRIS',
         'trigger'  :  'SLASTFILE',
         'val'      :  None,
-        'heartbeat':  'LASTALIVE'
+        'heartbeat':  'LASTALIVE',
+        'transfer' : 0
     }
 }

@@ -100,8 +100,15 @@ class Monitor():
             self.config = yaml.safe_load(f)
 
         #get instrument
-        self.keys = monitor_config.instr_keymap[self.service]
-        self.instr = self.keys['instr']
+        try:
+            self.keys = monitor_config.instr_keymap[self.service]
+            self.instr = self.keys['instr']
+        except:
+            err = f"service: {self.service} and service.instr must be " \
+                  f" defined in monitor_config.py"
+            self.handle_error('CONFIG_ERROR', err)
+
+        self.transfer = self.keys.get('transfer', False)
 
         #create logger first
         self.log = self.create_logger(self.config[self.instr]['ROOTDIR'], self.instr, self.service)
@@ -283,15 +290,15 @@ class Monitor():
         '''Spawn archiving for a single file by database ID.'''
         #NOTE: Using multiprocessing instead of subprocess so we can spawn loaded functions
         #as a separate process which saves us the ~0.5 second overhead of launching python.
-        proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, id))
+        proc = multiprocessing.Process(target=self.spawn_processing, args=(id))
         proc.start()
         self.procs.append(proc)
         self.log.debug(f'DEP started as system process ID: {proc.pid}')
 
 
-    def spawn_processing(self, instr, dbid):
+    def spawn_processing(self, dbid):
         '''Call archiving for a single file by DB ID.'''
-        obj = Archive(self.instr, dbid=dbid, transfer=True)
+        obj = Archive(self.instr, dbid=dbid, transfer=self.transfer)
 
 
     def create_logger(self, rootdir, instr, service):

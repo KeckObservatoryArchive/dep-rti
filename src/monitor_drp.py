@@ -194,13 +194,13 @@ class Monitor():
         '''Spawn archiving for a single file by database ID.'''
         #NOTE: Using multiprocessing instead of subprocess so we can spawn loaded functions
         #as a separate process which saves us the ~0.5 second overhead of launching python.
-        proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, id))
+        proc = multiprocessing.Process(target=self.spawn_processing, args=(id))
         proc.start()
         self.procs.append(proc)
         self.log.debug(f'DEP started as system process ID: {proc.pid}')
 
 
-    def spawn_processing(self, instr, dbid):
+    def spawn_processing(self, dbid):
         '''Call archiving for a single file by DB ID.'''
         obj = Archive(self.instr, dbid=dbid, transfer=True)
         pass
