@@ -82,12 +82,11 @@ instr_keymap = {
         'heartbeat':  ['INFOMCLK', 1],
         'transfer' : 1
     },
+    
     'lredccd': {
-        'instr'    :  'LREDCCD',
+        'instr'    :  'LRIS',
         'trigger'  :  'LOUTFILE',
-        'val'      :  'false',
-        'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-        'zfill'    :  {'LFRAMENO': 4},
+        'val'      :  None,
         'heartbeat':  ['UPTIME', 1],
         'transfer' : 0
     },
@@ -97,7 +96,7 @@ instr_keymap = {
         'val'      :  'false',
         'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'    :  {'LFRAMENO': 4},
-        'probe':  '', # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+        'heartbeat':  '', # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
         'transfer' : 0
     },
 
