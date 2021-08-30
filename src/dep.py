@@ -1136,7 +1136,8 @@ class DEP:
         """
 
         if not self.transfer:
-            log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag.')
+            log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'
+                        'transfer to monitor_config.py if using monitor.py.')
             return True
 
         # shorthand vars

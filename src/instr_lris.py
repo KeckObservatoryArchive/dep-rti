@@ -34,9 +34,6 @@ class Lris(instrument.Instrument):
     def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
         super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
-    # def __init__(self, instr, filepath, reprocess, transfer):
-    #     super().__init__(instr, filepath, reprocess, transfer)
-
         # Set any unique keyword index values here
         self.keymap['OFNAME']   = 'OUTFILE'
 
