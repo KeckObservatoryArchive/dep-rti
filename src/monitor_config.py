@@ -82,8 +82,7 @@ instr_keymap = {
         'heartbeat':  ['INFOMCLK', 1],
         'transfer' : 1
     },
-
-    'lris': {
+    'lredccd': {
         'instr'    :  'LREDCCD',
         'trigger'  :  'LOUTFILE',
         'val'      :  'false',
