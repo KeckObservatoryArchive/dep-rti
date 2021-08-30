@@ -84,16 +84,16 @@ instr_keymap = {
     },
 
     'lris': {
-        'instr'    :  'LRIS',
-        'trigger'  :  'WDISK',
+        'instr'    :  'LREDCCD',
+        'trigger'  :  'LOUTFILE',
         'val'      :  'false',
         'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'    :  {'LFRAMENO': 4},
-        'heartbeat':  '', # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+        'heartbeat':  ['UPTIME', 1],
         'transfer' : 0
     },
     'lrisblue': {
-        'instr'    :  'lris',
+        'instr'    :  'LRIS',
         'trigger'  :  'WDISK',
         'val'      :  'false',
         'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
