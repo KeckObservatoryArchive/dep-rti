@@ -51,3 +51,14 @@ CREATE TABLE IF NOT EXISTS `dep_error_notify` (
   `instr`         varchar(15)   DEFAULT NULL            COMMENT 'Instrument name',
   `email_time`    datetime      DEFAULT NULL        COMMENT 'Time last admin error email sent for this instrument.'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
+
+CREATE TABLE IF NOT EXISTS `koa_pi_notify` (
+  `id`            int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
+  `instrument`    varchar(15)   DEFAULT NULL        COMMENT 'Instrument name',
+  `semid`         varchar(15)   DEFAULT NULL        COMMENT 'Semester and program ID',
+  `utdate`        date          DEFAULT NULL        COMMENT 'UT date of observation'
+  `level`         integer       DEFAULT NULL        COMMENT 'Data processing level'
+  `pi_email`      varchar(64)   DEFAULT NULL        COMMENT 'PI email used for notification'
+  `last_mod`      datetime      DEFAULT CURRENT_TIMESTAMP  COMMENT 'Time of last modification'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
