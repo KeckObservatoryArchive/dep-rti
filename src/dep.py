@@ -66,22 +66,18 @@ class DEP:
         self.db = None
         self.filesize_mb = 0.0
 
-
     def __del__(self):
 
         #Close the database connection
         if self.db:
             self.db.close()
 
-
     #abstract methods that must be implemented by inheriting classes
     def run_dqa(self) : raise NotImplementedError("Abstract method not implemented!")
 
-
     def process(self):
         '''Start processing based on level.'''
-
-        #big catch for all unhandled exceptions
+        # big catch for all unhandled exceptions
         try:
             ok = True
             if ok: ok = self.init()
@@ -95,10 +91,9 @@ class DEP:
             ok = False
             self.log_error('CODE_ERROR', traceback.format_exc())
 
-        #handle any log_error, log_warn or log_invalid calls
+        # handle any log_error, log_warn or log_invalid calls
         self.handle_dep_errors()
         return ok
-
 
     def process_lev0(self):
         '''Run all prcessing steps required for archiving lev0.'''
@@ -132,7 +127,6 @@ class DEP:
         ]
         return self.run_functions(funcs)
 
-
     def process_lev1(self):
         '''Run all prcessing steps required for archiving lev1.'''
 
@@ -150,8 +144,6 @@ class DEP:
             {'name': 'transfer_ipac',        'crit': True},
         ]
         return self.run_functions(funcs)
-
-
 
     def process_lev2(self):
         '''Run all prcessing steps required for archiving lev2.'''
@@ -193,25 +185,31 @@ class DEP:
 
 
     def init(self):
-
-        #cd to script dir so relative paths work
+        # cd to script dir so relative paths work
         scriptpath = os.path.dirname(os.path.realpath(__file__))
         os.chdir(scriptpath)
 
-        #load config file
+        # load config file
         with open('config.live.ini') as f: 
             self.config = yaml.safe_load(f)
 
-        #helpful vars from config
-        self.rootdir = self.config[self.instr]['ROOTDIR']
+        # helpful vars from config
+        try:
+            self.rootdir = self.config[self.instr]['ROOTDIR']
+            self.dev = self.config['RUNTIME']['DEV']
+        except KeyError:
+            print('ERROR on initialization.  \n'
+                  'INST.ROOTDIR and RUNTIME.DEC must be defined in the'
+                  ' configuration file')
+            return False
+
         if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
-        self.dev = self.config['RUNTIME']['DEV']
 
         # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
+                                  persist=True)
 
         return True
-
 
 
     def create_logger(self):
@@ -696,20 +694,20 @@ class DEP:
     def validate_fits(self):
         '''Basic checks for valid FITS before proceeding with archiving'''
 
-        #check no data
+        # check no data
         if len(self.fits_hdu) == 0:
             self.log_invalid('NO_FITS_HDUS')
             return False
 
-        #any corrupted HDUs?
+        # any corrupted HDUs?
         for hdu in self.fits_hdu:
             hdu_type = str(type(hdu))
             if 'CorruptedHDU' in hdu_type:
                 self.log_invalid('CORRUPTED_HDU')
                 return False
 
-        #certain text in filepath is indication that it should not be archived.
-        #TODO: review this logic with Jeff
+        # certain text in filepath is indication that it should not be archived.
+        # TODO: review this logic with Jeff
         rejects = ['mira', 'savier-protected', 'SPEC/ORP', '/subtracted', 'idf']
         for reject in rejects:
             if reject in self.filepath:
@@ -906,7 +904,6 @@ class DEP:
         '''Return list of files to archive for DRP specific to instrument.'''
         raise NotImplementedError("Abstract method not implemented!")
 
-
     def check_koapi_send(self):
         '''
         For each unique semids processed in DQA, call function that determines
@@ -915,9 +912,16 @@ class DEP:
 
         #check if we should update koapi_send
         semid = self.get_semid()
-        sem, prog = semid.upper().split('_')
-        if not semid or not prog or not sem:
-            return True
+        if not semid:
+            self.log_warn('CHECK_KOAPI_SEND_ERROR', "No SEMID defined.")
+            return False
+
+        try:
+            _, prog = semid.upper().split('_')
+        except ValueError:
+            self.log_warn('CHECK_KOAPI_SEND_ERROR', "Incorrect format for SEMID")
+            return False
+
         if prog == 'NONE' or prog == 'NULL' or prog == 'ENG':
             return True
 
@@ -1132,7 +1136,8 @@ class DEP:
         """
 
         if not self.transfer:
-            log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag.')
+            log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'
+                        'transfer to monitor_config.py if using monitor.py.')
             return True
 
         # shorthand vars

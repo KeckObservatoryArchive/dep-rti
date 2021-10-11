@@ -11,124 +11,155 @@ Define instrument keywords to monitor that indicate a new datafile was written.
 instr_keymap = {
 
     'koa': {
-        'instr'    :  'KCWI',
-        'trigger'  :  'LOUTFILE',
-        'val'      :  None,
-        'heartbeat': ['DISPCLK', 1]
+        'ktl_service':  'koa',
+        'instr'      :  'KCWI',
+        'trigger'    :  'LOUTFILE',
+        'val'        :  None,
+        'heartbeat'  : ['DISPCLK', 1],
+        'transfer'   : 0
     },
 
-    'kfcs': {
-        'instr'    :  'KCWI',
-        'trigger'  :  'LASTFILE',
-        'val'      :  None,
-        'heartbeat':  ['ITERATION', 30]
+    'kcwi_fcs': {
+        'ktl_service':  'kfcs',
+        'instr'      :  'KCWI',
+        'trigger'    :  'LASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  ['ITERATION', 30],
+        'transfer'   : 1
     },
-    'kbds': {
-        'instr'    :  'KCWI',
-        'trigger'  :  'LOUTFILE',
-        'val'      :  None,
-        'heartbeat': ['ITERATION', 1]
+    'kcwi_blue': {
+        'ktl_service':  'kbds',
+        'instr'      :  'KCWI',
+        'trigger'    :  'LOUTFILE',
+        'val'        :  None,
+        'heartbeat'  : ['ITERATION', 1],
+        'transfer'   : 1
     },
 
     'nids': {
-        'instr'    :  'NIRES',
-        'trigger'  :  'LASTFILE',
-        'val'      :  None,
-        'heartbeat':  ['ITERATION', 600]
+        'ktl_service':  'nids',
+        'instr'      :  'NIRES',
+        'trigger'    :  'LASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  ['ITERATION', 600],
+        'transfer'   : 1
     },
     'nsds': {
-        'instr'    :  'NIRES',
-        'trigger'  :  'LASTFILE',
-        'val'      :  None,
-        'heartbeat':  ['ITERATION', 600]
+        'ktl_service':  'nsds',
+        'instr'      :  'NIRES',
+        'trigger'    :  'LASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  ['ITERATION', 600],
+        'transfer'   : 1
     },
 
-    'deimosplus': {
-        'instr'    :  'DEIMOS',
-        'trigger'  :  'LASTCCD',
-        'val'      :  None,
-        'heartbeat':  ['UPTIME', 1]
+    'deimos': {
+        'ktl_service':  'deimosplus',
+        'instr'      :  'DEIMOS',
+        'trigger'    :  'LASTCCD',
+        'val'        :  None,
+        'heartbeat'  :  ['UPTIME', 1],
+        'transfer'   : 1
     },
-    'deifcs': {
-        'instr'    :  'DEIMOS',
-        'trigger'  :  'FCSIMGFI',
-        'val'      :  None,
-        'heartbeat':  '' # there is no keyword to track that this service is up
+    'deimos_fcs': {
+        'ktl_service':  'deifcs',
+        'instr'      :  'DEIMOS',
+        'trigger'    :  'FCSIMGFI',
+        'val'        :  None,
+        'heartbeat'  :  '', # there is no keyword to track that this service is up
+        'transfer'   : 1
     },
 
     'esi': {
-        'instr'    :  'ESI',
-        'trigger'  :  'WDISK',
-        'val'      :  'false',
-        'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-        'zfill'    :  {'LFRAMENO': 4},
-        'heartbeat':  '' # there is no keyword to track that this service is up
+        'ktl_service':  'esi',
+        'instr'      :  'ESI',
+        'trigger'    :  'WDISK',
+        'val'        :  'false',
+        'format'     :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
+        'zfill'      :  {'LFRAMENO'  : 4},
+        'heartbeat'  :  '', # there is no keyword to track that this service is up
+        'transfer'   : 0
     },
 
-    'hiccd': {
-        'instr'    :  'HIRES',
-        'trigger'  :  'WDISK',
-        'val'      :  'false',
-        'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-        'zfill'    :  {'LFRAMENO': 4},
-        'heartbeat':  ['INFOMCLK', 1]
+    'hires': {
+        'ktl_service':  'hiccd',
+        'instr'      :  'HIRES',
+        'trigger'    :  'WDISK',
+        'val'        :  'false',
+        'format'     :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
+        'zfill'      :  {'LFRAMENO'  : 4},
+        'heartbeat'  :  ['INFOMCLK', 1],
+        'transfer'   : 1
     },
 
-    'lris': {
-        'instr'    :  'LRIS',
-        'trigger'  :  'WDISK',
-        'val'      :  'false',
-        'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-        'zfill'    :  {'LFRAMENO': 4},
-        'heartbeat':  '' # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+    'lris_red': {
+        'ktl_service':  'lredccd',
+        'instr'      :  'LRIS',
+        'trigger'    :  'LOUTFILE',
+        'val'        :  None,
+        'heartbeat'  :  ['UPTIME', 1],
+        'transfer'   : 0
     },
-    'lrisblue': {
-        'instr'    :  'lris',
-        'trigger'  :  'WDISK',
-        'val'      :  'false',
-        'format'   :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-        'zfill'    :  {'LFRAMENO': 4},
-        'probe':  '' # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+    'lris_blue': {
+        'ktl_service':  'lrisblue',
+        'instr'      :  'LRIS',
+        'trigger'    :  'WDISK',
+        'val'        :  'false',
+        'format'     :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
+        'zfill'      :  {'LFRAMENO': 4},
+        'heartbeat'  :  '', # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+        'transfer'   : 0
     },
 
     'mosfire': {
-        'instr'    :  'MOSFIRE',
-        'trigger'  :  'LASTFILE',
-        'val'      :  None,
-        'heartbeat':  'LASTALIVE'
+        'ktl_service':  'mosfire',
+        'instr'      :  'MOSFIRE',
+        'trigger'    :  'LASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  ['ITERATION', 1],
+        'transfer'   : 0
     },
 
-    'alad': {
-        'instr'    :  'NIRC2',
-        'trigger'  :  'LASTFILE', # could alternatively be FILERDY with val==0
-        'val'      :  None,
-        'heartbeat':  ''  # alad doesn't have any keyword to track how long it's been up
+    'nirc2': {
+        'ktl_service':  'alad',
+        'instr'      :  'NIRC2',
+        'trigger'    :  'LASTFILE', # could alternatively be FILERDY with val==0
+        'val'        :  None,
+        'heartbeat'  :  '',  # alad doesn't have any keyword to track how long it's been up
+        'transfer'   : 0
     },
 
-    'nspec': {
-        'instr'    :  'NIRSPEC',
-        'trigger'  :  'LASTFILE',
-        'val'      :  None,
-        'heartbeat':  'UPTIME'
+    'nirspec': {
+        'ktl_service':  'nspec',
+        'instr'      :  'NIRSPEC',
+        'trigger'    :  'LASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  ['UPTIME', 1],
+        'transfer'   : 0
     },
-    'nscam': {
-        'instr'    :  'NIRSPEC',
-        'trigger'  :  'LASTFILE',
-        'val'      :  None,
-        'heartbeat':  'UPTIME'
+    'nirspec_scam': {
+        'ktl_service':  'nscam',
+        'instr'      :  'NIRSPEC',
+        'trigger'    :  'LASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  '',
+        'transfer'   : 0
     },
 
-    'osiris': {
-        'instr'    :  'OSIRIS',
-        'trigger'  :  'ILASTFILE',
-        'val'      :  None,
-        'heartbeat':  'LASTALIVE'
+    'osiris_spec': {
+        'ktl_service':  'osiris',
+        'instr'      :  'OSIRIS',
+        'trigger'    :  'ILASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  'LASTALIVE',
+        'transfer'   : 0
     },
-    #???
-    'osirisXXX': { 
-        'instr'    :  'OSIRIS',
-        'trigger'  :  'SLASTFILE',
-        'val'      :  None,
-        'heartbeat':  'LASTALIVE'
+    'osiris_img': {
+        'ktl_service':  'osiris',
+        'instr'      :  'OSIRIS',
+        'trigger'    :  'SLASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  'LASTALIVE',
+        'transfer'   : 0
     }
 }

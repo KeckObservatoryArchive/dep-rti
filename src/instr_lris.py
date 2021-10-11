@@ -24,16 +24,15 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from mpl_toolkits.axes_grid1 import ImageGrid
 
 import hist_equal2d
-
 import logging
+
 log = logging.getLogger('koa_dep')
 
 
 class Lris(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer):
-
-        super().__init__(instr, filepath, reprocess, transfer)
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']   = 'OUTFILE'

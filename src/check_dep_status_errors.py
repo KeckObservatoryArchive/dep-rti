@@ -130,7 +130,7 @@ def email_admin(body, dev=False, to=None):
     if dev: subject = '[TEST] ' + subject
 
     msg = MIMEText(body)
-    msg['From'] = 'koaadmin@keck.hawaii.edu'
+    msg['From'] = to
     msg['To'] = to
     msg['Subject'] = subject
     s = smtplib.SMTP('localhost')

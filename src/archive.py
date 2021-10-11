@@ -27,19 +27,19 @@ def main():
     # Define inputs
     parser = argparse.ArgumentParser(description='DEP input parameters')
     parser.add_argument('instr', help='Keck Instrument')
-    parser.add_argument('--filepath' , type=str, default=None, help='Filepath to FITS file to archive.')
-    parser.add_argument('--files' , type=str, default=None, help='Directory path to FITS files.  Can use "glob" pattern match.')
-    parser.add_argument('--dbid' , type=str, default=None, help='Database ID record to archive.')
+    parser.add_argument('--filepath', type=str, default=None, help='Filepath to FITS file to archive.')
+    parser.add_argument('--files', type=str, default=None, help='Directory path to FITS files.  Can use "glob" pattern match.')
+    parser.add_argument('--dbid', type=str, default=None, help='Database ID record to archive.')
     parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
-    parser.add_argument('--starttime' , type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
-    parser.add_argument('--endtime' , type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
-    parser.add_argument('--status' , type=str, default=None, help='Status to query for reprocessing.')
-    parser.add_argument('--statuscode' , type=str, default=None, help='Status code to (like) query for reprocessing.')
-    parser.add_argument('--ofname' , type=str, default=None, help='OFNAME match to query for reprocessing.')
-    parser.add_argument('--progid' , type=str, default=None, help='Override and assign PROGID to this value')
+    parser.add_argument('--starttime', type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
+    parser.add_argument('--endtime', type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
+    parser.add_argument('--status', type=str, default=None, help='Status to query for reprocessing.')
+    parser.add_argument('--statuscode', type=str, default=None, help='Status code to (like) query for reprocessing.')
+    parser.add_argument('--ofname', type=str, default=None, help='OFNAME match to query for reprocessing.')
+    parser.add_argument('--progid', type=str, default=None, help='Override and assign PROGID to this value')
     parser.add_argument('--confirm', dest="confirm", default=False, action="store_true", help='Confirm query results.')
-    parser.add_argument('--transfer' , default=False, action='store_true', help='Transfer to IPAC and trigger IPAC API.  Else, create files only.')
-    parser.add_argument('--level' , type=int, default=0, help='Data reduction level. Only needed if reprocessing by query search.')
+    parser.add_argument('--transfer', default=False, action='store_true', help='Transfer to IPAC and trigger IPAC API.  Else, create files only.')
+    parser.add_argument('--level', type=int, default=0, help='Data reduction level. Only needed if reprocessing by query search.')
     args = parser.parse_args()    
 
     #run it 
@@ -121,7 +121,8 @@ class Archive():
         '''Creates instrument object by name and starts processing.'''
         module = importlib.import_module('instr_' + self.instr.lower())
         instr_class = getattr(module, self.instr.capitalize())
-        instr_obj = instr_class(self.instr, filepath, self.reprocess, self.transfer, self.progid, dbid=dbid)
+        instr_obj = instr_class(self.instr, filepath, self.reprocess,
+                                self.transfer, self.progid, dbid=dbid)
 
         ok = instr_obj.process()
         if not ok:
