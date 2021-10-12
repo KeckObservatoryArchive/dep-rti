@@ -24,6 +24,8 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from mpl_toolkits.axes_grid1 import ImageGrid
 
 import hist_equal2d
+from skimage import exposure
+
 import logging
 
 log = logging.getLogger('koa_dep')
@@ -49,6 +51,7 @@ class Lris(instrument.Instrument):
             {'name':'set_telnr',        'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
             {'name':'set_ut',           'crit': True},
+            {'name':'set_elaptime',     'crit': True},
             {'name':'set_ofName',       'crit': True},
             {'name':'set_frameno',      'crit': True},
             {'name':'set_semester',     'crit': True},
@@ -67,6 +70,8 @@ class Lris(instrument.Instrument):
             {'name':'set_wcs',          'crit': False},
             {'name':'set_skypa',        'crit': False},        
             {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
+            {'name':'fix_datebeg',      'crit': False},
+            {'name':'set_mjd_obs',      'crit': False},
             {'name':'set_dqa_vers',     'crit': False},
             {'name':'set_dqa_date',     'crit': False},
         ]
@@ -122,6 +127,8 @@ class Lris(instrument.Instrument):
         '''
         Sets OFNAME keyword from OUTFILE and FRAMENO
         '''
+        ofname = self.get_keyword('OFNAME', False)
+        if ofname: return True
         outfile = self.get_keyword('OUTFILE', False)
         frameno = self.get_keyword('FRAMENO', False)
         if outfile == None or frameno == None:
@@ -241,6 +248,12 @@ class Lris(instrument.Instrument):
         '''
         Determine observation mode
         '''
+        # OBSMODE now exists in red headers
+        # but looks like it's always Imaging!
+        # this logic still works
+#        obsmode = self.get_keyword('OBSMODE', False)
+#        if obsmode != None: return True
+
         grism = self.get_keyword('GRISNAME')
         grating = self.get_keyword('GRANAME')
         angle = self.get_keyword('GRANGLE')
@@ -396,6 +409,9 @@ class Lris(instrument.Instrument):
         '''
         Set CCD gain and read noise
         '''
+
+        return True
+
         # NOTE: It looks like the IDL version for LRIS BLUE was incorrectly writing "00" index 
         # versions of these keywords to the header that didn't match the metadata file which only
         #has 1-4.  And it was writing null for the "04" version.  We are mimicing this behavior below.
@@ -499,6 +515,9 @@ class Lris(instrument.Instrument):
 
     def set_wcs(self):
 
+        # skip for RED after upgrade (20210422)
+        if self.get_keyword('INSTRUME') == 'LRIS': return True
+
         #only do this for IMAGING
         obsmode = self.get_keyword('OBSMODE')
         if obsmode != 'IMAGING': 
@@ -509,6 +528,10 @@ class Lris(instrument.Instrument):
         poname  = self.get_keyword('PONAME')
         ra      = self.get_keyword('RA')
         dec     = self.get_keyword('DEC')
+        if ra == None or dec == None:
+            self.log.warning('set_wcs: Could not set WCS')
+            return True
+
         pixcorrect = lambda x: (x/pixelscale) + 1024
 
         #dictionary of xim and yim only
@@ -644,10 +667,12 @@ class Lris(instrument.Instrument):
             slit = slitwidt
         slitpix = slit/spatscal
         deltalam = dispersion * slitpix
-        if dispersion != 0:
-            specres = round(wavelen/deltalam,-1)
-        if fwhm != 0:
-            specres = round((wavelen/fwhm)/slit,-2)
+        if wavelen == None: specres = 'null'
+        else:
+            if dispersion != 0:
+                specres = round(wavelen/deltalam,-1)
+            if fwhm != 0:
+                specres = round((wavelen/fwhm)/slit,-2)
 
         self.set_keyword('SLITLEN',slitlen,'KOA: Slit length')
         self.set_keyword('SLITWIDT',slitwidt,'KOA: Slit width')
@@ -664,16 +689,22 @@ class Lris(instrument.Instrument):
         '''
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
+
         if satVal == None:
             self.log_warn("SET_NPIXSAT_ERROR", "No saturate value")
             return False
 
         nPixSat = 0
         for ext in range(1, self.nexten+1):
-            image = self.fits_hdu[ext].data
+            hdu = self.fits_hdu[ext].header
+            # Now skipping this for LRIS-RED (20210422)
+            if 'ImageHDU' not in str(type(hdu)): continue
+            image = hdu.data
             pixSat = image[np.where(image >= satVal)]
             nPixSat += len(image[np.where(image >= satVal)])
+
         self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
+
         return True
 
 
@@ -701,8 +732,10 @@ class Lris(instrument.Instrument):
         for ext in range(1,self.nexten+1):
 
             #get image header and image
-            header = self.fits_hdu[ext].header
-            image = np.array(self.fits_hdu[ext].data)
+            hdu = self.fits_hdu[ext].header
+            if 'ImageHDU' not in str(type(hdu)): continue
+            header = hdu.header
+            image = hdu.data #np.array(self.fits_hdu[ext].data)
 
             #find widths of pre/postscan regions, whole image dimensions
             precol = self.get_keyword('PRECOL')
@@ -710,6 +743,11 @@ class Lris(instrument.Instrument):
             binning = self.get_keyword('BINNING')
             naxis1 = self.get_keyword('NAXIS1',ext=ext)
             naxis2 = self.get_keyword('NAXIS2',ext=ext)
+            if precol  == None: return True
+            if postpix == None: return True
+            if binning == None: return True
+            if naxis1  == None: return True
+            if naxis2  == None: return True
 
             # Size of sampling box: nx = 15 & ny = 15
             xbin = 1
@@ -798,6 +836,32 @@ class Lris(instrument.Instrument):
 
         #needed hdr vals
         hdr0 = hdus[0].header
+
+        # is this a red file (after 2021-04-16)?
+        if hdr0['INSTRUME'] == 'LRIS':
+            data = hdus[0].data
+
+            # use histogram equalization to increase contrast
+            image_eq = exposure.equalize_hist(data)
+
+            # form filepaths
+            basename = os.path.basename(fits_filepath).replace('.fits', '')
+            jpg_filepath = f'{outdir}/{basename}.jpg'
+            # create jpg
+            dpi = 100
+            width_inches  = hdr0['NAXIS1'] / dpi
+            height_inches = hdr0['NAXIS2'] / dpi
+            fig = plt.figure(figsize=(width_inches, height_inches),
+                             frameon=False, dpi=dpi)
+            ax = fig.add_axes([0, 0, 1, 1])  # this forces no border padding
+            plt.axis('off')
+            plt.imshow(image_eq, cmap='gray', origin='lower')  # , norm=norm)
+            plt.savefig(jpg_filepath, quality=92)
+            plt.close()
+            return
+
+        # continue for blue side
+
         binning  = hdr0['BINNING'].split(',')
         precol   = int(hdr0['PRECOL'])   // int(binning[0])
         postpix  = int(hdr0['POSTPIX'])  // int(binning[0])
@@ -987,3 +1051,66 @@ class Lris(instrument.Instrument):
         slits = ('long_', 'pol_', 'goh_', 'direct')
         has_target = slitname and slitname.lower() not in slits
         return has_target
+
+
+    def set_elaptime(self):
+        '''
+        Fixes missing ELAPTIME keyword
+        '''
+
+        #skip it it exists
+        if self.get_keyword('ELAPTIME', False) != None: return True
+
+        elaptime = 'null'
+
+        #get necessary keywords
+        xposure  = self.get_keyword('XPOSURE')
+        if xposure != None:
+            log.info('set_elaptime: determining ELAPTIME from XPOSURE')
+            elaptime = round(xposure)
+        else:
+            ttime  = self.get_keyword('TTIME')
+            if ttime != None:
+                log.info('set_elaptime: determining ELAPTIME from TTIME')
+                elaptime = round(ttime)
+
+        if elaptime == 'null':
+            log.warn('set_elaptime: Could not set ELAPTIME')
+
+        #update val
+        self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
+
+        return True
+
+
+    def fix_datebeg(self):
+        '''
+        Fix metadata to use DATE-BEG|END value in place of DATE_BEG|END value.
+        Populates extraMeta -- metadata table -- and not the header.
+        '''
+        for key in ['DATE-BEG', 'DATE-END']:
+            value = self.get_keyword(key, False)
+            # No need to do anything if keyword doesn't exist
+            if value == None: continue
+            key2 = key.replace('-', '_')
+            try:
+                # Skip if the "-" keyword does not have a good value
+                test = dt.datetime.strptime(value, '%Y-%m-%dT%H:%M:%S.%f')
+                self.extra_meta[key2] = value
+            except:
+                pass
+
+        return True
+
+
+    def set_mjd_obs(self):
+        '''
+        Add MJD-OBS for LRIS-R (2021 upgrade has MJD only).
+        '''
+        mjd = self.get_keyword('MJD-OBS', False)
+        if mjd == None:
+            mjd = self.get_keyword('MJD', False)
+            if mjd != None:
+                self.extra_meta['MJD-OBS'] = mjd
+
+        return True
