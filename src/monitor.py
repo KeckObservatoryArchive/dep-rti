@@ -54,17 +54,19 @@ def main():
     # run monitors and catch any unhandled error for email to admin
     try:
         monitor = Monitor(args.mode)
-    except Exception as error:
-        handle_error('MONITOR_ERROR', traceback.format_exc(), service=args.mode)
+    except Exception as err:
+        handle_error('MONITOR_ERROR: {err}', traceback.format_exc(), 
+                     service=args.mode)
         sys.exit(1)
 
     # stay alive until control-C to exit
     while True:
         try:
             time.sleep(300)
-            monitor.log.debug(f'Monitor saying hi every 5 minutes '
-                              f'({monitor.instr} {monitor.service})')
-        except:
+            monitor.log.debug(f'Monitor saying hi every 5 minutes ('
+                              f'{monitor.instr} {monitor.service_name})')
+        except Exception as err:
+            monitor.log.debug(f'Error waking up {err}.')
             break
     monitor.log.info(f'Exiting {__file__}')
 
