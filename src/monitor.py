@@ -118,7 +118,7 @@ class Monitor:
         self.log.info(f"Starting KOA Monitor for {self.instr} "
                       f"{self.service_name}")
 
-        self.start_monitor()
+        self.monitor()
 
     def __del__(self):
 
@@ -126,10 +126,10 @@ class Monitor:
         if self.db:
             self.db.close()
 
-    def start_monitor(self):
+    def monitor(self):
         # run KTL monitor for service
-        monitor = KtlMonitor(self.service_name, self.keys, self, self.log)
-        monitor.start()
+        self.monitor = KtlMonitor(self.service_name, self.keys, self, self.log)
+        self.monitor.start()
 
         # start interval to monitor DEP processes for completion
         self.process_monitor()
