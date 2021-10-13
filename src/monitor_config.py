@@ -151,7 +151,7 @@ instr_keymap = {
         'instr'      :  'OSIRIS',
         'trigger'    :  'ILASTFILE',
         'val'        :  None,
-        'heartbeat'  :  'LASTALIVE',
+        'heartbeat'  :  ['ITERATION', 1],
         'transfer'   : 0
     },
     'osiris_img': {
@@ -159,7 +159,7 @@ instr_keymap = {
         'instr'      :  'OSIRIS',
         'trigger'    :  'SLASTFILE',
         'val'        :  None,
-        'heartbeat'  :  'LASTALIVE',
+        'heartbeat'  :  ['ITERATION', 1],
         'transfer'   : 0
     }
 }
