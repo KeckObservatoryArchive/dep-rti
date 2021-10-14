@@ -120,13 +120,22 @@ class Osiris(instrument.Instrument):
         '''
         self.set_keyword('INSTRUME', 'OSIRIS', 'KOA: Instrument')
         return True
-        
+
+    def check_type_str(self, chk_list, dfault):
+        for i, val in enumerate(chk_list):
+            try:
+                chk_list[i] = float(val)
+            except ValueError:
+                chk_list[i] = dfault
+
+        return chk_list
 
     def set_koaimtyp(self):
         '''
         Adds KOAIMTYP keyword
         '''
         koaimtyp = 'undefined'
+
         ifilter = self.get_keyword('IFILTER', default='')
         sfilter = self.get_keyword('SFILTER', default='')
         axestat = self.get_keyword('AXESTAT', default='')
@@ -141,13 +150,12 @@ class Osiris(instrument.Instrument):
         datafile = self.get_keyword('DATAFILE')
         coadds = self.get_keyword('COADDS')
 
-        #TODO: NOTE: Various values of above keywords can be of mixed type, 
-        #such as "###ERROR###" for 'el' instead of a float.  Just wrapping in try
-        #and logging as error for now until we can handle this more cleanly.
-        try: 
+        try:
             # telescope at flat position
             flatpos = 0
-            if (el < 45.11 and el > 44.89) and (domeposn - az > 80.0 and domeposn - az < 100.0):
+            el, az, domeposn = self.check_type_str([el, az, domeposn], 0)
+
+            if (45.11 > el > 44.89) and (80.0 < domeposn - az < 100.0):
                 flatpos = 1
 
             if 'telescope' in obsfname.lower():
@@ -178,21 +186,24 @@ class Osiris(instrument.Instrument):
                         koaimtyp = 'flatlampoff'
 
             if instr.lower == 'spec':
+                obsfx, obsfy, obsfz = self.check_type_str([obsfx, obsfy, obsfz], 0)
+
                 if 'telsim' in obsfname or (obsfx > 30 and obsfy < 0.1 and obsfz < 0.1):
                     koaimtyp = 'undefined'
                 elif obsfz > 10:
                     koaimtyp = 'undefined'
             elif 'c' in datafile:
                 koaimtyp = 'calib'
+
         except Exception as e:
             self.log_error('SET_KOAIMTYP', str(e))
             return False
 
-        #warn if undefined
-        if (koaimtyp == 'undefined'):
+        # warn if undefined
+        if koaimtyp == 'undefined':
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
-        #update keyword
+        # update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         return True
 
