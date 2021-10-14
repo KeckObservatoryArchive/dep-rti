@@ -121,15 +121,6 @@ class Osiris(instrument.Instrument):
         self.set_keyword('INSTRUME', 'OSIRIS', 'KOA: Instrument')
         return True
 
-    def check_type_str(self, chk_list, dfault):
-        for i, val in enumerate(chk_list):
-            try:
-                chk_list[i] = float(val)
-            except ValueError:
-                chk_list[i] = dfault
-
-        return chk_list
-
     def set_koaimtyp(self):
         '''
         Adds KOAIMTYP keyword

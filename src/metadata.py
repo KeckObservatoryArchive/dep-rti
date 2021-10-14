@@ -232,7 +232,6 @@ class Metadata():
                 if self.dev: 
                     self.warn('MD_HEADER_KEYWORD_MISSING', f'{keywordHdr}')
 
-
     def check_keyword_val(self, keyword, val, fmt):
         '''
         checks keyword for correct type and proper value.
@@ -242,8 +241,11 @@ class Metadata():
         if (val in errvals):
             val = 'null'
 
+        if keyword == 'EQUINOX' and val == 'null':
+            val = 0
+
         #deal with null, blank vals
-        self.check_null(val, fmt['allowNull'])
+        self.check_null(val, fmt['allowNull'], keyword)
         if (val == 'null' or val == '') and (fmt['allowNull'] == 'Y'):
             return val
 
@@ -326,7 +328,7 @@ class Metadata():
         return True
 
 
-    def check_null(self, val, allowNull):
+    def check_null(self, val, allowNull, keyword):
         if (val == 'null' or val == '') and (allowNull == 'N'):
             raise Exception(f'Incorrect "null" value found for non-null keyword {keyword}')            
 
