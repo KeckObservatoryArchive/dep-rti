@@ -185,23 +185,24 @@ class Monitor():
         #pop from queue and process it
         self.log.debug(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
         try:
-            self.process_file(row['id'])
+            self.process_file(row['id'], row['level'])
         except Exception as e:
             self.handle_error('PROCESS_ERROR', f"ID={row['id']}, filepath={row['ofname']}\n, {traceback.format_exc()}")
 
 
-    def process_file(self, id):
+    def process_file(self, id, level):
         '''Spawn archiving for a single file by database ID.'''
         #NOTE: Using multiprocessing instead of subprocess so we can spawn loaded functions
         #as a separate process which saves us the ~0.5 second overhead of launching python.
-        proc = multiprocessing.Process(target=self.spawn_processing, args=(id))
+        proc = multiprocessing.Process(target=self.spawn_processing, args=(id, level))
         proc.start()
         self.procs.append(proc)
         self.log.debug(f'DEP started as system process ID: {proc.pid}')
 
 
-    def spawn_processing(self, dbid):
+    def spawn_processing(self, dbid, level):
         '''Call archiving for a single file by DB ID.'''
+#        koaxfr = True if level == 1 else False
         obj = Archive(self.instr, dbid=dbid, transfer=True)
         pass
 

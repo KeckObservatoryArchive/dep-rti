@@ -384,9 +384,9 @@ class Kcwi(instrument.Instrument):
         files = []
 
         #back out of /redux/ subdir
-        if level == 1:
-            if datadir.endswith('/'): datadir = datadir[:-1]
-            datadir = os.path.split(datadir)[0]
+#        if level == 1:
+        if datadir.endswith('/'): datadir = datadir[:-1]
+        datadir = os.path.split(datadir)[0]
 
         #get frameno
         hdr = None
@@ -419,7 +419,7 @@ class Kcwi(instrument.Instrument):
         if level == 2:
             searchfiles = [
                 f"{datadir}/kcwi.proc",
-                # f"{datadir}/kcwi_koarti.cfg" #todo
+                f"/dsidata/KCWI_DRP/configs/kcwi_koarti_lev2.cfg"
             ]
             for f in searchfiles:
                 if os.path.isfile(f): files.append(f)

@@ -477,10 +477,10 @@ class DEP:
 
         #rename
         lev = f'lev{self.level}'
-        if self.level in (0,1):
-            newfile = f"{self.dirs[lev]}/{self.koaid}.log"
-        else:
-            newfile = f"{self.dirs[lev]}/dep_{lev}_{self.utdatedir}.log"
+#        if self.level in (0,1):
+        newfile = f"{self.dirs[lev]}/{self.koaid}.log"
+#        else:
+#            newfile = f"{self.dirs[lev]}/dep_{lev}_{self.utdatedir}.log"
         print(f"Logger renamed to {newfile}")
         log.info(f"Renaming log file from {fileHandler.baseFilename} to {newfile}")
         shutil.move(fileHandler.baseFilename, newfile)
@@ -831,15 +831,19 @@ class DEP:
 
         #get list of koaids we are dealing with (lev1 is just one koaid)
         datadir = self.status['stage_file']
-        if   self.level == 1: koaids = [self.status['koaid']]
-        elif self.level == 2: koaids = self.get_unique_koaids_in_dir(datadir)
+        koaids = [self.status['koaid']]
+#        if   self.level == 1: koaids = [self.status['koaid']]
+#        elif self.level == 2: koaids = self.get_unique_koaids_in_dir(datadir)
 
         #For each koaid, get associated drp files and copy them to outdir.
         #Keep dict of files by koaid.
         self.drp_files = {}
         for koaid in koaids:
-            if self.level == 2: self.koaid = koaid
+#            if self.level == 2: self.koaid = koaid
             files = self.get_drp_files_list(datadir, koaid, self.level)
+            if files == False:
+                self.log_error('FILE_NOT_FOUND', f"{koaid} level {self.level}")
+                return False
             for srcfile in files:
                 if not os.path.isfile(srcfile): continue
                 try:
@@ -860,6 +864,9 @@ class DEP:
                     self.log_error('FILE_COPY_ERROR', f"{srcfile} to {destfile}")
                     return False
 
+#        if self.level == 2:
+#            self.update_koa_status('status', 'WAITING')
+#
         return True
       
 
@@ -1216,10 +1223,24 @@ class DEP:
             self.log_error('IPAC_API_UNDEFINED')
             return False
         else:
+            # Do not trigger ingestion for individual lev2 data products
+            # Only trigger if all koa_status entries are COMPLETE
+            if self.level == 2:
+                # Only continue to ingestion API if all KOAIDs have been processed
+                query = f"select * from koa_status where instrument='{self.instr}' and koaid like '%{self.utdatedir}%' and level=2"
+                result = self.db.query('koa', query)
+                notDone = [i for i in result if i['status'] != 'TRANSFERRED']
+                if len(notDone) == 0:
+                    print(f"All data processed, triggering ingestion")
+                    log.info(f"All data processed, triggering ingestion")
+                else:
+                    print(f"{len(notDone)} of {len(result)} still to process")
+                    log.info(f"{len(notDone)} of {len(result)} still to process")
+                    return True
             if self.level in (0,1):
                 apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev{self.level}'
             else:
-                apiUrl = f'{api}instrument={self.instr}&utdate={self.utdate}&ingesttype=lev{self.level}'
+                apiUrl = f'{api}instrument={self.instr}&utdate={self.utdatedir}&ingesttype=lev{self.level}'
             if self.reprocess:
                 apiUrl = f'{apiUrl}&reingest=true'
             log.info(f'sending ingest API call {apiUrl}')
