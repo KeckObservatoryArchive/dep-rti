@@ -306,7 +306,7 @@ class Metadata():
         length = len(str(val))
         if (length > colSize):
             if (metaDataType == 'double'): 
-                self.warn('MD_TRUNCATE_DOUBLE', f'char length of {length} > col size of {colSize} ({keyword}={val}).  TRUNCATING.')
+#                self.warn('MD_TRUNCATE_DOUBLE', f'char length of {length} > col size of {colSize} ({keyword}={val}).  TRUNCATING.')
                 val = truncate_float(val, colSize)
             else: 
                 self.warn('MD_TRUNCATE', f'char length of {length} > col size of {colSize} ({keyword}={val}).  TRUNCATING.')
