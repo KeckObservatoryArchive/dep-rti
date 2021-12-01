@@ -117,7 +117,7 @@ instr_keymap = {
         'trigger'    :  'LASTFILE',
         'val'        :  None,
         'heartbeat'  :  ['ITERATION', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     },
 
     'nirc2': {
