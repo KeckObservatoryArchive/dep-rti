@@ -121,11 +121,11 @@ instr_keymap = {
     },
 
     'nirc2': {
-        'ktl_service':  'alad',
+        'ktl_service':  'nirc2plus',
         'instr'      :  'NIRC2',
-        'trigger'    :  'LASTFILE', # could alternatively be FILERDY with val==0
+        'trigger'    :  'LASTFILE',
         'val'        :  None,
-        'heartbeat'  :  '',  # alad doesn't have any keyword to track how long it's been up
+        'heartbeat'  :  ['DISPCLK', 1],
         'transfer'   : 0
     },
 
