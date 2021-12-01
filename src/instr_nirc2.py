@@ -16,9 +16,9 @@ log = logging.getLogger('koa_dep')
 
 class Nirc2(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
 
-        super().__init__(instr, filepath, reprocess, transfer)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME'] = 'FILENAME'
@@ -502,6 +502,9 @@ class Nirc2(instrument.Instrument):
         Run the NIRC2 DRP
         '''
 
+        # WHAT TO DO HERE FOR RTI?
+        return True
+
         drp = self.config[self.instr]['DRP']
         if os.path.isfile(drp):
             drp = f"{drp} {self.dirs['output']}"
@@ -523,6 +526,9 @@ class Nirc2(instrument.Instrument):
         '''
         Starts psfr process that runs parallel with DQA
         '''
+
+        # WHAT TO DO HERE FOR RTI?
+        return True
 
         try:
             psfr = self.config[self.instr]['PSFR']
