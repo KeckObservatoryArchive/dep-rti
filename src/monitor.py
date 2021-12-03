@@ -486,9 +486,14 @@ class KtlMonitor:
             # (NOTE: preferred to checking last val read b/c observer can regenerate same filepath)
             try:
                 mtime = os.stat(filepath).st_mtime
-            except Exception as e:
-                self.queue_mgr.handle_error('FILE_READ_ERROR', traceback.format_exc())
-                return
+            except:
+                # filepath may be updated just before file is created, wait and try again
+                time.sleep(0.5)
+                try:
+                    mtime = os.stat(filepath).st_mtime
+                except Exception as e:
+                    self.queue_mgr.handle_error('FILE_READ_ERROR', traceback.format_exc())
+                    return
             if self.last_mtime == mtime:
                 self.log.debug(f'Skipping (last mtime = {self.last_mtime})')
                 self.last_mtime = mtime
