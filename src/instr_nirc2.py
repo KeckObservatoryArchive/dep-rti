@@ -549,3 +549,10 @@ class Nirc2(instrument.Instrument):
 
         return True
 
+
+    def has_target_info(self):
+        '''
+        Does this fits have sensitive target info?
+        '''
+        return False
+

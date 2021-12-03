@@ -386,3 +386,11 @@ class Esi(instrument.Instrument):
         self.set_keyword('SLITLEN'  , slitlen,  'KOA: Slit length projected on sky')
 
         return True
+
+
+    def has_target_info(self):
+        '''
+        Does this fits have sensitive target info?
+        '''
+        return False
+
