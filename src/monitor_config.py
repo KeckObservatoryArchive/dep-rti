@@ -152,7 +152,7 @@ instr_keymap = {
         'trigger'    :  'ILASTFILE',
         'val'        :  None,
         'heartbeat'  :  ['ITERATION', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     },
     'osiris_img': {
         'ktl_service':  'osiris',
@@ -160,6 +160,6 @@ instr_keymap = {
         'trigger'    :  'SLASTFILE',
         'val'        :  None,
         'heartbeat'  :  ['ITERATION', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     }
 }
