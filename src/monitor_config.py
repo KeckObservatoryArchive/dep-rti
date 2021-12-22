@@ -126,6 +126,7 @@ instr_keymap = {
         'trigger'    :  'LASTFILE',
         'val'        :  None,
         'heartbeat'  :  ['DISPCLK', 1],
+        'delay'      : 1.0,
         'transfer'   : 0
     },
 
