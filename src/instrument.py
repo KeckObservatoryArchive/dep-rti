@@ -577,7 +577,8 @@ class Instrument(dep.DEP):
             url = api + 'ktn='+semid+'&cmd=getApprovedPP&json=True'
             data = self.get_api_data(url)
             if not data or not data.get('success') or data.get('data') == None:
-                self.log_warn('PROPINT_ERROR', url)
+                if not progid.startswith('E'):
+                    self.log_warn('PROPINT_ERROR', url)
                 propint = 18
             else:
                 propint = data.get('data', {}).get('ProprietaryPeriod', 18)
