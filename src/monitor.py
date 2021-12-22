@@ -372,6 +372,8 @@ class KtlMonitor:
         self.instr = keys['instr']
         self.log.info(f"KtlMonitor: instr: {self.instr}, service: "
                       f"{service_name}, trigger: {keys['trigger']}")
+        self.delay = 0.25
+        if 'delay' in self.keys.keys(): self.delay = self.keys['delay']
 
     def start(self):
         '''Start monitoring 'trigger' keyword for new files.'''
@@ -488,7 +490,7 @@ class KtlMonitor:
                 mtime = os.stat(filepath).st_mtime
             except:
                 # filepath may be updated just before file is created, wait and try again
-                time.sleep(0.5)
+                time.sleep(self.delay)
                 try:
                     mtime = os.stat(filepath).st_mtime
                 except Exception as e:
