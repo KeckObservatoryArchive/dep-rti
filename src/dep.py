@@ -809,7 +809,7 @@ class DEP:
 
                 #write to outfile
                 outDir = os.path.dirname(self.outfile)
-                outFile = filename.replace('.fits', '.ext' + str(i) + '.' + hdu.name + '.tbl')
+                outFile = filename.replace('.fits', '.ext' + str(i) + '.' + hdu.name.replace(' ', '_') + '.tbl')
                 outFilepath = f"{outDir}/{outFile}"
                 log.info('Creating {}'.format(outFilepath))
                 with open(outFilepath, 'w') as f:
