@@ -78,7 +78,7 @@ instr_keymap = {
         'format'     :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'      :  {'LFRAMENO'  : 4},
         'heartbeat'  :  '', # there is no keyword to track that this service is up
-        'transfer'   : 0
+        'transfer'   : 1
     },
 
     'hires': {
