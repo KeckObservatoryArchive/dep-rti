@@ -98,7 +98,7 @@ instr_keymap = {
         'trigger'    :  'LOUTFILE',
         'val'        :  None,
         'heartbeat'  :  ['UPTIME', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     },
     'lris_blue': {
         'ktl_service':  'lrisblue',
@@ -108,7 +108,7 @@ instr_keymap = {
         'format'     :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'      :  {'LFRAMENO': 4},
         'heartbeat'  :  '', # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
-        'transfer'   : 0
+        'transfer'   : 1
     },
 
     'mosfire': {
