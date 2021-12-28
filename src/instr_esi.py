@@ -116,7 +116,7 @@ class Esi(instrument.Instrument):
         Determines spectrograph dispersion mode (low, high, image)
         """
 
-        obsmode = self.get_keyword('OBSMODE')
+        obsmode = self.get_keyword('OBSMODE', default='')
         if obsmode == None:
             imfltnam = self.get_keyword('IMFLTNAM', default='').lower()
             ldfltnam = self.get_keyword('LDFLTNAM', default='').lower()
