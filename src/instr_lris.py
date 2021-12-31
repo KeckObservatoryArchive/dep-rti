@@ -696,7 +696,7 @@ class Lris(instrument.Instrument):
 
         nPixSat = 0
         for ext in range(1, self.nexten+1):
-            hdu = self.fits_hdu[ext].header
+            hdu = self.fits_hdu[ext]
             # Now skipping this for LRIS-RED (20210422)
             if 'ImageHDU' not in str(type(hdu)): continue
             image = hdu.data
