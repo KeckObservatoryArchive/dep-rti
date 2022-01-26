@@ -101,13 +101,11 @@ instr_keymap = {
         'transfer'   : 1
     },
     'lris_blue': {
-        'ktl_service':  'lrisblue',
+        'ktl_service':  'lrisplus',
         'instr'      :  'LRIS',
-        'trigger'    :  'WDISK',
-        'val'        :  'false',
-        'format'     :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-        'zfill'      :  {'LFRAMENO': 4},
-        'heartbeat'  :  '', # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
+        'trigger'    :  'BLUE_LASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  ['UPTIME', 1], 
         'transfer'   : 1
     },
 
