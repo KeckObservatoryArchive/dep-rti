@@ -108,7 +108,6 @@ instr_keymap = {
         'heartbeat'  :  ['UPTIME', 1], 
         'transfer'   : 1
     },
-
     'mosfire': {
         'ktl_service':  'mosfire',
         'instr'      :  'MOSFIRE',
@@ -125,7 +124,7 @@ instr_keymap = {
         'val'        :  None,
         'heartbeat'  :  ['DISPCLK', 1],
         'delay'      : 1.0,
-        'transfer'   : 0
+        'transfer'   : 1
     },
 
     'nirspec': {
@@ -134,7 +133,7 @@ instr_keymap = {
         'trigger'    :  'LASTFILE',
         'val'        :  None,
         'heartbeat'  :  ['UPTIME', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     },
     'nirspec_scam': {
         'ktl_service':  'nscam',
@@ -142,7 +141,7 @@ instr_keymap = {
         'trigger'    :  'LASTFILE',
         'val'        :  None,
         'heartbeat'  :  '',
-        'transfer'   : 0
+        'transfer'   : 1
     },
 
     'osiris_spec': {

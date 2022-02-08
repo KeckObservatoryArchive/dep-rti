@@ -29,6 +29,7 @@ import ktl
 import logging
 import re
 import hashlib
+import glob
 
 from archive import Archive
 import monitor_config
@@ -95,8 +96,9 @@ class Monitor:
             self.config = yaml.safe_load(f)
 
         # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-                                  persist=True)
+        # self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
+        #                           persist=True)
+        self._connect_db()
 
         # get ktl-service-name and instrument from the name of instrument + mode
         try:
@@ -119,6 +121,10 @@ class Monitor:
                       f"{self.service_name}")
 
         self.monitor()
+
+    def _connect_db(self):
+        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
+                                  persist=True)
 
     def __del__(self):
 
@@ -178,7 +184,9 @@ class Monitor:
                 f" , status='QUEUED' "
                 f" , creation_time='{now}' ")
         self.log.info(query)
-        result = self.db.query('koa', query)
+
+        # result = self.db.query('koa', query)
+        result = self._get_db_result('koa', query, retry=True)
         if result is False:
             self.handle_error('DATABASE_ERROR', query)
             return
@@ -196,10 +204,11 @@ class Monitor:
         q = ("select * from koa_status "
             f" where ofname='{filepath}' "
              " order by id desc limit 1")
-        row = self.db.query('koa', q, getOne=True)
+        row = self._get_db_result('koa', q, get_one=True, retry=True)
         if row is False:
             self.handle_error('DATABASE_ERROR', q)
             return False
+
         if len(row) == 0:
             return False
         stage_file = row['stage_file']
@@ -245,10 +254,13 @@ class Monitor:
                 f" and instrument='{self.instr}' "
                 f" and service='{self.service_name}' "
                 f" order by creation_time asc limit 1")
-        row = self.db.query('koa', query, getOne=True)
+
+        # row = self.db.query('koa', query, getOne=True)
+        row = self._get_db_result('koa', query, get_one=True, retry=True)
         if row is False:
             self.handle_error('DATABASE_ERROR', query)
             return False
+
         if len(row) == 0:
             return 
 
@@ -259,8 +271,9 @@ class Monitor:
 
         # set status to PROCESSING
         query = f"update koa_status set status='PROCESSING' where id={row['id']}"
-        res = self.db.query('koa', query)
-        if row is False:
+
+        res = self._get_db_result('koa', query, retry=True)
+        if res is False:
             self.handle_error('DATABASE_ERROR', query)
             return False
 
@@ -346,6 +359,15 @@ class Monitor:
         # always log/print
         self.log.error(f'{errcode}: {text}')
         handle_error(errcode, text, self.instr, self.service_name, check_time)
+
+    def _get_db_result(self, db_name, query, get_one=False, retry=False):
+        result = self.db.query(db_name, query, getOne=get_one)
+        if retry and result is False:
+            self.log.debug("try reconnecting to database")
+            self._connect_db()
+            self._get_db_result(db_name, query, get_one=get_one)
+
+        return result
 
 
 class KtlMonitor:
@@ -488,14 +510,43 @@ class KtlMonitor:
             # (NOTE: preferred to checking last val read b/c observer can regenerate same filepath)
             try:
                 mtime = os.stat(filepath).st_mtime
-            except:
+            except FileNotFoundError:
+                cnt = 0
+                if self.instr == 'ESI':
+                    fits_dir = os.path.dirname(filepath)
+                    fits_files = glob.glob(f'{fits_dir}/*fits')
+                    try:
+                        #TODO this string parsing is only a test
+                        chk_first = int(filepath.split('/')[-1].split('_')[-1].split('.')[0])
+                        first = (chk_first == 1)
+                    except:
+                        first = False
+
+                    if not fits_files and not first:
+                        cnt = 6
+
+                #TODO this might be ready to remove
                 # filepath may be updated just before file is created, wait and try again
-                time.sleep(self.delay)
-                try:
-                    mtime = os.stat(filepath).st_mtime
-                except Exception as e:
-                    self.queue_mgr.handle_error('FILE_READ_ERROR', traceback.format_exc())
+
+                if cnt == 0:
+                    for rpt in range(0, 5):
+                        time.sleep(self.delay)
+                        try:
+                            mtime = os.stat(filepath).st_mtime
+                            break
+                        except Exception as e:
+                            msg = f'delaying {dt.datetime.now().strftime("%H:%M:%S")} {filepath}'
+                            self.log.debug(msg)
+                            cnt += 1
+                            pass
+
+                if cnt == 5:
+                    msg = f'FILE_READ_ERROR at {dt.datetime.now().strftime("%H:%M:%S")}'
+                    self.queue_mgr.handle_error(msg, traceback.format_exc())
                     return
+            except Exception as err:
+                self.queue_mgr.handle_error(err, traceback.format_exc())
+
             if self.last_mtime == mtime:
                 self.log.debug(f'Skipping (last mtime = {self.last_mtime})')
                 self.last_mtime = mtime
