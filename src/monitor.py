@@ -95,9 +95,7 @@ class Monitor:
         with open('config.live.ini') as f: 
             self.config = yaml.safe_load(f)
 
-        # Establish database connection 
-        # self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-        #                           persist=True)
+        # Establish database connection
         self._connect_db()
 
         # get ktl-service-name and instrument from the name of instrument + mode
@@ -120,7 +118,7 @@ class Monitor:
         self.log.info(f"Starting KOA Monitor for {self.instr} "
                       f"{self.service_name}")
 
-        self.monitor()
+        self.monitor_start()
 
     def _connect_db(self):
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
@@ -132,7 +130,7 @@ class Monitor:
         if self.db:
             self.db.close()
 
-    def monitor(self):
+    def monitor_start(self):
         # run KTL monitor for service
         self.monitor = KtlMonitor(self.service_name, self.keys, self, self.log)
         self.monitor.start()
@@ -185,7 +183,6 @@ class Monitor:
                 f" , creation_time='{now}' ")
         self.log.info(query)
 
-        # result = self.db.query('koa', query)
         result = self._get_db_result('koa', query, retry=True)
         if result is False:
             self.handle_error('DATABASE_ERROR', query)
@@ -255,7 +252,6 @@ class Monitor:
                 f" and service='{self.service_name}' "
                 f" order by creation_time asc limit 1")
 
-        # row = self.db.query('koa', query, getOne=True)
         row = self._get_db_result('koa', query, get_one=True, retry=True)
         if row is False:
             self.handle_error('DATABASE_ERROR', query)
