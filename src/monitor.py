@@ -507,39 +507,7 @@ class KtlMonitor:
             try:
                 mtime = os.stat(filepath).st_mtime
             except FileNotFoundError:
-                cnt = 0
-                if self.instr == 'ESI':
-                    fits_dir = os.path.dirname(filepath)
-                    fits_files = glob.glob(f'{fits_dir}/*fits')
-                    try:
-                        #TODO this string parsing is only a test
-                        chk_first = int(filepath.split('/')[-1].split('_')[-1].split('.')[0])
-                        first = (chk_first == 1)
-                    except:
-                        first = False
-
-                    if not fits_files and not first:
-                        cnt = 6
-
-                #TODO this might be ready to remove
-                # filepath may be updated just before file is created, wait and try again
-
-                if cnt == 0:
-                    for rpt in range(0, 5):
-                        time.sleep(self.delay)
-                        try:
-                            mtime = os.stat(filepath).st_mtime
-                            break
-                        except Exception as e:
-                            msg = f'delaying {dt.datetime.now().strftime("%H:%M:%S")} {filepath}'
-                            self.log.debug(msg)
-                            cnt += 1
-                            pass
-
-                if cnt == 5:
-                    msg = f'FILE_READ_ERROR at {dt.datetime.now().strftime("%H:%M:%S")}'
-                    self.queue_mgr.handle_error(msg, traceback.format_exc())
-                    return
+                mtime = self._handle_file_not_found(filepath)
             except Exception as err:
                 self.queue_mgr.handle_error(err, traceback.format_exc())
 
@@ -555,6 +523,45 @@ class KtlMonitor:
 
         # send back to queue manager
         self.queue_mgr.add_to_queue(filepath)
+
+    def _handle_file_not_found(self, filepath):
+        """
+        filepath may be updated just before file is created, wait and try again
+        """
+        if self.instr == 'ESI':
+            if self._chk_esi_test_file(filepath):
+                return None
+
+        for rpt in range(0, 5):
+            time.sleep(self.delay)
+            try:
+                mtime = os.stat(filepath).st_mtime
+                return mtime
+            except Exception as e:
+                self.log.debug(f'delaying {self.delay}s, {filepath} not found')
+                pass
+
+        msg = f'FILE_READ_ERROR at {dt.datetime.now().strftime("%H:%M:%S")}'
+        self.queue_mgr.handle_error(msg, traceback.format_exc())
+
+        return None
+
+    def _chk_esi_test_file(self, filepath):
+        """
+        Check to find if the broadcast is old and only a test file.
+        """
+        fits_dir = os.path.dirname(filepath)
+        fits_files = glob.glob(f'{fits_dir}/*fits')
+        try:
+            chk_first = int(filepath.split('/')[-1].split('_')[-1].split('.')[0])
+            first = (chk_first == 1)
+        except:
+            first = False
+
+        if not fits_files and not first:
+            return True
+
+        return False
 
     def get_formatted_filepath(self, format, zfill):
         '''
