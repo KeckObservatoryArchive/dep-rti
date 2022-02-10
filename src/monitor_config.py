@@ -36,7 +36,7 @@ instr_keymap = {
         'transfer'   : 1
     },
 
-    'nids': {
+    'nirc2_img': {
         'ktl_service':  'nids',
         'instr'      :  'NIRES',
         'trigger'    :  'LASTFILE',
@@ -44,7 +44,7 @@ instr_keymap = {
         'heartbeat'  :  ['ITERATION', 600],
         'transfer'   : 1
     },
-    'nsds': {
+    'nirc2_spec': {
         'ktl_service':  'nsds',
         'instr'      :  'NIRES',
         'trigger'    :  'LASTFILE',
