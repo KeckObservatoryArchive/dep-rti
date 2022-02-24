@@ -659,9 +659,13 @@ class Deimos(instrument.Instrument):
 
 
     def has_target_info(self):
-        '''Does this fits have target info?'''
-        #NOTE: Dependent on set_obsmode()
-        obsmode = self.get_keyword('OBSMODE')
-        print(obsmode)
-        has_target = obsmode not in ('MOS', 'Unknown')
+        '''
+        Does this fits have target info?
+        If any header name is not PrimaryHDU or ImageHDU, then yes.
+        '''
+        has_target = False
+        non_target_names = ['PrimaryHDU', 'ImageHDU']
+        for ext in range(0, len(self.fits_hdu)):
+            if not any(x in str(type(self.fits_hdu[ext])) for x in non_target_names):
+                has_target = True
         return has_target
