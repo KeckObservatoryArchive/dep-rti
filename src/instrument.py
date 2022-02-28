@@ -83,18 +83,34 @@ class Instrument(dep.DEP):
 
         #loop
         for mappedKey in mappedKeys:
-            val = self.fits_hdu[ext].header.get(mappedKey)
-            if val != None and not isinstance(val, fits.Undefined): return val
+            try:
+                val = self.fits_hdu[ext].header.get(mappedKey)
+                if self._chk_valid(val):
+                    return val
+            except fits.verify.VerifyError:
+                continue
 
         #return None if we didn't find it
         return default
 
+    @staticmethod
+    def _chk_valid(val):
+        if val == 0:
+            return True
+
+        if (not val or isinstance(val, fits.Undefined) or
+                str(val).strip().lower() in ('nan', '-nan')):
+            return False
+
+        return True
 
     def set_keyword(self, keyword, value, comment='', useMap=False, ext=0):
         '''
         Sets keyword value in FITS header.
         NOTE: Mapped values are only used if "useMap" is set to True, otherwise keyword name is as provided.
         '''
+        if value is None:
+            value = 'null'
 
         # check for loaded fits_hdr
         if not self.fits_hdu[ext].header:
@@ -111,9 +127,14 @@ class Instrument(dep.DEP):
             keyword = keyword[0]
 
         #handle infinite value
-        if value == math.inf:
-            log.warning(f'set_keyword: keyword {keyword} value is infinite.  Setting to null.')
-            return None
+        if value == math.inf or str(value).lower() in ('nan', '-nan'):
+            log.error(f'set_keyword: ERROR: keyword {keyword} value '
+                      f'is {value}.  Setting to null.')
+            value = 'null'
+
+        # if value == math.inf:
+        #     log.warning(f'set_keyword: keyword {keyword} value is infinite.  Setting to null.')
+        #     value = 'null'
 
         #ok now we can update
         (self.fits_hdu[ext].header).update({keyword : (value, comment)})
@@ -394,7 +415,7 @@ class Instrument(dep.DEP):
         if assign_progname:
             utc = self.get_keyword('UTC')
             progname = get_progid_assign(assign_progname, utc)
-            if '_' in progname and self.is_progid_valid(progname):
+            if '_' in progname and is_progid_valid(progname):
                 semester, progid = progname.split('_')
                 self.set_keyword('SEMESTER', semester, 'Calculated SEMESTER from PROGNAME')
                 log.info(f"set_semester: Set SEMESTER to '{semester}' from ASSIGN_PROGNAME '{progname}'")
@@ -402,7 +423,7 @@ class Instrument(dep.DEP):
 
         #special override assign using PROGNAME
         progname = self.get_keyword('PROGNAME', default='')
-        if '_' in progname and self.is_progid_valid(progname):
+        if '_' in progname and is_progid_valid(progname):
             semester, progid = progname.split('_')
             self.set_keyword('SEMESTER', semester, 'Calculated SEMESTER from PROGNAME')
             log.info(f"set_semester: Set SEMESTER to '{semester}' from PROGNAME '{progname}'")
@@ -783,7 +804,7 @@ class Instrument(dep.DEP):
         data = self.get_api_data(url, getOne=True)
         self.telnr = int(data['TelNr'])
         if self.telnr not in [1, 2]:
-            self.log_error('TELNR_VALUE_ERROR', telNr)
+            self.log_error('TELNR_VALUE_ERROR', self.telNr)
             return False
         return True
 
