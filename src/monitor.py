@@ -153,6 +153,9 @@ class Monitor:
                 del self.procs[i]
                 removed += 1
 
+                # reconnect to the database,  the delete interrupts connection
+                self._connect_db()
+
         # If we removed any jobs, check queue
         if removed:
             self.check_queue()
@@ -183,7 +186,7 @@ class Monitor:
                 f" , creation_time='{now}' ")
         self.log.info(query)
 
-        result = self._get_db_result('koa', query, retry=True)
+        result = self._get_db_result('koa', query)
         if result is False:
             self.handle_error('DATABASE_ERROR', query)
             return
@@ -198,16 +201,18 @@ class Monitor:
         If staged and file contents/hash are same, the we will skip this file.
         NOTE: This is to get around unsolved duplicate trigger broadcast issue.
         '''
-        q = ("select * from koa_status "
-            f" where ofname='{filepath}' "
-             " order by id desc limit 1")
-        row = self._get_db_result('koa', q, get_one=True, retry=True)
+        query = ("select * from koa_status " 
+                 f" where ofname='{filepath}' "
+                 " order by id desc limit 1")
+
+        row = self._get_db_result('koa', query, get_one=True)
         if row is False:
-            self.handle_error('DATABASE_ERROR', q)
+            self.handle_error('DATABASE_ERROR', query)
             return False
 
         if len(row) == 0:
             return False
+
         stage_file = row['stage_file']
         status = row['status']
 
@@ -247,12 +252,12 @@ class Monitor:
         self.last_queue_check = time.time()
 
         query = (f"select * from koa_status where level=0 "
-                f" and status='QUEUED' "
-                f" and instrument='{self.instr}' "
-                f" and service='{self.service_name}' "
-                f" order by creation_time asc limit 1")
+                 f" and status='QUEUED' "
+                 f" and instrument='{self.instr}' "
+                 f" and service='{self.service_name}' "
+                 f" order by creation_time asc limit 1")
 
-        row = self._get_db_result('koa', query, get_one=True, retry=True)
+        row = self._get_db_result('koa', query, get_one=True)
         if row is False:
             self.handle_error('DATABASE_ERROR', query)
             return False
@@ -268,8 +273,8 @@ class Monitor:
         # set status to PROCESSING
         query = f"update koa_status set status='PROCESSING' where id={row['id']}"
 
-        res = self._get_db_result('koa', query, retry=True)
-        if res is False:
+        result = self._get_db_result('koa', query)
+        if result is False:
             self.handle_error('DATABASE_ERROR', query)
             return False
 
@@ -356,12 +361,12 @@ class Monitor:
         self.log.error(f'{errcode}: {text}')
         handle_error(errcode, text, self.instr, self.service_name, check_time)
 
-    def _get_db_result(self, db_name, query, get_one=False, retry=False):
+    def _get_db_result(self, db_name, query, get_one=False, retry=True):
         result = self.db.query(db_name, query, getOne=get_one)
-        if retry and result is False:
+        if result is False and retry:
             self.log.debug("try reconnecting to database")
             self._connect_db()
-            self._get_db_result(db_name, query, get_one=get_one)
+            self._get_db_result(db_name, query, get_one=get_one, retry=False)
 
         return result
 
