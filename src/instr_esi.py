@@ -117,7 +117,7 @@ class Esi(instrument.Instrument):
         """
 
         obsmode = self.get_keyword('OBSMODE', default='')
-        if obsmode == None:
+        if obsmode == '':
             imfltnam = self.get_keyword('IMFLTNAM', default='').lower()
             ldfltnam = self.get_keyword('LDFLTNAM', default='').lower()
             prismnam = self.get_keyword('PRISMNAM', default='').lower()
