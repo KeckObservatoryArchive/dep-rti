@@ -53,7 +53,7 @@ instr_keymap = {
         'transfer'   : 1
     },
 
-    'deimos': {
+    'deimos_spec': {
         'ktl_service':  'deimosplus',
         'instr'      :  'DEIMOS',
         'trigger'    :  'LASTCCD',
@@ -127,7 +127,7 @@ instr_keymap = {
         'transfer'   : 1
     },
 
-    'nirspec': {
+    'nirspec_spec': {
         'ktl_service':  'nspec',
         'instr'      :  'NIRSPEC',
         'trigger'    :  'LASTFILE',
