@@ -415,7 +415,7 @@ class Instrument(dep.DEP):
         if assign_progname:
             utc = self.get_keyword('UTC')
             progname = get_progid_assign(assign_progname, utc)
-            if '_' in progname and is_progid_valid(progname):
+            if '_' in progname and self.is_progid_valid(progname):
                 semester, progid = progname.split('_')
                 self.set_keyword('SEMESTER', semester, 'Calculated SEMESTER from PROGNAME')
                 log.info(f"set_semester: Set SEMESTER to '{semester}' from ASSIGN_PROGNAME '{progname}'")
@@ -423,7 +423,7 @@ class Instrument(dep.DEP):
 
         #special override assign using PROGNAME
         progname = self.get_keyword('PROGNAME', default='')
-        if '_' in progname and is_progid_valid(progname):
+        if '_' in progname and self.is_progid_valid(progname):
             semester, progid = progname.split('_')
             self.set_keyword('SEMESTER', semester, 'Calculated SEMESTER from PROGNAME')
             log.info(f"set_semester: Set SEMESTER to '{semester}' from PROGNAME '{progname}'")
