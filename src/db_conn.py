@@ -84,8 +84,7 @@ class db_conn(object):
                 conn = psycopg2.connect(user=user, password=pwd, host=server, port=port, database=db)
         except Exception as e:
             conn = None
-            print ("ERROR: Could not connect to database.")
-            print ('ERROR: ', e)
+            print("ERROR: Could not connect to database.", e)
 
         #save connection
         if self.persist:
@@ -94,9 +93,7 @@ class db_conn(object):
         #return
         return conn
 
-
     def close(self, database=None):
-
         #close all connections unless they specify one
         for key, conn in self.conns.items():
             if database and key != database: 
@@ -104,64 +101,90 @@ class db_conn(object):
             if conn:
                 conn.close()
 
-
-    def query(self, database, query, values=False, getOne=False, getColumn=False, getInsertId=False):
+    def query(self, database, query, values=False, getOne=False,
+              getColumn=False, getInsertId=False):
         '''
-        Executes basic query.  Determines query type and returns fetchall on select, otherwise rowcount on other query types.
-        Returns false on any exception error.  Opens and closes a new connection each time.
+        Executes basic query.  Determines query type and returns fetchall on
+        select, otherwise rowcount on other query types.
+        Returns false on any exception error.  Opens and closes a new
+        connection each time.
         '''
 
         result = False
+        cursor = None
+
         try:
-            conn = self.connect(database)
-
-            #get database type
-            type = self.config[database]['type']
-
-            #determine query type and check for read only restriction
+            # determine query type and check for read only restriction
             qtype = query.strip().split()[0]
-            if self.readOnly and qtype not in ('select'):
-                print ('ERROR: Attempting to write to DB in read-only mode.')
+            if self.readOnly and qtype in ('insert', 'update'):
+                print('ERROR: Attempting to write to DB in read-only mode.')
                 return False
 
-            #get cursor
-            #todo: use "with" syntax?
-            cursor = None
-            if   type == 'mysql':
-                cursor = conn.cursor(pymysql.cursors.DictCursor)
-            elif type == 'postgresql':
-                conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-                cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-            #execute query and determine return value by qtype
-            if cursor:
-                if values: cursor.execute(query, values)
-                else:      cursor.execute(query)
-                if   qtype in ('select'): result = cursor.fetchall()
-                elif getInsertId        : result = cursor.lastrowid
-                else                    : result = cursor.rowcount
-                cursor.close()
-
-            #requesting one result?
-            if getOne and isinstance(result, list):
-                if len(result) == 0: result = False
-                else               : result = result[0] 
-
-            #requesting single column (to remove associative/dictionary key for easy query)
-            if getColumn and result:
-                if isinstance(result, list): result = [row[getColumn] for row in result]
-                else                       : result = result[getColumn]
+            # get cursor
+            conn = self.connect(database)
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
 
         except Exception as e:
-            print ('ERROR: ', e)
-            result = False
+            self.clean_up(conn, cursor)
+            print('ERROR getting cursor: ', e)
+            return False
+
+        try:
+            # execute query and determine return value by qtype
+            if cursor:
+                if not values:
+                    cursor.execute(query)
+                else:
+                    cursor.execute(query, values)
+            else:
+                print(f'ERROR no cursor?')
+        except Exception as e:
+            self.clean_up(conn, cursor)
+            print(f'ERROR executing query: {query} {values}', e)
+            return False
+        try:
+            if cursor:
+                if qtype == 'select':
+                    result = cursor.fetchall()
+                elif getInsertId:
+                    result = cursor.lastrowid
+                else:
+                    result = cursor.rowcount
+                cursor.close()
+        except Exception as e:
+            self.clean_up(conn, cursor)
+            print('ERROR getting result: ', e)
+            return False
+
+        try:
+            # requesting one result
+            if getOne and isinstance(result, list):
+                if len(result) == 0:
+                    result = False
+                else:
+                    result = result[0]
+
+            # requesting single column (to remove associative / dictionary key for easy query)
+            if getColumn and result:
+                if isinstance(result, list):
+                    result = [row[getColumn] for row in result]
+                else:
+                    result = result[getColumn]
+
+        except Exception as e:
+            print('ERROR parsing result: ', e)
+            return False
 
         finally:
-            if not self.persist:
-                if cursor: cursor.close()
-                if conn: conn.close()
+            self.clean_up(conn, cursor)
 
         return result
 
+    def clean_up(self, conn, cursor):
+        if not self.persist:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
 

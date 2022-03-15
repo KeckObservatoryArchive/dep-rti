@@ -116,8 +116,8 @@ class Esi(instrument.Instrument):
         Determines spectrograph dispersion mode (low, high, image)
         """
 
-        obsmode = self.get_keyword('OBSMODE')
-        if obsmode == None:
+        obsmode = self.get_keyword('OBSMODE', default='')
+        if obsmode == '':
             imfltnam = self.get_keyword('IMFLTNAM', default='').lower()
             ldfltnam = self.get_keyword('LDFLTNAM', default='').lower()
             prismnam = self.get_keyword('PRISMNAM', default='').lower()
@@ -386,3 +386,11 @@ class Esi(instrument.Instrument):
         self.set_keyword('SLITLEN'  , slitlen,  'KOA: Slit length projected on sky')
 
         return True
+
+
+    def has_target_info(self):
+        '''
+        Does this fits have sensitive target info?
+        '''
+        return False
+

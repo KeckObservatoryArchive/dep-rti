@@ -568,7 +568,8 @@ class Deimos(instrument.Instrument):
         if s0 > 0 and s1 > 0:
             alldata = np.concatenate((alldata[0], alldata[1]), axis=0)
             # Need to rotate final stitched image
-            alldata = ndimage.rotate(alldata, -90, axes=(0, 1))
+#            alldata = ndimage.rotate(alldata, -90, axes=(0, 1))
+            alldata = np.rot90(alldata, 1, axes=(1, 0))
         elif s0 > 0:
             alldata = alldata[0]
         elif s1 > 0:
@@ -659,9 +660,87 @@ class Deimos(instrument.Instrument):
 
 
     def has_target_info(self):
-        '''Does this fits have target info?'''
-        #NOTE: Dependent on set_obsmode()
-        obsmode = self.get_keyword('OBSMODE')
-        print(obsmode)
-        has_target = obsmode not in ('MOS', 'Unknown')
+        '''
+        Does this fits have target info?
+        If any header name is not PrimaryHDU or ImageHDU, then yes.
+        '''
+        has_target = False
+        non_target_names = ['PrimaryHDU', 'ImageHDU']
+        for ext in range(0, len(self.fits_hdu)):
+            if not any(x in str(type(self.fits_hdu[ext])) for x in non_target_names):
+                has_target = True
         return has_target
+
+
+    def get_drp_files_list(self, datadir, koaid, level):
+        '''
+        Return list of files to archive for DRP specific to DEIMOS.
+
+        QL ingest (KOA level 1)
+            icubed.fits files
+            icubes.fits files
+            calibration validation (arc_ and bars_ < FRAMENO)
+
+        Science ingest (KOA level 2)
+            Science/*KOAID*.[fits|txt]
+            QA/PNGs/KOAI*.png and associated Arc*.png files
+            Associated Masters/Master*.fits
+            calib, log and pytpeit files
+        '''
+        files = []
+
+        #back out of /redux/ subdir
+        if datadir.endswith('/'): datadir = datadir[:-1]
+        maskConfig = datadir.split('/')[-1]
+
+        #level 1 and greater
+        if level >= 1:
+            searchfiles = []
+            for f in searchfiles:
+                if os.path.isfile(f): files.append(f)
+
+        #level 2 (note: includes level 1 stuff, see above)
+        if level == 2:
+            searchfiles = [
+                f"{datadir}/{maskConfig}.calib",
+                f"{datadir}/{maskConfig}.log",
+                f"{datadir}/{maskConfig}.pypeit"
+            ]
+            for f in searchfiles:
+                if os.path.isfile(f): files.append(f)
+            # Search for all science files with this koaid
+            for file in glob.glob(f"{datadir}/Science/*{koaid}*"):
+                files.append(file)
+            # Search for all QA plots with this koaid
+            for file in glob.glob(f"{datadir}/QA/PNGs/{koaid}*"):
+                files.append(file)
+                start = file.find('DET0')
+                end   = file.find('_', start)
+                masterSearch = file[start:end]
+                end   = file.find('_', start+6)
+                arcSearch = file[start:end]
+                # Search for all master calibrations for this detector
+                for master in glob.glob(f"{datadir}/Masters/Master*{masterSearch}*"):
+                    if master not in files:
+                        files.append(master)
+                # Search for all arc QA plots for this detector
+                for arc in glob.glob(f"{datadir}/QA/PNGs/Arc*{arcSearch}*"):
+                    if arc not in files:
+                        files.append(arc)
+
+        return files
+
+
+    def get_drp_destfile(self, koaid, srcfile):
+        '''
+        Returns the destination of the DRP file for RTI.
+        '''
+
+        # PypeIt uses 'keck_deimos_X'
+        loc = srcfile.find('keck_deimos')
+
+        # New desitnation file
+        outdir = self.dirs[f'lev{self.level}']
+        destfile = f"{outdir}/{srcfile[loc:]}"
+
+        return True, destfile

@@ -36,7 +36,7 @@ instr_keymap = {
         'transfer'   : 1
     },
 
-    'nids': {
+    'nires_img': {
         'ktl_service':  'nids',
         'instr'      :  'NIRES',
         'trigger'    :  'LASTFILE',
@@ -44,7 +44,7 @@ instr_keymap = {
         'heartbeat'  :  ['ITERATION', 600],
         'transfer'   : 1
     },
-    'nsds': {
+    'nires_spec': {
         'ktl_service':  'nsds',
         'instr'      :  'NIRES',
         'trigger'    :  'LASTFILE',
@@ -53,7 +53,7 @@ instr_keymap = {
         'transfer'   : 1
     },
 
-    'deimos': {
+    'deimos_spec': {
         'ktl_service':  'deimosplus',
         'instr'      :  'DEIMOS',
         'trigger'    :  'LASTCCD',
@@ -78,7 +78,7 @@ instr_keymap = {
         'format'     :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'      :  {'LFRAMENO'  : 4},
         'heartbeat'  :  '', # there is no keyword to track that this service is up
-        'transfer'   : 0
+        'transfer'   : 1
     },
 
     'hires': {
@@ -98,44 +98,42 @@ instr_keymap = {
         'trigger'    :  'LOUTFILE',
         'val'        :  None,
         'heartbeat'  :  ['UPTIME', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     },
     'lris_blue': {
-        'ktl_service':  'lrisblue',
+        'ktl_service':  'lrisplus',
         'instr'      :  'LRIS',
-        'trigger'    :  'WDISK',
-        'val'        :  'false',
-        'format'     :  '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
-        'zfill'      :  {'LFRAMENO': 4},
-        'heartbeat'  :  '', # LRIS doesnt have any keywords to track uptime. LRIS upgrade should fix this
-        'transfer'   : 0
+        'trigger'    :  'BLUE_LASTFILE',
+        'val'        :  None,
+        'heartbeat'  :  ['UPTIME', 1], 
+        'transfer'   : 1
     },
-
     'mosfire': {
         'ktl_service':  'mosfire',
         'instr'      :  'MOSFIRE',
         'trigger'    :  'LASTFILE',
         'val'        :  None,
         'heartbeat'  :  ['ITERATION', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     },
 
     'nirc2': {
-        'ktl_service':  'alad',
+        'ktl_service':  'nirc2plus',
         'instr'      :  'NIRC2',
-        'trigger'    :  'LASTFILE', # could alternatively be FILERDY with val==0
+        'trigger'    :  'LASTFILE',
         'val'        :  None,
-        'heartbeat'  :  '',  # alad doesn't have any keyword to track how long it's been up
-        'transfer'   : 0
+        'heartbeat'  :  ['DISPCLK', 1],
+        'delay'      : 1.0,
+        'transfer'   : 1
     },
 
-    'nirspec': {
+    'nirspec_spec': {
         'ktl_service':  'nspec',
         'instr'      :  'NIRSPEC',
         'trigger'    :  'LASTFILE',
         'val'        :  None,
         'heartbeat'  :  ['UPTIME', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     },
     'nirspec_scam': {
         'ktl_service':  'nscam',
@@ -143,7 +141,7 @@ instr_keymap = {
         'trigger'    :  'LASTFILE',
         'val'        :  None,
         'heartbeat'  :  '',
-        'transfer'   : 0
+        'transfer'   : 1
     },
 
     'osiris_spec': {
@@ -152,7 +150,7 @@ instr_keymap = {
         'trigger'    :  'ILASTFILE',
         'val'        :  None,
         'heartbeat'  :  ['ITERATION', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     },
     'osiris_img': {
         'ktl_service':  'osiris',
@@ -160,6 +158,6 @@ instr_keymap = {
         'trigger'    :  'SLASTFILE',
         'val'        :  None,
         'heartbeat'  :  ['ITERATION', 1],
-        'transfer'   : 0
+        'transfer'   : 1
     }
 }

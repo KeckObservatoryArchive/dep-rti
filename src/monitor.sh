@@ -27,7 +27,7 @@ foreach service ( $services )
 
 	set PYTHON='/usr/local/anaconda/bin/python'
 	set DEPDIR=`dirname $0`
-	set LOGFILE="/koadata/dep-rti-$service.log"
+	set LOGFILE="/log/dep-rti-$service.log"
 
 	set cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $service >>& $LOGFILE"
 	echo $cmd

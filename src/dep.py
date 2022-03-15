@@ -809,7 +809,7 @@ class DEP:
 
                 #write to outfile
                 outDir = os.path.dirname(self.outfile)
-                outFile = filename.replace('.fits', '.ext' + str(i) + '.' + hdu.name + '.tbl')
+                outFile = filename.replace('.fits', '.ext' + str(i) + '.' + hdu.name.replace(' ', '_') + '.tbl')
                 outFilepath = f"{outDir}/{outFile}"
                 log.info('Creating {}'.format(outFilepath))
                 with open(outFilepath, 'w') as f:
@@ -847,15 +847,23 @@ class DEP:
             for srcfile in files:
                 if not os.path.isfile(srcfile): continue
                 try:
-                    split = srcfile.split('/')
-                    outdir = self.dirs[f'lev{self.level}']
-                    if split[-2] in ['plots','redux','logs']:
-                        outdir = f'{outdir}/{split[-2]}'
-                    destfile = f"{outdir}/{os.path.basename(srcfile)}"
+                    status, destfile = self.get_drp_destfile(koaid, srcfile)
+                    if status == False:
+                        split = srcfile.split('/')
+                        outdir = self.dirs[f'lev{self.level}']
+                        if split[-2] in ['plots','redux','logs']:
+                            outdir = f'{outdir}/{split[-2]}'
+                        destfile = f"{outdir}/{os.path.basename(srcfile)}"
                     log.info(f"Copying {srcfile} to {destfile}")
                     os.makedirs(os.path.dirname(destfile), exist_ok=True)
-#                    subprocess.call(['rsync', '-avz', srcfile, destfile])
-                    subprocess.call(['rsync', '-az', srcfile, destfile])
+                    # Don't recopy files that haven't been updated
+                    skip = False
+                    if os.path.exists(destfile):
+                        modTime1 = os.path.getmtime(srcfile)
+                        modTime2 = os.path.getmtime(destfile)
+                        if modTime1 > modTime2: skip = True
+                    if skip == False:
+                        subprocess.call(['rsync', '-az', srcfile, destfile])
 
                     if koaid not in self.drp_files: self.drp_files[koaid] = []
                     self.drp_files[koaid].append(destfile)
@@ -910,6 +918,11 @@ class DEP:
     def get_drp_files_list(self, datadir, koaid, level):
         '''Return list of files to archive for DRP specific to instrument.'''
         raise NotImplementedError("Abstract method not implemented!")
+
+    def get_drp_destfile(self):
+        '''Return output destination file to copy DRP file to.'''
+        # Use default from copy_drp_files() - backwards compatibility with KCWI
+        return False, ''
 
     def check_koapi_send(self):
         '''
@@ -1191,7 +1204,7 @@ class DEP:
         toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}/lev{self.level}/'
         log.info(f'transferring directory {fromDir} to {toLocation}')
 
-        if self.level == 2:
+        if self.level == 2 and self.instr == 'KCWI':
             xfrOutfile = f'{self.levdir}/{self.utdatedir}.xfr.table'
         else:
             xfrOutfile = f'{self.levdir}/{self.koaid}.xfr.table'
@@ -1226,23 +1239,32 @@ class DEP:
             # Do not trigger ingestion for individual lev2 data products
             # Only trigger if all koa_status entries are COMPLETE
             if self.level == 2:
-                # Only continue to ingestion API if all KOAIDs have been processed
-                query = f"select * from koa_status where instrument='{self.instr}' and koaid like '%{self.utdatedir}%' and level=2"
-                result = self.db.query('koa', query)
-                notDone = [i for i in result if i['status'] != 'TRANSFERRED']
-                if len(notDone) == 0:
-                    print(f"All data processed, triggering ingestion")
-                    log.info(f"All data processed, triggering ingestion")
-                else:
-                    print(f"{len(notDone)} of {len(result)} still to process")
-                    log.info(f"{len(notDone)} of {len(result)} still to process")
-                    return True
+                # This will be removed when we move to individual KOAID ingests
+                if self.instr == 'KCWI':
+                    # Only continue to ingestion API if all KOAIDs have been processed
+                    query = f"select * from koa_status where instrument='{self.instr}' and koaid like '%{self.utdatedir}%' and level=2"
+                    result = self.db.query('koa', query)
+                    notDone = [i for i in result if i['status'] != 'TRANSFERRED']
+                    if len(notDone) == 0:
+                        print(f"All data processed, triggering ingestion")
+                        log.info(f"All data processed, triggering ingestion")
+                    else:
+                        print(f"{len(notDone)} of {len(result)} still to process")
+                        log.info(f"{len(notDone)} of {len(result)} still to process")
+                        return True
+
+            apiUrl = f'{api}instrument={self.instr}&ingesttype=lev{self.level}'
             if self.level in (0,1):
-                apiUrl = f'{api}instrument={self.instr}&koaid={self.koaid}&ingesttype=lev{self.level}'
+                apiUrl = f'{apiUrl}&koaid={self.koaid}'
             else:
-                apiUrl = f'{api}instrument={self.instr}&utdate={self.utdatedir}&ingesttype=lev{self.level}'
+                # Will be removed
+                if self.instr == 'KCWI':
+                    apiUrl = f'{apiUrl}&utdate={self.utdatedir}'
+                else:
+                    apiUrl = f'{apiUrl}&koaid={self.koaid}'
             if self.reprocess:
                 apiUrl = f'{apiUrl}&reingest=true'
+
             log.info(f'sending ingest API call {apiUrl}')
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_koa_status('ipac_notify_time', utstring): return False

@@ -29,6 +29,7 @@ import ktl
 import logging
 import re
 import hashlib
+import glob
 
 from archive import Archive
 import monitor_config
@@ -94,9 +95,8 @@ class Monitor:
         with open('config.live.ini') as f: 
             self.config = yaml.safe_load(f)
 
-        # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-                                  persist=True)
+        # Establish database connection
+        self._connect_db()
 
         # get ktl-service-name and instrument from the name of instrument + mode
         try:
@@ -118,7 +118,11 @@ class Monitor:
         self.log.info(f"Starting KOA Monitor for {self.instr} "
                       f"{self.service_name}")
 
-        self.monitor()
+        self.monitor_start()
+
+    def _connect_db(self):
+        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
+                                  persist=True)
 
     def __del__(self):
 
@@ -126,7 +130,7 @@ class Monitor:
         if self.db:
             self.db.close()
 
-    def monitor(self):
+    def monitor_start(self):
         # run KTL monitor for service
         self.monitor = KtlMonitor(self.service_name, self.keys, self, self.log)
         self.monitor.start()
@@ -148,6 +152,9 @@ class Monitor:
                                f'exitcode={p.exitcode}')
                 del self.procs[i]
                 removed += 1
+
+                # reconnect to the database,  the delete interrupts connection
+                self._connect_db()
 
         # If we removed any jobs, check queue
         if removed:
@@ -178,7 +185,8 @@ class Monitor:
                 f" , status='QUEUED' "
                 f" , creation_time='{now}' ")
         self.log.info(query)
-        result = self.db.query('koa', query)
+
+        result = self._get_db_result('koa', query)
         if result is False:
             self.handle_error('DATABASE_ERROR', query)
             return
@@ -193,15 +201,18 @@ class Monitor:
         If staged and file contents/hash are same, the we will skip this file.
         NOTE: This is to get around unsolved duplicate trigger broadcast issue.
         '''
-        q = ("select * from koa_status "
-            f" where ofname='{filepath}' "
-             " order by id desc limit 1")
-        row = self.db.query('koa', q, getOne=True)
+        query = ("select * from koa_status " 
+                 f" where ofname='{filepath}' "
+                 " order by id desc limit 1")
+
+        row = self._get_db_result('koa', query, get_one=True)
         if row is False:
-            self.handle_error('DATABASE_ERROR', q)
+            self.handle_error('DATABASE_ERROR', query)
             return False
+
         if len(row) == 0:
             return False
+
         stage_file = row['stage_file']
         status = row['status']
 
@@ -241,14 +252,16 @@ class Monitor:
         self.last_queue_check = time.time()
 
         query = (f"select * from koa_status where level=0 "
-                f" and status='QUEUED' "
-                f" and instrument='{self.instr}' "
-                f" and service='{self.service_name}' "
-                f" order by creation_time asc limit 1")
-        row = self.db.query('koa', query, getOne=True)
+                 f" and status='QUEUED' "
+                 f" and instrument='{self.instr}' "
+                 f" and service='{self.service_name}' "
+                 f" order by creation_time asc limit 1")
+
+        row = self._get_db_result('koa', query, get_one=True)
         if row is False:
             self.handle_error('DATABASE_ERROR', query)
             return False
+
         if len(row) == 0:
             return 
 
@@ -259,8 +272,9 @@ class Monitor:
 
         # set status to PROCESSING
         query = f"update koa_status set status='PROCESSING' where id={row['id']}"
-        res = self.db.query('koa', query)
-        if row is False:
+
+        result = self._get_db_result('koa', query)
+        if result is False:
             self.handle_error('DATABASE_ERROR', query)
             return False
 
@@ -347,6 +361,15 @@ class Monitor:
         self.log.error(f'{errcode}: {text}')
         handle_error(errcode, text, self.instr, self.service_name, check_time)
 
+    def _get_db_result(self, db_name, query, get_one=False, retry=True):
+        result = self.db.query(db_name, query, getOne=get_one)
+        if result is False and retry:
+            self.log.debug("try reconnecting to database")
+            self._connect_db()
+            self._get_db_result(db_name, query, get_one=get_one, retry=False)
+
+        return result
+
 
 class KtlMonitor:
     '''
@@ -372,6 +395,8 @@ class KtlMonitor:
         self.instr = keys['instr']
         self.log.info(f"KtlMonitor: instr: {self.instr}, service: "
                       f"{service_name}, trigger: {keys['trigger']}")
+        self.delay = 0.25
+        if 'delay' in self.keys.keys(): self.delay = self.keys['delay']
 
     def start(self):
         '''Start monitoring 'trigger' keyword for new files.'''
@@ -486,9 +511,11 @@ class KtlMonitor:
             # (NOTE: preferred to checking last val read b/c observer can regenerate same filepath)
             try:
                 mtime = os.stat(filepath).st_mtime
-            except Exception as e:
-                self.queue_mgr.handle_error('FILE_READ_ERROR', traceback.format_exc())
-                return
+            except FileNotFoundError:
+                mtime = self._handle_file_not_found(filepath)
+            except Exception as err:
+                self.queue_mgr.handle_error(err, traceback.format_exc())
+
             if self.last_mtime == mtime:
                 self.log.debug(f'Skipping (last mtime = {self.last_mtime})')
                 self.last_mtime = mtime
@@ -501,6 +528,45 @@ class KtlMonitor:
 
         # send back to queue manager
         self.queue_mgr.add_to_queue(filepath)
+
+    def _handle_file_not_found(self, filepath):
+        """
+        filepath may be updated just before file is created, wait and try again
+        """
+        if self.instr == 'ESI':
+            if self._chk_esi_test_file(filepath):
+                return None
+
+        for rpt in range(0, 5):
+            time.sleep(self.delay)
+            try:
+                mtime = os.stat(filepath).st_mtime
+                return mtime
+            except Exception as e:
+                self.log.debug(f'delaying {self.delay}s, {filepath} not found')
+                pass
+
+        msg = f'FILE_READ_ERROR at {dt.datetime.now().strftime("%H:%M:%S")}'
+        self.queue_mgr.handle_error(msg, traceback.format_exc())
+
+        return None
+
+    def _chk_esi_test_file(self, filepath):
+        """
+        Check to find if the broadcast is old and only a test file.
+        """
+        fits_dir = os.path.dirname(filepath)
+        fits_files = glob.glob(f'{fits_dir}/*fits')
+        try:
+            chk_first = int(filepath.split('/')[-1].split('_')[-1].split('.')[0])
+            first = (chk_first == 1)
+        except:
+            first = False
+
+        if not fits_files and not first:
+            return True
+
+        return False
 
     def get_formatted_filepath(self, format, zfill):
         '''

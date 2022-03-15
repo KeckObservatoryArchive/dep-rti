@@ -419,7 +419,7 @@ class Kcwi(instrument.Instrument):
         if level == 2:
             searchfiles = [
                 f"{datadir}/kcwi.proc",
-                f"/dsidata/KCWI_DRP/configs/kcwi_koarti_lev2.cfg"
+                f"/k2drpdata/KCWI_DRP/configs/kcwi_koarti_lev2.cfg"
             ]
             for f in searchfiles:
                 if os.path.isfile(f): files.append(f)

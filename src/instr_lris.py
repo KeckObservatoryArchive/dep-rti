@@ -191,16 +191,21 @@ class Lris(instrument.Instrument):
                 return 'flatlamp'
             else:
                 #no lamp on
+                # this is no longer working for red (autoshut/calname missing)
+                # axestat check works for most cases
                 if self.get_keyword('AUTOSHUT'):
                     calname = self.get_keyword('CALNAME')
                     if calname in ['ir','hnpb','uv']:
                         return 'polcal'
                     else:
                         return 'object'
+                elif self.get_keyword('AXESTAT') == 'tracking':
+                    return 'object'
                 else:
                     return 'undefined'
         elif trapdoor == 'closed':
             #is lamp on?
+            # lamps does not exist in lris red now, others do
             lamps = self.get_keyword('LAMPS')
             if lamps not in ['','0',None]:
                 if '1' in lamps:
@@ -696,7 +701,7 @@ class Lris(instrument.Instrument):
 
         nPixSat = 0
         for ext in range(1, self.nexten+1):
-            hdu = self.fits_hdu[ext].header
+            hdu = self.fits_hdu[ext]
             # Now skipping this for LRIS-RED (20210422)
             if 'ImageHDU' not in str(type(hdu)): continue
             image = hdu.data

@@ -352,9 +352,9 @@ class Metadata():
             if isinstance(val, bool):
                 if   (val == True):  val = 'T'
                 elif (val == False): val = 'F'
-            elif isinstance(val, int) and val == 0:
-                val = ''
-                log.info(f'metadata check: {keyword}: found integer 0, expected {metaDataType}. KNOWN ISSUE. SETTING TO BLANK!')
+#            elif isinstance(val, int) and val == 0:
+#                val = ''
+#                log.info(f'metadata check: {keyword}: found integer 0, expected {metaDataType}. KNOWN ISSUE. SETTING TO BLANK!')
         return val
 
 
