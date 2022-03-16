@@ -27,7 +27,7 @@ foreach instr ( $instrs )
 
 	set PYTHON='/usr/local/anaconda/bin/python'
 	set DEPDIR=`dirname $0`
-	set LOGFILE="/koadata/dep-drp-$instr.log"
+	set LOGFILE="/log/dep-drp-$instr.log"
 
 	set cmd="$PYTHON $DEPDIR/manager.py monitor_drp restart --extra $instr >>& $LOGFILE"
 	echo $cmd
