@@ -124,6 +124,7 @@ class DEP:
             {'name': 'check_koapi_send',      'crit': False},
             {'name': 'add_header_to_db',      'crit': False},
             {'name': 'copy_raw_fits',         'crit': False},
+            {'name': 'run_lev1',              'crit': True},
         ]
         return self.run_functions(funcs)
 
@@ -139,6 +140,7 @@ class DEP:
             {'name': 'cleanup_files',        'crit': True},
             {'name': 'change_logger',        'crit': True},
             {'name': 'copy_drp_files',       'crit': True},
+            {'name': 'run_lev1',             'crit': True},
             {'name': 'create_md5sum',        'crit': True},
             {'name': 'update_dep_stats',     'crit': True},
             {'name': 'transfer_ipac',        'crit': True},
@@ -829,6 +831,10 @@ class DEP:
         Store dict of files by koaid in self.drp_files for later use.
         '''
 
+        # Skip if this entry is not for a DRP
+        if self.status['service'] != 'DRP':
+            return True
+
         #get list of koaids we are dealing with (lev1 is just one koaid)
         datadir = self.status['stage_file']
         koaids = [self.status['koaid']]
@@ -878,6 +884,11 @@ class DEP:
         return True
       
 
+    def run_lev1(self):
+        '''Run an RTI version of level 1 processing, defined in instr_*.py.'''
+        return True
+
+
     def get_unique_koaids_in_dir(self, datadir):
         '''
         Get a list of unique koaids by looking at all filenames in directory 
@@ -896,6 +907,7 @@ class DEP:
 
     def create_md5sum(self):
         '''Create ext.md5sum.table for all files matching KOAID*'''
+
         try:
             outdir = self.dirs[f'lev{self.level}']
             if self.level == 0:
