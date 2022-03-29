@@ -202,6 +202,7 @@ class Kcwi(instrument.Instrument):
 
         slicer = self.get_keyword('IFUNAM').lower()
         camera = self.get_keyword('CAMERA')
+        bcwave = self.get_keyword('BCWAVE', default=0)
         #lowercase camera if not None
         try:
             camera = camera.lower()
@@ -212,11 +213,11 @@ class Kcwi(instrument.Instrument):
         nodmask = self.get_keyword('BNASNAM').lower()
         
         # Configuration for KB
-        configurations = {'bl' : {'waves':(3500, 4550, 5600), 'large':900, 'medium':1800, 'small':3600},
-                  'bm' : {'waves':(3500, 4500, 5500), 'large':2000, 'medium':4000, 'small':8000},
-                  'bh3' : {'waves':(4700, 5150, 5600), 'large':4500, 'medium':9000, 'small':18000},
-                  'bh2' : {'waves':(4000, 4400, 4800), 'large':4500, 'medium':9000, 'small':18000},
-                  'bh1' : {'waves':(3500, 3800, 4100), 'large':4500, 'medium':9000, 'small':18000}}
+        configurations = {'bl' : {'waves':2000, 'large':900, 'medium':1800, 'small':3600},
+                  'bm' : {'waves':850, 'large':2000, 'medium':4000, 'small':8000},
+                  'bh3' : {'waves':500, 'large':4500, 'medium':9000, 'small':18000},
+                  'bh2' : {'waves':405, 'large':4500, 'medium':9000, 'small':18000},
+                  'bh1' : {'waves':400, 'large':4500, 'medium':9000, 'small':18000}}
         
         # Slit width by slicer, slit length is always 20.4"
         slits = {'large':'1.35', 'medium':'0.69', 'small':'0.35'}
@@ -225,9 +226,10 @@ class Kcwi(instrument.Instrument):
             slitlen = 20.4
         #get wavelengths from configuration dictionary
         if gratname in configurations.keys() and slicer in slits.keys():
-            waveblue = configurations.get(gratname)['waves'][0]
-            wavecntr = configurations.get(gratname)['waves'][1]
-            wavered = configurations.get(gratname)['waves'][2]
+            if bcwave > 0:
+                wavecntr = round(bcwave)
+                waveblue = round(wavecntr - configurations.get(gratname)['waves']/2)
+                wavered  = round(wavecntr + configurations.get(gratname)['waves']/2)
             specres = configurations.get(gratname)[slicer]
             if nodmask == "mask":
                 diff = int((wavered - waveblue)/3)

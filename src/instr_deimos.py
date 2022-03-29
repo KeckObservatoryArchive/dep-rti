@@ -478,10 +478,10 @@ class Deimos(instrument.Instrument):
         Tile images horizontally in order from left to right.
         Use DETSEC keyword to figure out data order/position
         '''
-######################################################################################
-### TODO: Disabling for now until we figure out VM memory usage issue for DEIMOS jpgs
-######################################################################################
-        return True
+
+        # Only create jpeg for level 1 processing
+        if self.level != 1:
+            return
         
         #open
         hdus = fits.open(fits_filepath, ignore_missing_end=True)
@@ -708,25 +708,30 @@ class Deimos(instrument.Instrument):
             ]
             for f in searchfiles:
                 if os.path.isfile(f): files.append(f)
-            # Search for all science files with this koaid
-            for file in glob.glob(f"{datadir}/Science/*{koaid}*"):
-                files.append(file)
-            # Search for all QA plots with this koaid
-            for file in glob.glob(f"{datadir}/QA/PNGs/{koaid}*"):
-                files.append(file)
+            # Search for all files with a matching koaid
+            associatedFiles = []
+            for rootdir, dirs, fileList in os.walk(datadir):
+                for file in fileList:
+                    if koaid in file:
+                        files.append(os.path.join(rootdir, file))
+                    if file.startswith('Master') or file.startswith('Arc'):
+                        associatedFiles.append(os.path.join(rootdir, file))
+
+            # Now search for all associated files
+            for file in files:
                 start = file.find('DET0')
                 end   = file.find('_', start)
                 masterSearch = file[start:end]
                 end   = file.find('_', start+6)
                 arcSearch = file[start:end]
-                # Search for all master calibrations for this detector
-                for master in glob.glob(f"{datadir}/Masters/Master*{masterSearch}*"):
-                    if master not in files:
-                        files.append(master)
-                # Search for all arc QA plots for this detector
-                for arc in glob.glob(f"{datadir}/QA/PNGs/Arc*{arcSearch}*"):
-                    if arc not in files:
-                        files.append(arc)
+                # Search for all master calibrations and arc QA plots for this detector
+                for afile in associatedFiles:
+                    if '/Master' in afile and masterSearch in afile:
+                        if afile not in files:
+                            files.append(afile)
+                    if '/Arc' in afile and arcSearch in afile:
+                        if afile not in files:
+                            files.append(afile)
 
         return files
 
@@ -744,3 +749,45 @@ class Deimos(instrument.Instrument):
         destfile = f"{outdir}/{srcfile[loc:]}"
 
         return True, destfile
+
+
+    def run_lev1(self):
+        '''
+        Create a stitched together, trimmed and bias subtracted JPEG image of
+        the FITS data.
+        '''
+
+        outdir = self.dirs[f'lev{self.level}']
+        # If lev0 is calling this, then create a database entry
+        if self.level == 0:
+            stage_file = f"{outdir}/{self.koaid}.fits"
+            if self.reprocess:
+                return
+            query = ("insert into koa_status set "
+                    f"instrument='{self.instr}',"
+                    f"level=1,"
+                    f"koaid='{self.koaid}',"
+                    f"service='RTI',"
+                    f"status='QUEUED',"
+                    f"stage_file='{stage_file}',"
+                    f"creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
+            log.info(query)
+            result = self.db.query('koa', query)
+            if result is False:
+                self.log_warn('LEV1_INSERT_ERROR', query)
+
+            return True
+
+        # Else create the jpeg file
+        self.drp_files={}
+        self.drp_files[self.koaid] = []
+        if self.status['service'] != 'RTI':
+            return True
+        fits_filepath = self.status['stage_file']
+        self.create_jpg_from_fits(fits_filepath, outdir)
+        # Verify jpg was created
+        jpg_file = f"{outdir}/{self.koaid}.jpg"
+        if os.path.exists(jpg_file):
+            self.drp_files[self.koaid].append(jpg_file)
+            self.xfr_files.append(jpg_file)
+        return True
