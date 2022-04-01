@@ -931,7 +931,7 @@ class DEP:
         '''Return list of files to archive for DRP specific to instrument.'''
         raise NotImplementedError("Abstract method not implemented!")
 
-    def get_drp_destfile(self):
+    def get_drp_destfile(self, koaid, srcfile):
         '''Return output destination file to copy DRP file to.'''
         # Use default from copy_drp_files() - backwards compatibility with KCWI
         return False, ''
