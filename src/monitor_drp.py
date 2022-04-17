@@ -40,7 +40,7 @@ from archive import Archive
 last_email_times = None
 PROC_CHECK_SEC = 1.0
 QUEUE_CHECK_SEC = 30.0
-MAX_PROCESSES = 10
+MAX_PROCESSES = 5
 
 
 
