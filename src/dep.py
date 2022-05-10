@@ -1064,7 +1064,7 @@ class DEP:
             return default
         else:
             val = data.get('data', {}).get('AllocInst', default)
-            return val
+            return val.replace(' ', '')
 
 
     def get_prog_pi(self, semid, default=None):
