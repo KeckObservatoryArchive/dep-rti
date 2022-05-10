@@ -348,7 +348,7 @@ class Osiris(instrument.Instrument):
         wave['hei_b']   = {'waveblue':2046, 'wavered':2075}
 
         instr = self.get_keyword('INSTR')
-        filter = self.get_keyword('FILTER')
+        filter = self.get_keyword('FILTER', default='')
         filter = filter.lower()
 
         if filter in wave.keys():
