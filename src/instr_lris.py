@@ -199,7 +199,7 @@ class Lris(instrument.Instrument):
                         return 'polcal'
                     else:
                         return 'object'
-                elif self.get_keyword('AXESTAT') == 'tracking':
+                elif self.get_keyword('AXESTAT') in ['tracking', 'slewing']:
                     return 'object'
                 else:
                     return 'undefined'
