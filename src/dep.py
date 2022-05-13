@@ -6,6 +6,7 @@ import os
 import sys
 import importlib
 import urllib.request
+import ssl
 import json
 import numpy as np
 import re
@@ -1150,6 +1151,9 @@ class DEP:
         Gets data for common calls to url API requests.
         '''
         try:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
             data = urlopen(url)
             data = data.read().decode('utf8')
             if isJson: data = json.loads(data)
