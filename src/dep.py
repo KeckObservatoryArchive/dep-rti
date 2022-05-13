@@ -1154,7 +1154,7 @@ class DEP:
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
-            data = urlopen(url)
+            data = urlopen(url, context=ctx)
             data = data.read().decode('utf8')
             if isJson: data = json.loads(data)
             if getOne and len(data) > 0: 
