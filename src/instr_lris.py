@@ -49,9 +49,9 @@ class Lris(instrument.Instrument):
 
         funcs = [
             {'name':'set_telnr',        'crit': True},
-            {'name':'set_koaimtyp',     'crit': True},
             {'name':'set_ut',           'crit': True},
             {'name':'set_elaptime',     'crit': True},
+            {'name':'set_koaimtyp',     'crit': True},
             {'name':'set_ofName',       'crit': True},
             {'name':'set_frameno',      'crit': True},
             {'name':'set_semester',     'crit': True},
@@ -199,7 +199,7 @@ class Lris(instrument.Instrument):
                         return 'polcal'
                     else:
                         return 'object'
-                elif self.get_keyword('AXESTAT') == 'tracking':
+                elif self.get_keyword('AXESTAT') in ['tracking', 'slewing']:
                     return 'object'
                 else:
                     return 'undefined'

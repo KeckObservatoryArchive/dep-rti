@@ -97,12 +97,11 @@ class Nirc2(instrument.Instrument):
         '''
 
         koaimtyp = self.get_koaimtyp()
-        if koaimtyp in ['flatTBD','specTBD','telTBD']:
-            koaimtyp = self.set_caltype(koaimtyp)
         if (koaimtyp == 'undefined'):
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
 
         #update keyword
+        print('KOAIMTYP = ', koaimtyp)
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         
         return True
@@ -111,80 +110,72 @@ class Nirc2(instrument.Instrument):
     def get_koaimtyp(self):
         '''
         Sets koaimtyp based on keyword values
+        Updated April 18, 2022 after discussion with CarlosA
         '''
-        #define python replica of IDL strtrim
-        #strtrim = lambda x: x.replace(' ','')
 
-        grsname = self.get_keyword('GRSNAME')
-        shrname = self.get_keyword('SHRNAME')
-        obsfname = self.get_keyword('OBSFNAME')
-        domestat = self.get_keyword('DOMESTAT')
-        axestat = self.get_keyword('AXESTAT')
-        imagetyp = 'undefined'
-        #shutter open
-        if shrname == 'open':
-            if obsfname == 'telescope':
-                imagetyp = 'object'
-            if (obsfname == 'telescope') and (domestat != 'tracking') and (axestat != 'tracking'):
-                if grsname != 'clear':
-                    imagetyp = 'telTBD'
-                    return imagetyp
-                #if domelamps keyword exists
-                if self.get_keyword('FLIMAGIN'):
-                    flspectr = self.get_keyword('FLSPECTR')
-                    flimagin = self.get_keyword('FLIMAGIN')
-                    if flimagin == 'on' or flspectr == 'on':
-                        imagetyp = 'flatlamp'
-                    else:
-                        imagetyp = 'flatlampoff'
-                #else check EL, AXESTAT, and DOMESTAT instead
+        # If shutter is closed, then this is a dark
+        shrname = self.get_keyword('SHRNAME', default='')
+        if shrname.lower() == 'closed':
+            return 'dark'
+
+        obsfname = self.get_keyword('OBSFNAME', default='').lower()
+        domestat = self.get_keyword('DOMESTAT', default='').lower()
+        axestat  = self.get_keyword('AXESTAT',  default='').lower()
+
+        # OBSFNAME = telescope is light coming from the telescope
+        # Can be object, flatlamp, flatlampoff
+        stat = ['tracking', 'slewing']
+        if obsfname == 'telescope':
+            flspectr = self.get_keyword('FLSPECTR', default='')
+            flimagin = self.get_keyword('FLIMAGIN', default='')
+            if flimagin.lower() == 'on' or flspectr.lower() == 'on':
+                if self.is_at_domeflat():
+                    return 'flatlamp'
                 else:
-                    el = float(self.get_keyword('EL'))
-                    if (el > 44.99 and el < 45.01) and (domestat != 'tracking' and axestat != 'tracking'):
-                        imagetyp = 'flatTBD'
-
-            #arclamp
-            elif obsfname == 'telsim':
-                if self.get_keyword('ARGONPWR'):
-                    #get element power boolean
-                    argonpwr = self.get_keyword('ARGONPWR')
-                    xenonpwr = self.get_keyword('XENONPWR')
-                    kryptpwr = self.get_keyword('KRYPTPWR')
-                    neonpwr = self.get_keyword('NEONPWR')
-                    lamppwr = self.get_keyword('LAMPPWR')
-                    #compare dates for special logic after 2011-10-10
-                    dateobs = self.get_keyword('DATE-OBS')
-                    date = dateobs.split('-')
-                    dateval = dt.date(int(date[0]),int(date[1]),int(date[2]))
-                    dlmpvalid = dt.date(2011,10,10)
-                    if dateval > dlmpvalid:
-                        if lamppwr == 1:
-                            print("lamppower")
-                            imagetyp = 'flatlamp'
-                        elif 1 in [argonpwr,xenonpwr,kryptpwr,neonpwr]:
-                            imagetyp = 'arclamp'
-                        else:
-                            imagetyp = 'specTBD'
-                        print('Image Type: ',imagetyp)
-                        print('Lamp Power: ',lamppwr)
-                        print('Ne: ',neonpwr)
-                        print('Ar: ',argonpwr)
-                        print('Kr: ',kryptpwr)
-                        print('Xe: ',xenonpwr)
-            #use grsname keyword instead
+                    return 'undefined'
+            if domestat in stat and axestat in stat:
+                return 'object'
             else:
-                if grsname in ['lowres','medres','GRS1','GRS2']:
-                    imagetyp = 'specTBD'
-        #dark or bias
-        elif shrname == 'closed':
-            itime = self.get_keyword('ITIME')
-            if itime == 0.0:
-                imagetyp = 'bias'
-            else:
-                imagetyp = 'dark'
-            print('Image Type: ',imagetyp)
+                if self.is_at_domeflat():
+                    return 'flatlampoff' # check for tel position?
 
-        return imagetyp
+            return 'undefined'
+
+        # OBSFNAME = telsim is for internal calibrations
+        # Can be arclamp or flatlamp/flatlampoff
+        if obsfname == 'telsim':
+            # Check if any calibration lamps are on
+            lamppwr  = self.get_keyword('LAMPPWR',  default='')
+            argonpwr = self.get_keyword('ARGONPWR', default='')
+            xenonpwr = self.get_keyword('XENONPWR', default='')
+            kryptpwr = self.get_keyword('KRYPTPWR', default='')
+            neonpwr  = self.get_keyword('NEONPWR',  default='')
+            if 1 in [argonpwr, xenonpwr, kryptpwr, neonpwr]:
+                return 'arclamp'
+            if lamppwr == 1:
+                return 'flatlamp'
+
+            return 'undefined'
+
+        # Other OBSFNAME values
+        return 'calib'
+
+
+    def is_at_domeflat(self):
+        '''Returns true/false if telescope is at the dome flat position'''
+
+        telel = self.get_keyword('EL', default=0)
+        print('EL = ', telel)
+        if 44.99 < telel < 45.01:
+            telaz  = self.get_keyword('AZ', default=0)
+            domeaz = self.get_keyword('DOMEPOSN', default=0)
+            print('AZ = ', telaz)
+            print('DOME = ', domeaz)
+            if 89 < domeaz - telaz < 91:
+                return True
+
+        return False
+
 
     def set_wavelengths(self):
         '''
@@ -432,42 +423,6 @@ class Nirc2(instrument.Instrument):
         self.set_keyword('NLINEAR', nlinSat, 'KOA: Number of pixels above linearity')
         self.set_keyword('NONLIN', int(satVal), 'KOA: 3% nonlinearity level (80% full well)')
         return True
-
-    def set_caltype(self,imagetyp):
-        image = self.fits_hdu[0].data
-        imgmean = np.mean(image)
-        imgstdv = np.std(image)
-        krtosis = scipy.stats.kurtosis(image, axis=None)
-        print(imgmean,imgstdv,krtosis)
-        #determine lamp when 'flatTBD'
-        if imagetyp == "flatTBD":
-            if imgmean > 500:
-                imagetyp = 'flatlamp'
-            else:
-                imagetyp = 'flatlampoff'
-            print('flatTBD => '+imagetyp)
-        #determine lamp for spectra when 'specTBD'
-        elif imagetyp == "specTBD":
-            imagetyp = 'undefined'
-            if imgmean < 1000:
-                if imgstdv > 1000 and krtosis < 300:
-                    imagetyp = 'arclamp'
-                elif imgstdv < 300 and krtosis > 300:
-                    imagetyp = 'flatlampoff'
-            elif imgmean < 10000:
-                imagetyp = 'flatlamp'
-            print('specTBD => '+imagetyp)
-        #determine lamp for spectra when 'telTBD'
-        elif imagetyp == "telTBD":
-            imagetyp = 'undefined'
-            if imgmean < 1000:
-                if imgstdv < 300 and krtosis > 300:
-                    imagetyp = 'flatlampoff'
-            elif imgmean < 10000:
-                imagetyp = 'flatlamp'
-            print('telTBD => '+imagetyp)
-
-        return imagetyp
 
 
     def set_sig2nois(self):

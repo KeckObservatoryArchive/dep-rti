@@ -6,6 +6,7 @@ import os
 import sys
 import importlib
 import urllib.request
+import ssl
 import json
 import numpy as np
 import re
@@ -1064,7 +1065,7 @@ class DEP:
             return default
         else:
             val = data.get('data', {}).get('AllocInst', default)
-            return val
+            return val.replace(' ', '')
 
 
     def get_prog_pi(self, semid, default=None):
@@ -1150,7 +1151,10 @@ class DEP:
         Gets data for common calls to url API requests.
         '''
         try:
-            data = urlopen(url)
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            data = urlopen(url, context=ctx)
             data = data.read().decode('utf8')
             if isJson: data = json.loads(data)
             if getOne and len(data) > 0: 
