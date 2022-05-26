@@ -511,3 +511,40 @@ class Nirc2(instrument.Instrument):
         '''
         return False
 
+
+    def get_drp_files_list(self, datadir, koaid, level):
+        '''
+        Return list of files to archive for DRP specific to NIRC2.
+
+        QL ingest (KOA level 1)
+            KOAID*.[fits,jpg]
+
+        Science ingest (KOA level 2)
+            ?
+        '''
+        files = []
+
+        #level 1
+        if level == 1:
+            searchfiles = [
+                f"{datadir}/{koaid}_drp.fits",
+                f"{datadir}/{koaid}_drp.jpg"
+            ]
+            for f in searchfiles:
+                print(f)
+                if os.path.isfile(f): files.append(f)
+
+        if len(files) == 0:
+            return False
+
+        return files
+
+
+    def get_drp_destfile(self, koaid, srcfile):
+        '''
+        Returns the destination of the DRP file for RTI.
+        For NIRC2, destination = source file.
+        '''
+
+        return True, srcfile
+
