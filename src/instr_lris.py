@@ -193,14 +193,22 @@ class Lris(instrument.Instrument):
                 #no lamp on
                 # this is no longer working for red (autoshut/calname missing)
                 # axestat check works for most cases
+                axestat = self.get_keyword('AXESTAT', default='')
                 if self.get_keyword('AUTOSHUT'):
                     calname = self.get_keyword('CALNAME')
                     if calname in ['ir','hnpb','uv']:
                         return 'polcal'
                     else:
                         return 'object'
-                elif self.get_keyword('AXESTAT') in ['tracking', 'slewing']:
+                elif axestat.lower() in ['tracking', 'slewing']:
                     return 'object'
+                elif axestat.lower() == 'in position':
+                    objectVal = self.get_keyword('OBJECT', default='')
+                    for ch in [' ', '-', '_']:
+                        objectVal = objectVal.replace(ch, '')
+                    objectVal = objectVal.replace('flats', 'flat')
+                    if objectVal.lower() in ['twiflat', 'twilightflat', 'skyflat']:
+                        return 'object'
                 else:
                     return 'undefined'
         elif trapdoor == 'closed':
