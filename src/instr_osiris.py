@@ -29,9 +29,9 @@ class Osiris(instrument.Instrument):
             {'name':'set_telnr',        'crit': True},
             {'name':'set_ut',           'crit': True},
             {'name':'set_elaptime',     'crit': True},
+            {'name':'set_filter',       'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
             {'name':'set_frameno',      'crit': True},
-            {'name':'set_filter',       'crit': True},
             {'name':'set_ofName',       'crit': True},
             {'name':'set_semester',     'crit': True},
             {'name':'set_prog_info',    'crit': True},
@@ -80,7 +80,7 @@ class Osiris(instrument.Instrument):
 
     def get_prefix(self):
         try:
-            instr = self.get_keyword('INSTR')
+            instr = self.get_keyword('INSTR', default='')
         except KeyError:
             prefix = ''
         else:
@@ -125,70 +125,8 @@ class Osiris(instrument.Instrument):
         '''
         Adds KOAIMTYP keyword
         '''
-        koaimtyp = 'undefined'
 
-        ifilter = self.get_keyword('IFILTER', default='')
-        sfilter = self.get_keyword('SFILTER', default='')
-        axestat = self.get_keyword('AXESTAT', default='')
-        domeposn = self.get_keyword('DOMEPOSN', default=0)
-        az = self.get_keyword('AZ', default=0)
-        el = self.get_keyword('EL', default=0)
-        obsfname = str(self.get_keyword('OBSFNAME', default=''))
-        obsfx = self.get_keyword('OBSFX')
-        obsfy = self.get_keyword('OBSFY')
-        obsfz = self.get_keyword('OBSFZ')
-        instr = self.get_keyword('INSTR')
-        datafile = self.get_keyword('DATAFILE')
-        coadds = self.get_keyword('COADDS')
-
-        try:
-            # telescope at flat position
-            flatpos = 0
-            el, az, domeposn = self.check_type_str([el, az, domeposn], 0)
-
-            if (45.11 > el > 44.89) and (80.0 < domeposn - az < 100.0):
-                flatpos = 1
-
-            if 'telescope' in obsfname.lower():
-                koaimtyp = 'object'
-
-            # recmat files
-            if 'c' in datafile:
-                koaimtyp = 'calib'
-
-            # dark if ifilter/sfilter is dark
-            if 'drk' in ifilter.lower() and instr.lower() == 'imag':
-                koaimtyp = 'dark'
-            elif 'drk' in sfilter.lower() and instr.lower() == 'spec':
-                koaimtyp = 'dark'
-
-            # uses dome lamps for instr=imag
-            elif instr.lower() == 'imag':
-                if 'telescope' in obsfname and 'not controlling' in axestat and flatpos:
-                    # divide image by coadds
-                    img = self.fits_hdu[0].data
-
-                    # median
-                    imgmed = np.median(img)
-
-                    if imgmed > 30.0:
-                        koaimtyp = 'flatlamp'
-                    else:
-                        koaimtyp = 'flatlampoff'
-
-            if instr.lower == 'spec':
-                obsfx, obsfy, obsfz = self.check_type_str([obsfx, obsfy, obsfz], 0)
-
-                if 'telsim' in obsfname or (obsfx > 30 and obsfy < 0.1 and obsfz < 0.1):
-                    koaimtyp = 'undefined'
-                elif obsfz > 10:
-                    koaimtyp = 'undefined'
-            elif 'c' in datafile:
-                koaimtyp = 'calib'
-
-        except Exception as e:
-            self.log_error('SET_KOAIMTYP', str(e))
-            return False
+        koaimtyp = self.get_koaimtyp()
 
         # warn if undefined
         if koaimtyp == 'undefined':
@@ -196,8 +134,59 @@ class Osiris(instrument.Instrument):
 
         # update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
+
         return True
 
+    def get_koaimtyp(self):
+        '''
+        Determines KOAIMTYP keyword value
+        '''
+
+        # AO calibrations
+        pcsfname = self.get_keyword('PCSFNAME', default='')
+        pcsfx    = self.get_keyword('PCSFX', default=-999)
+        pcsfy    = self.get_keyword('PCSFY', default=-999)
+        pcsflz   = self.get_keyword('PCSFLZ', default=-999)
+        pcsfx, pcsfy, pcsflz = self.check_type_str([pcsfx, pcsfy, pcsflz], 0)
+        if pcsfx != 0 and pcsfy != 0 and pcsflz != 0:
+            return 'calib'
+
+        # dark if filter is Drk (set_filter() previously called)
+        filter = self.get_keyword('FILTER')
+        if 'drk' in filter.lower():
+            return 'dark'
+
+        instr    = self.get_keyword('INSTR', default='')
+        axestat  = self.get_keyword('AXESTAT', default='')
+        domestat = self.get_keyword('DOMESTAT', default='')
+        stat = ['tracking', 'slewing']
+
+        # Imager
+        if instr.lower() == 'imag':
+            flamp1 = self.get_keyword('FLAMP1', default='')
+            flamp2 = self.get_keyword('FLAMP2', default='')
+            if flamp1.lower() == 'on' or flamp2.lower() == 'on':
+                if self.is_at_domeflat():
+                    return 'flatlamp'
+                else:
+                    return 'undefined'
+            if domestat in stat and axestat in stat:
+                return 'object'
+            else:
+                if self.is_at_domeflat():
+                    return 'flatlampoff' # check for tel position?
+            return 'object'
+
+        # Spectrograph
+        if instr.lower() == 'spec':
+            # recmat files
+            datafile = self.get_keyword('DATAFILE')
+            if 'c' in datafile:
+                return 'calib'
+            if domestat in stat and axestat in stat:
+                return 'object'
+
+        return 'undefined'
 
     def set_wcs_keywords(self):
         '''
@@ -214,7 +203,7 @@ class Osiris(instrument.Instrument):
         crota2 = 'null'
         radecsys = 'null'
 
-        instr = self.get_keyword('INSTR')
+        instr = self.get_keyword('INSTR', default='')
         rotmode = self.get_keyword('ROTMODE')
         poname = self.get_keyword('PONAME')
         rotposn = self.get_keyword('ROTPOSN')
@@ -279,7 +268,7 @@ class Osiris(instrument.Instrument):
         '''
         Populates filter from ifilter or sfilter
         '''
-        instr = self.get_keyword('INSTR')
+        instr = self.get_keyword('INSTR', default='')
         ifilter = self.get_keyword('IFILTER', default='')
         sfilter = self.get_keyword('SFILTER', default='')
 
@@ -347,7 +336,6 @@ class Osiris(instrument.Instrument):
         wave['kcont']   = {'waveblue':2259, 'wavered':2281}
         wave['hei_b']   = {'waveblue':2046, 'wavered':2075}
 
-        instr = self.get_keyword('INSTR')
         filter = self.get_keyword('FILTER', default='')
         filter = filter.lower()
 
@@ -448,4 +436,38 @@ class Osiris(instrument.Instrument):
         log.info('run_drp: DRP finished')
 
         return True
+
+
+    def get_drp_files_list(self, datadir, koaid, level):
+        '''
+        Return list of files to archive for DRP sepecific to OSIRIS.
+ 
+        QL ingest (level 1): KOAID*
+
+        Science (level 2): ?
+        '''
+
+        files = []
+
+        if level == 1:
+            searchfiles = [
+                f'{datadir}/{koaid}.lev1.fits',
+                f'{datadir}/{koaid}.lev1.log'
+            ]
+            for f in searchfiles:
+                if os.path.isfile(f): files.append(f)
+
+        if len(files) == 0:
+            return False
+
+        return files
+
+
+    def get_drp_destfiles(self, koaid, srcfile):
+        '''
+        Returns the destination of the DRP file for RTI.
+        For OSIRIS, destination = source file.
+        '''
+
+        return True, srcfile
 
