@@ -99,9 +99,9 @@ class Nirc2(instrument.Instrument):
         koaimtyp = self.get_koaimtyp()
         if (koaimtyp == 'undefined'):
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
-        print('KOAIMTYP = ', koaimtyp)
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         
         return True
@@ -124,7 +124,7 @@ class Nirc2(instrument.Instrument):
 
         # OBSFNAME = telescope is light coming from the telescope
         # Can be object, flatlamp, flatlampoff
-        stat = ['tracking', 'slewing']
+        stat = ['tracking', 'slewing', 'in position']
         if obsfname == 'telescope':
             flspectr = self.get_keyword('FLSPECTR', default='')
             flimagin = self.get_keyword('FLIMAGIN', default='')
