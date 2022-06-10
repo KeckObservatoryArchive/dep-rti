@@ -523,6 +523,10 @@ class Instrument(dep.DEP):
         if not progid:
             progid = self.get_keyword('PROGNAME')
         if not progid:
+            outdir = self.get_keyword('OUTDIR', default='')
+            if '_ToO_' in outdir:
+                progid = outdir.split('_')[-1]
+        if not progid:
             progid = self.get_progid_from_schedule()
 
         #valid progname?
