@@ -511,7 +511,7 @@ class Nirc2(instrument.Instrument):
         #level 1
         if level == 1:
             searchfiles = [
-                f"{datadir}/{koaid}_drp.fits",
+                f"{datadir}/{koaid}_drp.fits.gz",
                 f"{datadir}/{koaid}_drp.jpg"
             ]
             for f in searchfiles:
