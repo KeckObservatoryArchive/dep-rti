@@ -99,9 +99,9 @@ class Nirc2(instrument.Instrument):
         koaimtyp = self.get_koaimtyp()
         if (koaimtyp == 'undefined'):
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
-        print('KOAIMTYP = ', koaimtyp)
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         
         return True
@@ -124,7 +124,7 @@ class Nirc2(instrument.Instrument):
 
         # OBSFNAME = telescope is light coming from the telescope
         # Can be object, flatlamp, flatlampoff
-        stat = ['tracking', 'slewing']
+        stat = ['tracking', 'slewing', 'in position']
         if obsfname == 'telescope':
             flspectr = self.get_keyword('FLSPECTR', default='')
             flimagin = self.get_keyword('FLIMAGIN', default='')
@@ -159,22 +159,6 @@ class Nirc2(instrument.Instrument):
 
         # Other OBSFNAME values
         return 'calib'
-
-
-    def is_at_domeflat(self):
-        '''Returns true/false if telescope is at the dome flat position'''
-
-        telel = self.get_keyword('EL', default=0)
-        print('EL = ', telel)
-        if 44.99 < telel < 45.01:
-            telaz  = self.get_keyword('AZ', default=0)
-            domeaz = self.get_keyword('DOMEPOSN', default=0)
-            print('AZ = ', telaz)
-            print('DOME = ', domeaz)
-            if 89 < domeaz - telaz < 91:
-                return True
-
-        return False
 
 
     def set_wavelengths(self):
@@ -527,7 +511,7 @@ class Nirc2(instrument.Instrument):
         #level 1
         if level == 1:
             searchfiles = [
-                f"{datadir}/{koaid}_drp.fits",
+                f"{datadir}/{koaid}_drp.fits.gz",
                 f"{datadir}/{koaid}_drp.jpg"
             ]
             for f in searchfiles:

@@ -523,6 +523,10 @@ class Instrument(dep.DEP):
         if not progid:
             progid = self.get_keyword('PROGNAME')
         if not progid:
+            outdir = self.get_keyword('OUTDIR', default='')
+            if '_ToO_' in outdir:
+                progid = outdir.split('_')[-1]
+        if not progid:
             progid = self.get_progid_from_schedule()
 
         #valid progname?
@@ -1035,3 +1039,17 @@ class Instrument(dep.DEP):
                 chk_list[i] = dfault
 
         return chk_list
+
+
+    def is_at_domeflat(self):
+        '''Returns true/false if telescope is at the dome flat position'''
+
+        telel = self.get_keyword('EL', default=0)
+        if 44.99 < telel < 45.01:
+            telaz  = self.get_keyword('AZ', default=0)
+            domeaz = self.get_keyword('DOMEPOSN', default=0)
+            if 83 < abs(domeaz - telaz) < 93:
+                return True
+
+        return False
+
