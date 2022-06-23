@@ -43,7 +43,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         self.instrument      = instrument
         self.datadir         = datadir
         self.outputdir       = outputdir
-        self.calibrationsdir = './calibrations'
+        self.calibrationsdir = f'./{self.instrument.lower()}_calibrations'
 
         self.dpi = 100
 
