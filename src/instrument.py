@@ -519,19 +519,22 @@ class Instrument(dep.DEP):
 
         #Get PROGNAME from header and use for PROGID
         #If not found, then do simple assignment by time/observer/outdir(eng).
+        too = False
         progid = self.progid
         if not progid:
             progid = self.get_keyword('PROGNAME')
         if not progid:
             outdir = self.get_keyword('OUTDIR', default='')
             if '_ToO_' in outdir:
+                if outdir.endswith('/'): outdir = outdir[:-1]
                 progid = outdir.split('_')[-1]
+                too = True
         if not progid:
             progid = self.get_progid_from_schedule()
 
         #valid progname?
         valid = self.is_progid_valid(progid)
-        if self.is_engineering():
+        if self.is_engineering() and too == False:
             progid = 'ENG'
             valid = True
         if not valid:
