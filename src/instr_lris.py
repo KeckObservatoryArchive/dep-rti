@@ -1063,7 +1063,8 @@ class Lris(instrument.Instrument):
         '''Does this fits have target info?'''
         slitname = self.get_keyword('SLITNAME')
         slits = ('long_', 'pol_', 'goh_', 'direct')
-        has_target = slitname and slitname.lower() not in slits
+#        has_target = slitname and slitname.lower() not in slits
+        has_target = slitname and not any(s in slitname.lower() for s in slits)
         return has_target
 
 
