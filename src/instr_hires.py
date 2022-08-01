@@ -106,6 +106,7 @@ class Hires(instrument.Instrument):
         koaimtyp = self.get_koaimtyp()
         if (koaimtyp == 'undefined'):
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
         self.set_keyword('IMAGETYP', koaimtyp, 'KOA: Image type')
