@@ -83,6 +83,9 @@ class KoaImagerDrp(FileSystemEventHandler):
         if not filename.endswith('.fits') or filename in self.fileList:
             return
 
+        if self.instrument == 'OSIRIS' and not filename.startswith('OI'):
+            return
+
         self.print_message(f'on_any_event {event.src_path}')
         filename = event.src_path
 
@@ -107,6 +110,8 @@ class KoaImagerDrp(FileSystemEventHandler):
             files.sort()
             for file in files:
                 if not file.endswith('.fits'):
+                    continue
+                if self.instrument == 'OSIRIS' and not file.startswith('OI'):
                     continue
                 filename = f'{root}/{file}'
                 self.queue.append(filename)
@@ -159,6 +164,8 @@ class KoaImagerDrp(FileSystemEventHandler):
         if filetype == 'dark':
             if self.instrument == 'NIRC2':
                 keys.extend(['SAMPMODE', 'MULTISAM', 'ITIME', 'COADDS'])
+            elif self.instrument == 'OSIRIS':
+                keys.extend(['ITIME', 'COADDS', 'READS'])
             name = 'dark'
         elif filetype == 'flat' or filetype == 'flatoff':
             if self.instrument == 'NIRC2':
@@ -300,7 +307,11 @@ class KoaImagerDrp(FileSystemEventHandler):
         newfile = basename(filename).replace('.fits', '_drp.fits')
         darkfile = newfile.replace('_drp', '_drp_dark')
 
-        img  = fits.open(filename, ignore_missing_end=True)
+        try:
+            img  = fits.open(filename, ignore_missing_end=True)
+        except:
+            self.print_message(f'Error reading file ({filename})')
+            return
         hdr  = img[0].header
         data = img[0].data
 
@@ -324,7 +335,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         self.print_message(f'gzipping FITS file ({newfile})')
         gzipFile = f'{self.outputdir}/{newfile}.gz'
         with open(f'{self.outputdir}/{newfile}', 'rb') as fIn:
-            with gzip.open(gzipFile, 'wb') as fOut:
+            with gzip.open(gzipFile, 'wb', compresslevel=1) as fOut:
                 shutil.copyfileobj(fIn, fOut)
         remove(f'{self.outputdir}/{newfile}')
 
@@ -377,6 +388,9 @@ def main():
     parser.add_argument('outputdir', help='Location of lev1 output data')
     parser.add_argument('--rti', dest='rti', default=False, action='store_true',
                         help='Notify RTI upon each successful reduction')
+    parser.add_argument('--manual', dest='manual', default=False,
+                        action='store_true',
+                        help='Manual run, disable end hour')
     args = parser.parse_args()
 
     instrument = args.instrument.upper()
@@ -385,11 +399,12 @@ def main():
         exit()
 
     # Wait for datadir to appear
+    endHour = 17 if not args.manual else 24
     datadir = args.datadir
     print(f'Waiting for directory ({datadir}) to appear')
     while not isdir(datadir):
         hourNow = int(dt.datetime.utcnow().strftime('%H'))
-        if hourNow >= 17:
+        if hourNow >= endHour:
             print('Night is over - goodbye')
             exit()
         sleep(60)
@@ -417,7 +432,7 @@ def main():
             if event_handler.running == False:
                 # Stop the DRP if 7am or later
                 hourNow = int(dt.datetime.utcnow().strftime('%H'))
-                if hourNow >= 17:
+                if hourNow >= endHour:
                     event_handler.print_message('Shutting down')
                     observer.stop()
                     # Reprocess skipped incase morning cals taken
