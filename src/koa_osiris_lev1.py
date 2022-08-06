@@ -169,6 +169,7 @@ class KoaOsirisDrp(FileSystemEventHandler):
         hdr  = fits.getheader(rtiFile)
         koaid    = hdr['KOAID']
         semester = hdr['SEMESTER']
+        koaimtyp = hdr['KOAIMTYP']
         progid   = hdr['PROGID']
         proginst = hdr['PROGINST']
         progpi   = hdr['PROGPI']
@@ -199,6 +200,7 @@ class KoaOsirisDrp(FileSystemEventHandler):
         # Add PROG* info from koa_status/headers
         hdr.set('KOAID',    koaid)
         hdr.set('SEMESTER', semester)
+        hdr.set('KOAIMTYP', koaimtyp)
         hdr.set('DATLEVEL', 1)
         hdr.set('PROGID',   progid)
         hdr.set('PROGINST', proginst)
