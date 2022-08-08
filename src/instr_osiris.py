@@ -485,20 +485,24 @@ class Osiris(instrument.Instrument):
         Return list of files to archive for DRP specific to OSIRIS.
 
         QL ingest (KOA level 1)
-            KOAID*.[fits,jpg]
+            IMAGE: KOAID_drp.[fits.gz,jpg]
+            SPEC:  KOAID*.lev1.[fits.gz,jpg]
 
         Science ingest (KOA level 2)
-            ?
+            SPEC:  KOAID.lev2[.fits.gz,_median.jpg,_sum_positive_slices.jpg]
         '''
         files = []
 
         #level 1
         if level == 1:
             searchfiles = [
+                f"{datadir}/{koaid}_drp.fits.gz",
+                f"{datadir}/{koaid}_drp.jpg",
                 f"{datadir}/{koaid}.lev1.fits.gz",
                 f"{datadir}/{koaid}.lev1.jpg",
-                f"{datadir}/{koaid}_drp.fits.gz",
-                f"{datadir}/{koaid}_drp.jpg"
+                f"{datadir}/{koaid}.lev2.fits.gz",
+                f"{datadir}/{koaid}.lev2_median.jpg",
+                f"{datadir}/{koaid}.lev2_sum_positive_slices.jpg"
             ]
             for f in searchfiles:
                 print(f)
