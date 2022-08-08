@@ -493,20 +493,18 @@ class Osiris(instrument.Instrument):
         '''
         files = []
 
-        #level 1
-        if level == 1:
-            searchfiles = [
-                f"{datadir}/{koaid}_drp.fits.gz",
-                f"{datadir}/{koaid}_drp.jpg",
-                f"{datadir}/{koaid}.lev1.fits.gz",
-                f"{datadir}/{koaid}.lev1.jpg",
-                f"{datadir}/{koaid}.lev2.fits.gz",
-                f"{datadir}/{koaid}.lev2_median.jpg",
-                f"{datadir}/{koaid}.lev2_sum_positive_slices.jpg"
-            ]
-            for f in searchfiles:
-                print(f)
-                if os.path.isfile(f): files.append(f)
+        searchfiles = [
+            f"{datadir}/{koaid}_drp.fits.gz",
+            f"{datadir}/{koaid}_drp.jpg",
+            f"{datadir}/{koaid}.lev1.fits.gz",
+            f"{datadir}/{koaid}.lev1.jpg",
+            f"{datadir}/{koaid}.lev2.fits.gz",
+            f"{datadir}/{koaid}.lev2_median.jpg",
+            f"{datadir}/{koaid}.lev2_sum_positive_slices.jpg"
+        ]
+        for f in searchfiles:
+            print(f)
+            if os.path.isfile(f): files.append(f)
 
         if len(files) == 0:
             return False
