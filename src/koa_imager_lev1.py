@@ -17,6 +17,7 @@ from watchdog.events import FileSystemEventHandler
 import yaml
 import gzip
 import shutil
+import logging
 
 
 class KoaImagerDrp(FileSystemEventHandler):
@@ -45,6 +46,8 @@ class KoaImagerDrp(FileSystemEventHandler):
         self.outputdir       = outputdir
         self.calibrationsdir = f'./{self.instrument.lower()}_calibrations'
 
+        self.log = self.create_logger(self.instrument)
+
         self.dpi = 100
 
         self.queue         = []
@@ -60,13 +63,34 @@ class KoaImagerDrp(FileSystemEventHandler):
         self.add_current_file_list()
 
 
-    def print_message(self, msg):
-        '''
-        Common message printing.
-        '''
+    def create_logger(self, instr):
+        """Creates a logger based on rootdir, instr, service name and date"""
 
-        timeNow = dt.datetime.utcnow().strftime('%c')
-        print(f'{timeNow} [{self.whoami}@{self.hostname}] {msg}')
+        # Create logger object
+        name = f'koa_imager_{instr.lower()}_lev1'
+        log = logging.getLogger(name)
+        log.setLevel(logging.DEBUG)
+
+        # paths
+        logFile =  f'/log/{name}.log'
+
+        # Create a file handler
+        handle = logging.FileHandler(logFile)
+        handle.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+        handle.setFormatter(formatter)
+        log.addHandler(handle)
+
+        # add stdout to output so we don't need both log and print statements(>= warning only)
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+        sh.setFormatter(formatter)
+        log.addHandler(sh)
+
+        # init message and return
+        log.info(f'logger created for {instr} at {logFile}')
+        return log
 
 
     def on_any_event(self, event):
@@ -86,15 +110,15 @@ class KoaImagerDrp(FileSystemEventHandler):
         if self.instrument == 'OSIRIS' and not filename.startswith('OI'):
             return
 
-        self.print_message(f'on_any_event {event.src_path}')
+        self.log.info(f'on_any_event {event.src_path}')
         filename = event.src_path
 
         if filename in self.queue:
-            self.print_message('Skipping - already in queue')
+            self.log.info('Skipping - already in queue')
             return
 
         if filename in self.fileList:
-            self.print_message('Skipping - already processed')
+            self.log.info('Skipping - already processed')
             return
 
         self.queue.append(filename)
@@ -140,7 +164,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         Processes a file depending on its type.
         '''
 
-        self.print_message(f'Input file {filename}')
+        self.log.info(f'Input file {filename}')
 
         header = fits.getheader(filename)
 
@@ -183,7 +207,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         Median combines the files located in a list based on file type.
         '''
 
-        self.print_message(f'Processing {filetype} frames for {name}')
+        self.log.info(f'Processing {filetype} frames for {name}')
 
         if filetype == 'dark':
             fileList = self.darkList[name]
@@ -193,7 +217,7 @@ class KoaImagerDrp(FileSystemEventHandler):
             fileList = self.flatoffList[name]
 
         for file in fileList:
-            self.print_message(f'{file}')
+            self.log.info(f'{file}')
 
         stack = [fits.getdata(file) for file in fileList]
 
@@ -267,10 +291,10 @@ class KoaImagerDrp(FileSystemEventHandler):
          - write new FITS and JPG
         '''
 
-        self.print_message(f'Processing object ({filename})')
+        self.log.info(f'Processing object ({filename})')
         name  = self.get_key_list('dark', header)
         name2 = self.get_key_list('flat', header)
-        self.print_message(f'{name} {name2}')
+        self.log.info(f'{name} {name2}')
 
         # Does a dark or master dark exist?
         dark = True
@@ -284,7 +308,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         # Use flats taken today, if they exist
         flat = False
         if name2 in self.flatFrame.keys() and name2 in self.flatoffFrame.keys():
-            self.print_message(f'Creating normalized flat for {name2}')
+            self.log.info(f'Creating normalized flat for {name2}')
             flatImg = self.flatFrame[name2] - self.flatoffFrame[name2]
             flatImg = flatImg / np.median(flatImg)
             flat = True
@@ -296,7 +320,7 @@ class KoaImagerDrp(FileSystemEventHandler):
                 flat = True
 
         if flat == False:
-            self.print_message('Skipping - no flat found')
+            self.log.info('Skipping - no flat found')
             if filename not in self.skipList:
                 self.skipList.append(filename)
             return
@@ -310,29 +334,29 @@ class KoaImagerDrp(FileSystemEventHandler):
         try:
             img  = fits.open(filename, ignore_missing_end=True)
         except:
-            self.print_message(f'Error reading file ({filename})')
+            self.log.info(f'Error reading file ({filename})')
             return
         hdr  = img[0].header
         data = img[0].data
 
         # Dark subtract and divide by flat
         if dark == True:
-            self.print_message(f'Dark subtracting object ({filename})')
+            self.log.info(f'Dark subtracting object ({filename})')
             data = data - self.darkFrame[name]
             hdu = fits.PrimaryHDU(header=hdr, data=data.astype('int32'))
             hdu.writeto(f'{self.outputdir}/{darkfile}', overwrite=True)
 
-        self.print_message('Flat dividing image')
+        self.log.info('Flat dividing image')
         data = data / flatImg
 
         # Create a new FITS file and JPG of the data
-        self.print_message(f'Creating new FITS file ({newfile})')
+        self.log.info(f'Creating new FITS file ({newfile})')
         hdr['DATLEVEL'] = 1
         hdu = fits.PrimaryHDU(header=hdr, data=data.astype('int32'))
         hdu.writeto(f'{self.outputdir}/{newfile}', overwrite=True)
 
         # gzip the FITS file
-        self.print_message(f'gzipping FITS file ({newfile})')
+        self.log.info(f'gzipping FITS file ({newfile})')
         gzipFile = f'{self.outputdir}/{newfile}.gz'
         with open(f'{self.outputdir}/{newfile}', 'rb') as fIn:
             with gzip.open(gzipFile, 'wb', compresslevel=1) as fOut:
@@ -340,7 +364,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         remove(f'{self.outputdir}/{newfile}')
 
         newfile = newfile.replace('.fits', '.jpg')
-        self.print_message(f'Creating new JPG file ({newfile})')
+        self.log.info(f'Creating new JPG file ({newfile})')
 
         interval = ZScaleInterval()
         vmin, vmax = interval.get_limits(data)
@@ -360,10 +384,10 @@ class KoaImagerDrp(FileSystemEventHandler):
                 koaid = hdr['KOAID']
                 url = f'{self.rtiUrl}instrument={self.instrument}&koaid={koaid}'
                 url = f'{url}&ingesttype=lev1&datadir={self.outputdir}'
-                self.print_message(f'Notifying RTI of reduction ({url})')
+                self.log.info(f'Notifying RTI of reduction ({url})')
                 resp = requests.get(url, auth=(self.rtiUser, self.rtiPwd))
             except:
-                self.print_message(f'Error with {url}')
+                self.log.info(f'Error with {url}')
 
 
     def check_for_master(self, filetype, name):
@@ -375,7 +399,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         # Check for master file
         filename = f'./{self.calibrationsdir}/{name}.fits'
         if isfile(filename):
-            self.print_message(f'Found master {filetype} for {name}')
+            self.log.info(f'Found master {filetype} for {name}')
             return filename
 
         return ''
@@ -433,18 +457,18 @@ def main():
                 # Stop the DRP if 7am or later
                 hourNow = int(dt.datetime.utcnow().strftime('%H'))
                 if hourNow >= endHour:
-                    event_handler.print_message('Shutting down')
+                    event_handler.log.info('Shutting down')
                     observer.stop()
                     # Reprocess skipped incase morning cals taken
-                    event_handler.print_message('Verifying any skipped files')
+                    event_handler.log.info('Verifying any skipped files')
                     event_handler.queue = event_handler.skipList
                     event_handler.process_current_file_list()
-                    event_handler.print_message('Goodbye')
+                    event_handler.log.info('Goodbye')
                     return
 
                 # Check the queue and process any files
                 if len(event_handler.queue) > 0:
-                    event_handler.print_message('Processing queue')
+                    event_handler.log.info('Processing queue')
                     event_handler.process_current_file_list()
 
             sleep(10)
