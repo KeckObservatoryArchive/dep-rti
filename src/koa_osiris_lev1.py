@@ -21,6 +21,7 @@ import yaml
 import json
 import gzip
 import shutil
+import logging
 
 
 class KoaOsirisDrp(FileSystemEventHandler):
@@ -38,9 +39,11 @@ class KoaOsirisDrp(FileSystemEventHandler):
         self.instrument      = instrument
         self.datadir         = datadir
         self.outputdir       = outputdir
-        self.print_message(f'Monitoring {self.datadir}')
-        self.print_message(f'RTI outputdir is {self.outputdir}')
-        self.print_message(f'RTI API is {self.rti}')
+
+        self.log = self.create_logger()
+        self.log.info(f'Monitoring {self.datadir}')
+        self.log.info(f'RTI outputdir is {self.outputdir}')
+        self.log.info(f'RTI API is {self.rti}')
 
         self.dpi = 100
 
@@ -50,13 +53,34 @@ class KoaOsirisDrp(FileSystemEventHandler):
         self.add_current_file_list()
 
 
-    def print_message(self, msg):
-        '''
-        Common message printing.
-        '''
+    def create_logger(self):
+        """Creates a logger"""
 
-        timeNow = dt.datetime.utcnow().strftime('%c')
-        print(f'{timeNow} [{self.whoami}@{self.hostname}] {msg}')
+        # Create logger object
+        name = f'koa_osiris_lev1'
+        log = logging.getLogger(name)
+        log.setLevel(logging.DEBUG)
+
+        # paths
+        logFile =  f'/log/{name}.log'
+
+        # Create a file handler
+        handle = logging.FileHandler(logFile)
+        handle.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+        handle.setFormatter(formatter)
+        log.addHandler(handle)
+
+        # add stdout to output so we don't need both log and print statements(>= warning only)
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+        sh.setFormatter(formatter)
+        log.addHandler(sh)
+
+        # init message and return
+        log.info(f'logger created at {logFile}')
+        return log
 
 
     def on_any_event(self, event):
@@ -76,11 +100,11 @@ class KoaOsirisDrp(FileSystemEventHandler):
         if not filename.endswith('.fits') or filename in self.fileList:
             return
 
-        self.print_message(f'on_any_event {event.src_path}')
+        self.log.info(f'on_any_event {event.src_path}')
         filename = event.src_path
 
         if filename in self.fileList:
-            self.print_message('Skipping - already processed')
+            self.log.info('Skipping - already processed')
             return
 
         self.queue.append(filename)
@@ -126,22 +150,22 @@ class KoaOsirisDrp(FileSystemEventHandler):
         Processes a file depending on its type.
         '''
 
-        self.print_message(f'Input file {filename}')
+        self.log.info(f'Input file {filename}')
 
         hdr  = fits.getheader(filename)
         datafile = hdr['DATAFILE']
-        self.print_message(f'DATAFILE is {datafile}')
+        self.log.info(f'DATAFILE is {datafile}')
 
         # Is this file in koa_staus?
         query = f"select * from koa_status where ofname like '%{datafile}' and koaimtyp='object' and level=0"
         row = self.db.query('koa', query, getOne=True)
         if row is False:
-            self.print_message(f'lev0 "object" file not in koa_status for {filename}')
+            self.log.info(f'lev0 "object" file not in koa_status for {filename}')
             self.handle_error('DATABASE_ERROR', query)
             return
 
         if len(row) == 0:
-            self.print_message(f'lev0 "object" file not in koa_status for {filename}')
+            self.log.info(f'lev0 "object" file not in koa_status for {filename}')
             return
 
         # Verify lev0 was actually archived
@@ -149,21 +173,21 @@ class KoaOsirisDrp(FileSystemEventHandler):
         status = row['status']
         processdir = row['process_dir']
         print(f'{koaid} {status} {processdir}')
-        self.print_message(f'Found koa_status entry for {koaid}')
+        self.log.info(f'Found koa_status entry for {koaid}')
         if status != 'COMPLETE':
-            self.print_message(f'lev0 "object" file not archived for {filename}/{koaid}')
+            self.log.info(f'lev0 "object" file not archived for {filename}/{koaid}')
             return
 
         # Does lev1 entry already exist?
         query = f"select * from koa_status where koaid='{koaid}' and level=1"
         row = self.db.query('koa', query, getOne=True)
         if len(row) != 0:
-            self.print_message(f'lev1 entry exists in koa_status for {filename}/{koaid}')
+            self.log.info(f'lev1 entry exists in koa_status for {filename}/{koaid}')
             return
 
         rtiFile = f'{processdir}/{koaid}.fits'
         if not isfile(rtiFile):
-            self.print_message(f'lev0 file does not exist ({rtiFile})')
+            self.log.info(f'lev0 file does not exist ({rtiFile})')
             return
 
         hdr  = fits.getheader(rtiFile)
@@ -176,23 +200,23 @@ class KoaOsirisDrp(FileSystemEventHandler):
         progtl1  = hdr['PROGTL1']
         progtl2  = hdr['PROGTL2']
         progtl3  = hdr['PROGTL3']
-        self.print_message(f'{semester} {progid} {proginst} {progpi}')
+        self.log.info(f'{semester} {progid} {proginst} {progpi}')
 
         # Copy the file and log to outputdir
         origfile = basename(filename)
         newfile = f'{self.outputdir}/{origfile}'
-        self.print_message(f'Copying {filename} to {newfile}')
+        self.log.info(f'Copying {filename} to {newfile}')
         copyfile(filename, newfile)
         origfile = f"{dirname(filename)}/DRFs/{datafile.replace('.fits', '_ORP.log')}"
         if isfile(origfile):
             logfile = f"{self.outputdir}/{koaid.replace('.fits', '.lev1.log')}"
-            self.print_message(f'Copying {origfile} to {logfile}')
+            self.log.info(f'Copying {origfile} to {logfile}')
             copyfile(origfile, logfile)
 
         try:
             img  = fits.open(newfile, ignore_missing_end=True)
         except:
-            self.print_message(f'Error reading file {newfile}')
+            self.log.info(f'Error reading file {newfile}')
             return
         hdr  = img[0].header
         data = img[0].data
@@ -211,11 +235,11 @@ class KoaOsirisDrp(FileSystemEventHandler):
 
         # Create a new FITS file and JPG of the data
         newfile = f"{self.outputdir}/{koaid.replace('.fits', '.lev1.fits')}"
-        self.print_message(f'Creating new FITS file ({newfile})')
+        self.log.info(f'Creating new FITS file ({newfile})')
         img.writeto(newfile, overwrite=True)
 
         # gzip the FITS file
-        self.print_message(f'gzipping FITS file ({newfile})')
+        self.log.info(f'gzipping FITS file ({newfile})')
         gzipFile = f'{newfile}.gz'
         with open(f'{newfile}', 'rb') as fIn:
             with gzip.open(gzipFile, 'wb', compresslevel=1) as fOut:
@@ -229,10 +253,10 @@ class KoaOsirisDrp(FileSystemEventHandler):
             try:
                 koaid = hdr['KOAID']
                 url = f'{self.rtiUrl}instrument={self.instrument}&koaid={koaid}&ingesttype=lev1&datadir={self.outputdir}'
-                self.print_message(f'Notifying RTI of successful reduction ({url})')
+                self.log.info(f'Notifying RTI of successful reduction ({url})')
                 resp = requests.get(url, auth=(self.rtiUser, self.rtiPwd))
             except:
-                self.print_message(f'Error with {url}')
+                self.log.info(f'Error with {url}')
 
         return
 
@@ -243,7 +267,7 @@ class KoaOsirisDrp(FileSystemEventHandler):
 
         # Create JPG
         newfile = newfile.replace('.fits', '.jpg')
-        self.print_message(f'Creating QL JPG file ({newfile})')
+        self.log.info(f'Creating QL JPG file ({newfile})')
 
         # Get WCS information
         try:
@@ -262,7 +286,7 @@ class KoaOsirisDrp(FileSystemEventHandler):
                     peak = i
                 previousMax = max
             wave = wave + (hdr['CDELT1'] * (peak+1))
-            self.print_message(f'Peak wavelength slice at {peak}/{wave}')
+            self.log.info(f'Peak wavelength slice at {peak}/{wave}')
         except:
             return
 
