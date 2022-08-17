@@ -166,7 +166,11 @@ class KoaImagerDrp(FileSystemEventHandler):
 
         self.log.info(f'Input file {filename}')
 
-        header = fits.getheader(filename)
+        try:
+            header = fits.getheader(filename)
+        except:
+            self.log.info(f'Error reading file ({filename})')
+            return
 
         koaimtyp = header['KOAIMTYP']
         if   koaimtyp == 'dark':
@@ -388,6 +392,8 @@ class KoaImagerDrp(FileSystemEventHandler):
                 resp = requests.get(url, auth=(self.rtiUser, self.rtiPwd))
             except:
                 self.log.info(f'Error with {url}')
+
+        img.close()
 
 
     def check_for_master(self, filetype, name):
