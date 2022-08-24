@@ -258,6 +258,8 @@ class KoaOsirisDrp(FileSystemEventHandler):
             except:
                 self.log.info(f'Error with {url}')
 
+        img.close()
+
         return
 
     def create_ql_image(self, newfile, hdr, data):
