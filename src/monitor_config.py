@@ -140,7 +140,7 @@ instr_keymap = {
         'instr'      :  'NIRSPEC',
         'trigger'    :  'LASTFILE',
         'val'        :  None,
-        'heartbeat'  :  '',
+        'heartbeat'  :  ['DISP1CLK', 1],
         'transfer'   : 1
     },
 

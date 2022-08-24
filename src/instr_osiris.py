@@ -131,6 +131,7 @@ class Osiris(instrument.Instrument):
         # warn if undefined
         if koaimtyp == 'undefined':
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.log_warn("KOAIMTYP_UDF")
 
         # update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
@@ -477,4 +478,45 @@ class Osiris(instrument.Instrument):
         Does this fits have sensitive target info?
         '''
         return False
+
+
+    def get_drp_files_list(self, datadir, koaid, level):
+        '''
+        Return list of files to archive for DRP specific to OSIRIS.
+
+        QL ingest (KOA level 1)
+            IMAGE: KOAID_drp.[fits.gz,jpg]
+            SPEC:  KOAID*.lev1.[fits.gz,jpg]
+
+        Science ingest (KOA level 2)
+            SPEC:  KOAID.lev2[.fits.gz,_median.jpg,_sum_positive_slices.jpg]
+        '''
+        files = []
+
+        searchfiles = [
+            f"{datadir}/{koaid}_drp.fits.gz",
+            f"{datadir}/{koaid}_drp.jpg",
+            f"{datadir}/{koaid}.lev1.fits.gz",
+            f"{datadir}/{koaid}.lev1.jpg",
+            f"{datadir}/{koaid}.lev2.fits.gz",
+            f"{datadir}/{koaid}.lev2_median.jpg",
+            f"{datadir}/{koaid}.lev2_sum_positive_slices.jpg"
+        ]
+        for f in searchfiles:
+            print(f)
+            if os.path.isfile(f): files.append(f)
+
+        if len(files) == 0:
+            return False
+
+        return files
+
+
+    def get_drp_destfile(self, koaid, srcfile):
+        '''
+        Returns the destination of the DRP file for RTI.
+        For OSIRIS, destination = source file.
+        '''
+
+        return True, srcfile
 
