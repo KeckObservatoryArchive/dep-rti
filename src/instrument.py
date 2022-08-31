@@ -1048,11 +1048,84 @@ class Instrument(dep.DEP):
         '''Returns true/false if telescope is at the dome flat position'''
 
         telel = self.get_keyword('EL', default=0)
-        if 44.99 < telel < 45.01:
+        if 44.99 < telel < 45.03:
             telaz  = self.get_keyword('AZ', default=0)
             domeaz = self.get_keyword('DOMEPOSN', default=0)
             if 83 < abs(domeaz - telaz) < 93:
                 return True
 
         return False
+
+
+    def get_pypeit_drp_destfile(self, koaid, srcfile):
+        '''
+        Returns the destination of the DRP file for RTI.
+        '''
+
+        # PypeIt uses 'keck_deimos_X'
+        loc = srcfile.find('keck_deimos')
+
+        # New desitnation file
+        outdir = self.dirs[f'lev{self.level}']
+        destfile = f"{outdir}/{srcfile[loc:]}"
+
+        return True, destfile
+
+
+    def get_pypeit_drp_files_list(self, datadir, koaid, level):
+        '''
+        Return list of files to archive for DRP specific to PypeIt.
+
+        Science ingest (KOA level 2)
+            Science/*KOAID*.[fits|txt]
+            QA/PNGs/KOAI*.png and associated Arc*.png files
+            Associated Masters/Master*.fits
+            calib, log and pytpeit files
+        '''
+        files = []
+
+        if datadir.endswith('/'): datadir = datadir[:-1]
+        maskConfig = datadir.split('/')[-1]
+
+        #level 1 and greater
+        if level >= 1:
+            searchfiles = []
+            for f in searchfiles:
+                if os.path.isfile(f): files.append(f)
+
+        #level 2 (note: includes level 1 stuff, see above)
+        if level == 2:
+            searchfiles = [
+                f"{datadir}/{maskConfig}.calib",
+                f"{datadir}/{maskConfig}.log",
+                f"{datadir}/{maskConfig}.pypeit"
+            ]
+            for f in searchfiles:
+                if os.path.isfile(f): files.append(f)
+            # Search for all files with a matching koaid
+            associatedFiles = []
+            for rootdir, dirs, fileList in os.walk(datadir):
+                for file in fileList:
+                    if koaid in file:
+                        files.append(os.path.join(rootdir, file))
+                    if file.startswith('Master') or file.startswith('Arc'):
+                        associatedFiles.append(os.path.join(rootdir, file))
+
+            # Now search for all associated files
+            for file in files:
+                start = file.find('DET0')
+                end   = file.find('_', start)
+                masterSearch = file[start:end]
+                end   = file.find('_', start+6)
+                arcSearch = file[start:end]
+                # Search for all master calibrations and arc QA plots for this detector
+                for afile in associatedFiles:
+                    if '/Master' in afile and masterSearch in afile:
+                        if afile not in files:
+                            files.append(afile)
+                    if '/Arc' in afile and arcSearch in afile:
+                        if afile not in files:
+                            files.append(afile)
+
+        return files
 
