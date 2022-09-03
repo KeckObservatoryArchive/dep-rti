@@ -1063,7 +1063,7 @@ class Instrument(dep.DEP):
         '''
 
         # PypeIt uses 'keck_deimos_X'
-        loc = srcfile.find('keck_deimos')
+        loc = srcfile.find(f'keck_{self.instr.lower()}')
 
         # New desitnation file
         outdir = self.dirs[f'lev{self.level}']
