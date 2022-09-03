@@ -230,3 +230,17 @@ class Mosfire(instrument.Instrument):
                 has_target = True
         return has_target
 
+
+    def get_drp_destfile(self, koaid, srcfile):
+        '''
+        Returns the destination of the DRP file.  Uses the PypeIt version.
+        '''
+        return self.get_pypeit_drp_destfile(koaid, srcfile)
+
+
+    def get_drp_files_list(self, datadir, koaid, level):
+        '''
+        Returns a list of files to archive for the DRP specific to MOSFIRE.
+        '''
+        return self.get_pypeit_drp_files_list(datadir, koaid, level)
+
