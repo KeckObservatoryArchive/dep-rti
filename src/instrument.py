@@ -4,26 +4,21 @@ Contains basic keyword values common across all the instruments
 Children will contain the instrument specific values
 """
 
-#import datetime as dt
 import os
 from common import *
 from astropy.io import fits
 import datetime as dt
 from envlog import *
-import shutil
-import json
 import numpy as np
 import re
 import math
 import traceback
 
-import db_conn
 import dep
 
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-from PIL import Image
 from astropy.visualization import ZScaleInterval, AsinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 

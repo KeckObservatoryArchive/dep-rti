@@ -19,6 +19,14 @@ instr_keymap = {
         'transfer'   : 0
     },
 
+    'kpf': {
+        'ktl_service':  'kpfassemble',
+        'instr'      :  'KPF',
+        'trigger'    :  'LOUTFILE',
+        'val'        :  None,
+        'heartbeat'  :  ['ITERATION', 30],
+        'transfer'   : 1
+    },
     'kcwi_fcs': {
         'ktl_service':  'kfcs',
         'instr'      :  'KCWI',
