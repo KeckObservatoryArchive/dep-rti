@@ -348,12 +348,6 @@ class KPF(instrument.Instrument):
         Basic convert fits primary data to jpg.  Instrument subclasses
         can override this function.
         """
-        # outdir = '/Users/lfuhrman/Work/KPF/data/jpg/'
-        # fits_filepath = '/Users/lfuhrman/Work/KPF/data/KPF_Data/L0/'
-        # # fits_filepath += 'KP.20220823.84275.96.fits'
-        # # fits_filepath += 'KP.20220825.62186.02.fits'
-        # fits_filepath += 'KP.20220825.73747.82.fits'
-
         # get image data
         hdu = fits.open(fits_filepath, ignore_missing_end=True)
         img_data = {'red': np.array([]), 'green': np.array([]),
