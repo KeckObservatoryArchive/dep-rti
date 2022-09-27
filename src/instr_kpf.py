@@ -3,12 +3,10 @@ This is the class to handle all the HIRES specific attributes
 """
 import os
 import imageio
-
 import instrument
 from common import *
 import numpy as np
 from astropy.io import fits
-
 from datetime import datetime
 
 import logging
@@ -200,6 +198,7 @@ class KPF(instrument.Instrument):
 
         return None
 
+    # TODO needs to be implemented
     def set_koaimtyp(self):
         """
         Add KOAIMTYP based on algorithm, calls get_koaimtyp for algorithm
@@ -223,9 +222,8 @@ class KPF(instrument.Instrument):
         imagetyp = None
 
         # if instrument not defined, return
-        try:
-            instrume = self.get_keyword('INSTRUME')
-        except:
+        instrume = self.get_keyword('INSTRUME')
+        if not instrume:
             return None
 
         return imagetyp
@@ -259,33 +257,39 @@ class KPF(instrument.Instrument):
         """
         Function to generate the paths to all the KPF accounts, including 
         engineering
-        
-        Returns the list of paths
+
+        :return: Returns the list of paths
         """
-        dirs = []
-        path = '/s/sdata12'
-        for i in range(5,8):
-            joinSeq = (path, str(i), '/hires')
-            path2 = ''.join(joinSeq)
-            for j in range(1,10):
-                joinSeq = (path2, str(j))
-                path3 = ''.join(joinSeq)
-                dirs.append(path3)
-            joinSeq = (path2, 'eng')
-            path3 = ''.join(joinSeq)
-            dirs.append(path3)
-        return dirs
+        direct_list = []
+        base_path = '/s/sdata17'
+        for indx1 in range(1, 10):
+            base_kpf_path = f'{base_path}0{indx1}/kpf'
+            for indx2 in range(1, 10):
+                full_path = f'{base_kpf_path}{indx2}'
+                direct_list.append(full_path)
+
+            # engineering path
+            full_path = f'{base_kpf_path}eng'
+            direct_list.append(full_path)
+
+            # development path
+            full_path = f'{base_kpf_path}dev'
+            direct_list.append(full_path)
+
+        return direct_list
 
     def get_prefix(self):
         """
-        Set prefix to HI if this is a HIRES file
-        """
+        Set prefix to KP if this is a KPF file
 
+        :return: <str>
+        """
         instr = self.get_keyword('INSTRUME')
         if 'kpf' in instr.lower():
             prefix = 'KP'
         else:
             prefix = ''
+
         return prefix
 
     def set_wavelengths(self):
@@ -299,34 +303,15 @@ class KPF(instrument.Instrument):
         """
         Assign values for CCD gain and read noise
         """
-
         return True
 
-    def set_skypa(self): # skypa
-        """
-        Calculate the HIRES slit sky position angle
-        """
-
-        # Detemine rotator, parallactic and elevation angles
-        offset = 270.0
-        irot2ang = self.get_keyword('IROT2ANG', useMap=False)
-        parang = self.get_keyword('PARANG', useMap=False)
-        el = self.get_keyword('EL', useMap=False)
-
-        # Skip if one or more values not found
-        if irot2ang == None or parang == None or el == None:
-            log.info('set_skypa: Could not set skypa')
-            return True
-
-        skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)
-        self.set_keyword('SKYPA', round(skypa, 4), 'KOA: Position angle on sky (deg)')
+    def set_skypa(self):
         return True
 
     def set_image_stats(self):
         """
         Adds mean, median, std keywords to header
         """
-
         return True
 
     def get_numamps(self):
@@ -335,12 +320,10 @@ class KPF(instrument.Instrument):
         """
         return True
 
-
     def set_sig2nois(self):
         """
         Calculates S/N for middle CCD image
         """
-
         return True
 
     def create_jpg_from_fits(self, fits_filepath, outdir):
@@ -368,25 +351,6 @@ class KPF(instrument.Instrument):
         # form filepaths
         for extn in ext_names:
             self._write_img(img_data, extn, basename, outdir)
-
-    def set_npixsat(self, satVal=None):
-        """
-        Determines number of saturated pixels and adds NPIXSAT to header
-        NPIXSAT is the sum of all image extensions.
-        """
-        if satVal == None:
-            satVal = self.get_keyword('SATURATE')
-        if satVal == None:
-            self.log_warn("SET_NPIXSAT_ERROR", "No saturate value")
-            return False
-
-        nPixSat = 0
-        for ext in range(1, len(self.fits_hdu)):
-            image = self.fits_hdu[ext].data
-            pixSat = image[np.where(image >= satVal)]
-            nPixSat += len(image[np.where(image >= satVal)])
-        self.set_keyword('NPIXSAT', nPixSat, 'KOA: Number of saturated pixels')
-        return True
 
     # ---------------------
     # JPG writing functions
@@ -449,7 +413,7 @@ class KPF(instrument.Instrument):
         :param ext_lengths: <dict> the number of extension per image (detector).
         :return:
         """
-        ext_combination = {}
+        ext_combo = {}
 
         for indx in range(0, len(hdu)):
             hdr = hdu[indx].header
@@ -462,38 +426,38 @@ class KPF(instrument.Instrument):
                 else:
                     data_suffix = 0
 
-                if data_key in ext_combination:
-                    ext_combination[data_key][data_suffix] = hdu[indx].data
+                if data_key in ext_combo:
+                    ext_combo[data_key][data_suffix] = hdu[indx].data
                 else:
-                    ext_combination[data_key] = [None] * ext_lengths[data_key]
-                    ext_combination[data_key][data_suffix] = hdu[indx].data
+                    ext_combo[data_key] = [None] * ext_lengths[data_key]
+                    ext_combo[data_key][data_suffix] = hdu[indx].data
 
-        return ext_combination
+        return ext_combo
 
     @staticmethod
-    def _mosaic_data(img_data, ext_combination):
+    def _mosaic_data(img_data, ext_combo):
         """
         Mosaic the amp extensions into one image.
 
         :param img_data: <dict - numpy array> the image pixel data
-        :param ext_combination: The extension information
+        :param ext_combo: The extension information
 
         :return: <dict - numpy array> the arraigned image pixel data
         """
-        for data_key, hdu_data in ext_combination.items():
+        for data_key, hdu_data in ext_combo.items():
             if len(hdu_data) > 2:
                 if len(hdu_data) == 3:
                     hdu_data.append(np.zeros(hdu_data[-1].shape))
                 img_data[data_key] = np.vstack(
                     (np.hstack((hdu_data[0], hdu_data[1])),
-                     np.hstack((hdu_data[2], hdu_data[3])))
-                )
+                     np.hstack((hdu_data[2], hdu_data[3]))))
             else:
                 for ext_data in hdu_data:
                     if img_data[data_key].size == 0:
                         img_data[data_key] = ext_data
                     else:
-                        img_data[data_key] = np.hstack((img_data[data_key], ext_data))
+                        img_data[data_key] = np.hstack(
+                            (img_data[data_key], ext_data))
 
         return img_data
 
