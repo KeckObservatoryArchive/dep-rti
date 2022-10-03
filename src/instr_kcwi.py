@@ -413,7 +413,7 @@ class Kcwi(instrument.Instrument):
                 if os.path.isfile(f): files.append(f)
             for file in glob.glob(f"{datadir}/plots/*"):
                 fparts = os.path.basename(file).split('_')
-                if fparts[0] not in ('arc', 'bars', 'bias'): continue
+                if fparts[0] not in ('arc', 'bars', 'bias','ql'): continue
                 if not fparts[1].isdigit(): continue
                 if int(fparts[1]) >= frameno: continue
                 files.append(file)
