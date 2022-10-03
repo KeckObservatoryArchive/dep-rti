@@ -4,26 +4,21 @@ Contains basic keyword values common across all the instruments
 Children will contain the instrument specific values
 """
 
-#import datetime as dt
 import os
 from common import *
 from astropy.io import fits
 import datetime as dt
 from envlog import *
-import shutil
-import json
 import numpy as np
 import re
 import math
 import traceback
 
-import db_conn
 import dep
 
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-from PIL import Image
 from astropy.visualization import ZScaleInterval, AsinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 
@@ -54,29 +49,32 @@ class Instrument(dep.DEP):
         self.prefix    = ''
         self.keyskips  = []
 
+    # abstract methods that must be implemented by inheriting classes
+    def get_dir_list(self):
+        raise NotImplementedError("Abstract method not implemented!")
 
-    #abstract methods that must be implemented by inheriting classes
-    def get_dir_list(self) : raise NotImplementedError("Abstract method not implemented!")
-    def get_prefix(self)   : raise NotImplementedError("Abstract method not implemented!")
-    def set_koaimtyp(self) : raise NotImplementedError("Abstract method not implemented!")
+    def get_prefix(self):
+        raise NotImplementedError("Abstract method not implemented!")
 
+    def set_koaimtyp(self):
+        raise NotImplementedError("Abstract method not implemented!")
 
     def get_keyword(self, keyword, useMap=True, default=None, ext=0):
-        '''
-        Gets keyword value from the FITS header as defined in keymap class variable.  
-        '''
+        """
+        Gets keyword value from the FITS header as defined in keymap
+        class variable.
+        """
         
         # check header ext exists
         if not self.fits_hdu[ext].header:
-             raise Exception('get_keyword: ERROR: no FITS header loaded')
-             return default
+            raise Exception('get_keyword: ERROR: no FITS header loaded')
 
-        #if keyword is mapped, then use mapped value(s)        
+        # if keyword is mapped, then use mapped value(s)
         if useMap:    
             if isinstance(keyword, str) and keyword in self.keymap:
                 keyword = self.keymap[keyword]
 
-        #We allow an array of mapped keys, so if keyword is still a string then put in array
+        # We allow an array of mapped keys, so if keyword is a string then put in array
         mappedKeys = keyword
         if isinstance(mappedKeys, str):
             mappedKeys = [mappedKeys]
@@ -90,7 +88,7 @@ class Instrument(dep.DEP):
             except fits.verify.VerifyError:
                 continue
 
-        #return None if we didn't find it
+        # return None if we didn't find it
         return default
 
     @staticmethod
@@ -105,10 +103,11 @@ class Instrument(dep.DEP):
         return True
 
     def set_keyword(self, keyword, value, comment='', useMap=False, ext=0):
-        '''
+        """
         Sets keyword value in FITS header.
-        NOTE: Mapped values are only used if "useMap" is set to True, otherwise keyword name is as provided.
-        '''
+        NOTE: Mapped values are only used if "useMap" is set to True,
+              otherwise keyword name is as provided.
+        """
         if value is None:
             value = 'null'
 
@@ -122,11 +121,11 @@ class Instrument(dep.DEP):
             if keyword in self.keymap:
                 keyword = self.keymap[keyword]
 
-        #NOTE: If keyword is mapped to an array of key values, the first value will be used.
+        # NOTE: If keyword is mapped to an array of key values, the first value will be used.
         if isinstance(keyword, list):
             keyword = keyword[0]
 
-        #handle infinite value
+        # handle infinite value
         if value == math.inf or str(value).lower() in ('nan', '-nan'):
             log.error(f'set_keyword: ERROR: keyword {keyword} value '
                       f'is {value}.  Setting to null.')
@@ -141,9 +140,9 @@ class Instrument(dep.DEP):
 
 
     def set_koaid(self):
-        '''
+        """
         Create and add KOAID to header if it does not already exist
-        '''
+        """
 
         #skip if it exists
         koaid = self.get_keyword('KOAID', False)
@@ -204,7 +203,7 @@ class Instrument(dep.DEP):
 
 
     def is_engineering(self):
-        '''Check for indicators that this is definitely engineering data.'''
+        """Check for indicators that this is definitely engineering data."""
             
         #keyword values that indicate ENG
         keyvals = {
@@ -262,9 +261,9 @@ class Instrument(dep.DEP):
 
  
     def set_instr(self):
-        '''
+        """
         Check that value(s) in header indicates this is valid instrument and fixes if needed.
-        '''
+        """
 
         ok = False
 
@@ -304,9 +303,9 @@ class Instrument(dep.DEP):
 
 
     def set_dateObs(self):
-        '''
+        """
         Checks to see if we have a DATE-OBS keyword, and if it needs to be fixed or created.
-        '''
+        """
 
         #try to get from header (unmapped or mapped)
         dateObs = self.get_keyword('DATE-OBS', False)
@@ -349,9 +348,9 @@ class Instrument(dep.DEP):
        
 
     def set_utc(self):
-        '''
+        """
         Checks to see if we have a UTC time keyword, and if it needs to be fixed or created.
-        '''
+        """
 
         #try to get from header unmapped and mark if update needed
         update = False
@@ -461,7 +460,7 @@ class Instrument(dep.DEP):
 
 
     def get_progid_from_schedule(self):
-        '''Try to set PROGID from the information in the telescope scheduel'''
+        """Try to set PROGID from the information in the telescope scheduel"""
 
         #requires UTC value
         ut = self.get_keyword('UTC')
@@ -515,7 +514,7 @@ class Instrument(dep.DEP):
 
 
     def set_prog_info(self):
-        '''Set PROG* keywords'''
+        """Set PROG* keywords"""
 
         #Get PROGNAME from header and use for PROGID
         #If not found, then do simple assignment by time/observer/outdir(eng).
@@ -588,10 +587,10 @@ class Instrument(dep.DEP):
 
 
     def set_propint(self):
-        '''
+        """
         Set proprietary period length.
         NOTE: This must come after set_prog_info and set_semester is called
-        '''
+        """
 
         # Lookup PROP value via API (default to 18 otherwise)
         progid = self.fits_hdr.get('PROGID').upper()
@@ -626,7 +625,7 @@ class Instrument(dep.DEP):
 
 
     def check_zero_propint(self):
-        '''Check if we should zero out PROPINT based on new policy defined in DKOA-82.'''
+        """Check if we should zero out PROPINT based on new policy defined in DKOA-82."""
 
         koaimtyp = self.get_keyword('KOAIMTYP')
         is_cal = koaimtyp not in ('object', 'unknown')
@@ -640,16 +639,16 @@ class Instrument(dep.DEP):
 
 
     def has_target_info(self):
-        '''
+        """
         Does this fits have sensitive target info?
         NOTE: Default is to assume true unless proven otherwise
         See instr subclass overrides.
-        '''
+        """
         return True
 
 
     def is_daytime(self, utc):
-        '''Is the UTC time during the day?'''
+        """Is the UTC time during the day?"""
         url = f"{self.config['API']['METAPI']}date={self.utdate}"
         suntimes = self.get_api_data(url, getOne=True)
         sunrise = suntimes['sunrise']
@@ -662,10 +661,10 @@ class Instrument(dep.DEP):
 
 
     def set_datlevel(self, level):
-        '''
+        """
         Adds "DATLEVEL" keyword to header
-        '''
-        self.set_keyword('DATLEVEL' , level, 'KOA: Data reduction level')
+        """
+        self.set_keyword('DATLEVEL', level, 'KOA: Data reduction level')
         return True
 
 
@@ -679,18 +678,18 @@ class Instrument(dep.DEP):
 
 
     def set_dqa_vers(self):
-        '''
+        """
         Adds DQA version keyword to header
-        '''
+        """
         version = self.config['INFO']['DEP_VERSION']
         self.set_keyword('DQA_VERS', version, 'KOA: Data quality assess code version')
         return True
 
 
     def set_image_stats(self):
-        '''
+        """
         Adds mean, median, std keywords to header
-        '''
+        """
 
         image = self.fits_hdu[0].data     
         imageStd    = float("%0.2f" % np.std(image))
@@ -705,9 +704,9 @@ class Instrument(dep.DEP):
 
 
     def set_npixsat(self, satVal=None, ext=0):
-        '''
+        """
         Determines number of saturated pixels and adds NPIXSAT to header
-        '''
+        """
         if satVal == None:
             satVal = self.get_keyword('SATURATE')
         if satVal == None:
@@ -722,7 +721,7 @@ class Instrument(dep.DEP):
 
 
     def get_oa(self, hstdate, telnr):
-        '''Gets OA value from API for given date and telnr.'''
+        """Gets OA value from API for given date and telnr."""
 
         url = f"{self.config['API']['TELAPI']}cmd=getNightStaff&date={hstdate}&telnr={telnr}"
         log.info(f'retrieving night staff info: {url}')
@@ -738,9 +737,9 @@ class Instrument(dep.DEP):
 
 
     def set_oa(self):
-        '''
+        """
         Adds observing assistant name to header
-        '''
+        """
         oa = self.get_oa(self.hstdate, self.telnr)
         if oa == 'None':
             self.log_warn("SET_OA_ERROR", url)
@@ -769,10 +768,10 @@ class Instrument(dep.DEP):
 
 
     def set_weather(self):
-        '''
+        """
         Adds all weather related keywords to header.
         NOTE: DEP should not exit if weather files are not found
-        '''
+        """
 
         #get input vars
         dateobs = self.get_keyword('DATE-OBS')
@@ -804,9 +803,9 @@ class Instrument(dep.DEP):
 
 
     def set_telnr(self):
-        '''
+        """
         Gets telescope number for instrument via API
-        '''
+        """
         url = f"{self.config['API']['TELAPI']}cmd=getTelnr&instr={self.instr.upper()}"
         data = self.get_api_data(url, getOne=True)
         self.telnr = int(data['TelNr'])
@@ -838,11 +837,10 @@ class Instrument(dep.DEP):
 
         return True
 
-
     def make_jpg(self):
-        '''
+        """
         Make the jpg(s) for current fits file
-        '''
+        """
 
         # Find fits file in lev0 dir to convert based on koaid
         koaid = self.fits_hdr.get('KOAID')
@@ -850,9 +848,11 @@ class Instrument(dep.DEP):
         for root, dirs, files in os.walk(self.dirs['lev0']):
             if koaid in files:
                 fits_filepath = f'{root}/{koaid}'
+
         if not fits_filepath:
             self.log_warn('MAKE_JPG_ERROR', koaid)
             return False
+
         outdir = os.path.dirname(fits_filepath)
 
         #call instrument specific create_jpg function
@@ -865,11 +865,10 @@ class Instrument(dep.DEP):
 
         return True
 
-
     def create_jpg_from_fits(self, fits_filepath, outdir):
-        '''
+        """
         Basic convert fits primary data to jpg.  Instrument subclasses can override this function.
-        '''
+        """
 
         #get image data
         hdu = fits.open(fits_filepath, ignore_missing_end=True)
@@ -937,9 +936,9 @@ class Instrument(dep.DEP):
 
 
     def is_science(self):
-        '''
+        """
         Returns true if header indicates science data was taken.
-        '''
+        """
 
         koaimtyp = self.get_keyword('KOAIMTYP')
         if koaimtyp == 'object' : return True
@@ -947,19 +946,19 @@ class Instrument(dep.DEP):
 
 
     def run_drp(self):
-        '''
+        """
         This will be overwritten by method in instrument specific module.
         For those instruments without a DRP, just note that in the log.
-        '''
+        """
 
         log.info('run_drp: no DRP defined for {}'.format(self.instr))
         return True
 
     def run_psfr(self):
-        '''
+        """
         This will be overwritten by method in instrument specific module.
         For those instruments without PSFR, just note that in the log.
-        '''
+        """
 
         log.info('run_psfr: no PSFR defined for {}'.format(self.instr))
         return True
@@ -1011,10 +1010,10 @@ class Instrument(dep.DEP):
 
 
     def dqa_loc(self, delete=0):
-        '''
+        """
         Creates or deletes the dqa.LOC file.
         This file is needed for the PSF/TRS process.
-        '''
+        """
 
         dqaLoc = f"{self.dirs['lev0']}/dqa.LOC"
 
@@ -1045,7 +1044,7 @@ class Instrument(dep.DEP):
 
 
     def is_at_domeflat(self):
-        '''Returns true/false if telescope is at the dome flat position'''
+        """Returns true/false if telescope is at the dome flat position"""
 
         telel = self.get_keyword('EL', default=0)
         if 44.99 < telel < 45.03:
