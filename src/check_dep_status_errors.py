@@ -11,6 +11,7 @@ from email.mime.text import MIMEText
 import datetime as dt
 import db_conn
 import socket
+sys.path.append('/koa/koa-rti/default/common')
 from slack import send_to_slack
 
 #globals
