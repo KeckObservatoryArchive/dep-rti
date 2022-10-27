@@ -11,12 +11,13 @@ from email.mime.text import MIMEText
 import datetime as dt
 import db_conn
 import socket
+from slack import send_to_slack
 
 #globals
 MAX_EMAIL_SEC = 2*60*60
 
 
-def main(dev=False, admin_email=None):
+def main(dev=False, admin_email=None, slack=False):
 
     print(f"\n{dt.datetime.now()} Running {sys.argv}")
 
@@ -92,6 +93,8 @@ def main(dev=False, admin_email=None):
         db.query('koa', 'insert into dep_error_notify set email_time=NOW()')
     else:
         print("\nNOT SENDING EMAIL")
+    if dev and slack:
+        send_to_slack(msg)
 
 
 def gen_last_error_report(row):
@@ -138,13 +141,12 @@ def email_admin(body, dev=False, to=None):
     s.quit()
 
 
-
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--admin_email", type=str, default=None, help='Admin email to send to.')
     parser.add_argument("--dev", dest="dev", default=False, action="store_true", help="If true, will email and check/update dep_email_notify.")
+    parser.add_argument("--slack", dest="slack", default=False, action="store_true", help="If true, will send output to the #koa-rti channel in Slack.")
     args = parser.parse_args()
 
-    main(dev=args.dev, admin_email=args.admin_email)
+    main(dev=args.dev, admin_email=args.admin_email, slack=args.slack)
