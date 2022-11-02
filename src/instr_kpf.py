@@ -13,7 +13,7 @@ import logging
 log = logging.getLogger('koa_dep')
 
 
-class KPF(instrument.Instrument):
+class Kpf(instrument.Instrument):
 
     def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
         self.dev = False
@@ -32,11 +32,12 @@ class KPF(instrument.Instrument):
             {'name': 'set_koaimtyp', 'crit': True},
             {'name': 'set_prog_info', 'crit': True},
             {'name': 'set_propint', 'crit': True},
-            {'name': 'set_weather', 'crit': False},
+            # {'name': 'set_weather', 'crit': False},
 
             # {'name': 'set_obsmode', 'crit': False},
             # {'name': 'set_wcs', 'crit': False},
             # {'name': 'set_skypa', 'crit': False},
+            # {'name': 'set_npixsat', 'crit': False, 'args': {'satVal': 65535}},
 
             {'name': 'set_oa', 'crit': False},
             {'name': 'set_datlevel', 'crit': False, 'args': {'level': 0}},
@@ -112,8 +113,7 @@ class KPF(instrument.Instrument):
 
         if selected_inst != 'KPF':
             self.set_keyword('INSTRUME', 'KPF',
-                             f'set_inst: Setting instrument to KPF,  '
-                             f'selected inst: {selected_inst}')
+                             f'set_inst to KPF, selected inst: {selected_inst}')
 
         self.set_keyword('INSTSLCT', selected_inst, 'Selected Instrument')
 
@@ -240,7 +240,7 @@ class KPF(instrument.Instrument):
         progid = self.progid
 
         if progid:
-            return super().set_prog_info()
+            return self._set_prog_info()
 
         possible_keywords = ('PROGNAME', 'GRPROGNA', 'RDPROGNA')
         for iter, kw in enumerate(possible_keywords):
@@ -249,9 +249,15 @@ class KPF(instrument.Instrument):
                 if iter != 0:
                     self.set_keyword('PROGNAME', progid,
                                      f'PROGNAME set from {kw}')
-                return super().set_prog_info()
+                return self._set_prog_info()
 
-        return super().set_prog_info()
+        return self._set_prog_info()
+
+    def _set_prog_info(self):
+        ok = super().set_prog_info()
+        self.set_keyword('PROGTITL', self.extra_meta['PROGTITL'],
+                         'KOA: Program title set')
+        return ok
 
     def get_dir_list(self):
         """
@@ -292,37 +298,10 @@ class KPF(instrument.Instrument):
 
         return prefix
 
-    def set_wavelengths(self):
-        """
-        Determine and set wavelength range of spectum
-        """
-        return True
-
-
-    def set_gain_and_rn(self): # ccdtype
-        """
-        Assign values for CCD gain and read noise
-        """
-        return True
-
-    def set_skypa(self):
-        return True
-
+    # TODO,  not sure of which extension or all?
     def set_image_stats(self):
         """
         Adds mean, median, std keywords to header
-        """
-        return True
-
-    def get_numamps(self):
-        """
-        Determine number of amplifiers
-        """
-        return True
-
-    def set_sig2nois(self):
-        """
-        Calculates S/N for middle CCD image
         """
         return True
 
@@ -351,6 +330,17 @@ class KPF(instrument.Instrument):
         # form filepaths
         for extn in ext_names:
             self._write_img(img_data, extn, basename, outdir)
+
+    # TODO define ENG for daytime cals
+    def has_target_info(self):
+        ut = self.get_keyword('UT', False)
+        if not ut:
+            return True
+
+        if self.is_daytime(ut):
+            return False
+
+        return True
 
     # ---------------------
     # JPG writing functions

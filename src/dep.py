@@ -769,17 +769,23 @@ class DEP:
             #wrap in try since some ext headers have been found to be corrupted
             try:
                 hdu = self.fits_hdu[i]
-                if 'TableHDU' not in str(type(hdu)): continue
+                if 'TableHDU' not in str(type(hdu)) or not hdu.name:
+                    continue
 
                 #calc col widths
                 dataStr = ''
                 colWidths = []
                 for idx, colName in enumerate(hdu.data.columns.names):
-                    try:
+                    if hdu.data.formats[idx][1:].isdigit():
                         fmtWidth = int(hdu.data.formats[idx][1:])
-                    except:
+                    elif hdu.data.formats[idx][:-1].isdigit():
                         fmtWidth = int(hdu.data.formats[idx][:-1])
-                        if fmtWidth < 16: fmtWidth = 16
+                    else:
+                        fmtWidth = 16
+
+                    if fmtWidth < 16:
+                        fmtWidth = 16
+
                     colWidth = max(fmtWidth, len(colName))
                     colWidths.append(colWidth)
 

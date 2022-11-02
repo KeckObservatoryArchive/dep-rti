@@ -211,6 +211,8 @@ class Instrument(dep.DEP):
                 'eng'
             ],
             'OUTDIR': [
+                'kpfeng',
+                'kpfdev',
                 'kcwieng', 
                 'kcwirun', 
                 'hireseng',
