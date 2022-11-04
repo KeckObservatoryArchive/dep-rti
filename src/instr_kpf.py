@@ -2,12 +2,14 @@
 This is the class to handle all the HIRES specific attributes
 """
 import os
-import imageio
+import warnings
 import instrument
 from common import *
 import numpy as np
 from astropy.io import fits
+from astropy.visualization import (SqrtStretch, ImageNormalize, ZScaleInterval)
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 import logging
 log = logging.getLogger('koa_dep')
@@ -465,22 +467,30 @@ class Kpf(instrument.Instrument):
         if img_data[extn] is None or img_data[extn].size == 0:
             return
 
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+        idata = img_data[extn]
+
         jpg_filepath = f'{outdir}/{basename}_{extn.lower()}.jpg'
-        imageio.imwrite(jpg_filepath, self._convert_to_unit8(img_data[extn]))
 
+        norm = ImageNormalize(idata, interval=ZScaleInterval(),
+                              stretch=SqrtStretch())
 
-    @staticmethod
-    def _convert_to_unit8(np_array):
-        """
-        Convert the float32[64] image numpy array to type = int8 inorder to write
-        to grey scale JPG.
+        shape = idata.shape
 
-        :param np_array: <numpy.dtype[float32]> - image array to convert
-        :return: <numpy uint8> - image array with datatype unit8
-        """
+        # create jpg
+        dpi = 100
+        width_inches = shape[1] / dpi
+        height_inches = shape[0] / dpi
+        fig = plt.figure(figsize=(width_inches, height_inches), frameon=False,
+                         dpi=dpi)
 
-        return (((np_array - np_array.min()) /
-                 (np_array.max() - np_array.min())) * 255.9).astype(np.uint8)
+        plt.axis('off')
+        ax = fig.add_axes([0, 0, 1, 1])
+        plt.imshow(idata, origin='lower', norm=norm, cmap='gray')
+        plt.savefig(jpg_filepath)
+        plt.close()
 
+        warnings.filterwarnings("default", category=RuntimeWarning)
 
 
