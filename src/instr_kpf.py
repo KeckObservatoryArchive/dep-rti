@@ -220,16 +220,21 @@ class Kpf(instrument.Instrument):
 
         return True
 
-    # TODO needs to be implemented
     def _get_koaimtype(self):
-        imagetyp = None
+
+        allowed = ('object', 'bias', 'dark', 'arclamp', 'flatlamp',
+                   'fpc', 'domeflat', 'twiflat', 'contbars', 'undefined')
 
         # if instrument not defined, return
-        instrume = self.get_keyword('INSTRUME')
-        if not instrume:
-            return None
+        imtype = self.get_keyword('IMTYPE')
+        if not imtype:
+            return 'undefined'
 
-        return imagetyp
+        imtype = imtype.lower()
+        if imtype in allowed:
+            return imtype
+
+        return 'undefined'
 
     def set_prog_info(self):
         """
