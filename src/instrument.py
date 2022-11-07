@@ -1088,13 +1088,13 @@ class Instrument(dep.DEP):
         if datadir.endswith('/'): datadir = datadir[:-1]
         maskConfig = datadir.split('/')[-1]
 
-        #level 1 and greater
+        # level 1 and greater
         if level >= 1:
             searchfiles = []
             for f in searchfiles:
                 if os.path.isfile(f): files.append(f)
 
-        #level 2 (note: includes level 1 stuff, see above)
+        # level 2 (note: includes level 1 stuff, see above)
         if level == 2:
             searchfiles = [
                 f"{datadir}/{maskConfig}.calib",

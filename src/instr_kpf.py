@@ -2,6 +2,7 @@
 This is the class to handle all the HIRES specific attributes
 """
 import os
+import glob
 import warnings
 import instrument
 from common import *
@@ -34,8 +35,8 @@ class Kpf(instrument.Instrument):
             {'name': 'set_koaimtyp', 'crit': True},
             {'name': 'set_prog_info', 'crit': True},
             {'name': 'set_propint', 'crit': True},
-            # {'name': 'set_weather', 'crit': False},
 
+            {'name': 'set_weather', 'crit': False},
             # {'name': 'set_obsmode', 'crit': False},
             # {'name': 'set_wcs', 'crit': False},
             # {'name': 'set_skypa', 'crit': False},
@@ -492,5 +493,63 @@ class Kpf(instrument.Instrument):
         plt.close()
 
         warnings.filterwarnings("default", category=RuntimeWarning)
+
+    # beyond level 0 functions
+    def copy_drp_files(self):
+        self.status['service'] = 'DRP'
+
+        return super().copy_drp_files()
+
+    def get_drp_files_list(self, datadir, koaid, level):
+        """
+        Return list of files to archive for DRP specific to KPF.
+
+        @param datadir: <str> the location of 'stage_file'
+        @param koaid: <str> the koaid of the data
+        @param level: <int> the data level,  >=1
+        @return:
+
+        KPF/[DATE]/L1
+            KP.20221029.25049.52_L1.fits
+
+        /[DATE]/QLP
+            KP.20221029.19915.35_1D_spectrum.png
+            KP.20221029.19915.35_2D_Frame_GREEN_CCD.png
+            KP.20221029.19915.35_2D_Frame_RED_CCD.png
+            KP.20221029.19915.35_3_science_fibres_GREEN_CCD.png
+            KP.20221029.19915.35_3_science_fibres_RED_CCD.png
+            KP.20221029.19915.35_Column_cut_GREEN_CCD.png
+            KP.20221029.19915.35_Column_cut_RED_CCD.png
+            KP.20221029.19915.35_Histogram_GREEN_CCD.png
+            KP.20221029.19915.35_Histogram_RED_CCD.png
+            KP.20221029.19915.35_order_trace_GREEN_CCD.png
+            KP.20221029.19915.35_order_trace_RED_CCD.png
+            KP.20221029.19915.35_simple_ccf.png
+        """
+        if level != 1:
+            raise NotImplementedError(f"Level {level} is not implemented!")
+
+        # datadir = /koadata/KPF/stage/20221029//s/sdata1701/kpfdev/L0/KP.20221029.19915.35.fits
+        # want : /kpfdata/KPF_DRP/20221029/L1/
+        root_path = datadir.split('/s/')[0].replace('stage/', '').replace('koadata', 'kpfdata').replace('KPF/', 'KPF_DRP/')
+
+        # quicklook images
+        qlp_file_suffix = '.png'
+        qlp_dir = f'{root_path}/QLP/fig/'
+        qlp_filelist = glob.glob(f'{qlp_dir}/{koaid}*{qlp_file_suffix}')
+
+        # lev1
+        lev1_suffix = '.fits'
+        lev1_dir = f'{root_path}/L1'
+        lev1_filelist = glob.glob(f'{lev1_dir}/{koaid}*{lev1_suffix}')
+
+        return lev1_filelist + qlp_filelist
+
+
+
+
+
+
+
 
 

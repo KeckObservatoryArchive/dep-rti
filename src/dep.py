@@ -219,7 +219,8 @@ class DEP:
         """
         Creates a logger based on rootdir, instr and cur date.
         NOTE: We create a temp log file first and once we have the KOAID,
-        we will rename the logfile and change the filehandler (see dep.change_logger)
+        we will rename the logfile and change the filehandler
+            (see dep.change_logger)
         """
 
         name = 'koa_dep'
@@ -839,20 +840,18 @@ class DEP:
         '''
 
         # Skip if this entry is not for a DRP
+        print(f"status {self.status['service']}")
         if self.status['service'] != 'DRP':
             return True
 
-        #get list of koaids we are dealing with (lev1 is just one koaid)
+        # get list of koaids we are dealing with (lev1 is just one koaid)
         datadir = self.status['stage_file']
         koaids = [self.status['koaid']]
-#        if   self.level == 1: koaids = [self.status['koaid']]
-#        elif self.level == 2: koaids = self.get_unique_koaids_in_dir(datadir)
 
-        #For each koaid, get associated drp files and copy them to outdir.
-        #Keep dict of files by koaid.
+        # For each koaid, get associated drp files and copy them to outdir.
+        # Keep dict of files by koaid.
         self.drp_files = {}
         for koaid in koaids:
-#            if self.level == 2: self.koaid = koaid
             files = self.get_drp_files_list(datadir, koaid, self.level)
             if files == False:
                 self.log_error('FILE_NOT_FOUND', f"{koaid} level {self.level}")
@@ -885,9 +884,6 @@ class DEP:
                     self.log_error('FILE_COPY_ERROR', f"{srcfile} to {destfile}")
                     return False
 
-#        if self.level == 2:
-#            self.update_koa_status('status', 'WAITING')
-#
         return True
       
 
