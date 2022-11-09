@@ -78,8 +78,7 @@ class Kpf(instrument.Instrument):
 
         return super().make_koaid()
 
-    @staticmethod
-    def _validate_koaid(koaid):
+    def _validate_koaid(self, koaid):
         """
         Check that the KOAID from OFNAME,  is a valid KOAID.  Assumes KP.
         are the first three characters of koaid string.
@@ -87,10 +86,18 @@ class Kpf(instrument.Instrument):
         :param koaid: <str> koaid format KP.<YYYYMMDD>.<int*5>.<int*2>
         :return:
         """
+        # check that the format has 4 parts delimited by decimals
         koaid_parts = koaid.split('.')
         if len(koaid_parts) != 4:
             return False
 
+        # check that the KOAID date matches the date of DATE-OBS Header Key.
+        date_obs = self.get_keyword('DATE-OBS', useMap=False)
+        koaid_date = koaid_parts[1].replace('-', '')
+        if date_obs != koaid_date:
+            return False
+
+        # check that parts are:  date, int, int -- part 0 was added as KP
         try:
             datetime.strptime(koaid_parts[1], '%Y%m%d')
             int(koaid_parts[2])
@@ -98,6 +105,7 @@ class Kpf(instrument.Instrument):
         except ValueError:
             return False
 
+        # check that the length of the integer parts are correct.
         if len(koaid_parts[2]) != 5 or len(koaid_parts[3]) != 2:
             return False
 
