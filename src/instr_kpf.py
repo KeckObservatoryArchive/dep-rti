@@ -37,9 +37,7 @@ class Kpf(instrument.Instrument):
             {'name': 'set_propint', 'crit': True},
 
             {'name': 'set_weather', 'crit': False},
-            # {'name': 'set_obsmode', 'crit': False},
-            # {'name': 'set_wcs', 'crit': False},
-            # {'name': 'set_skypa', 'crit': False},
+            {'name': 'set_wavelength', 'crit': False},
             # {'name': 'set_npixsat', 'crit': False, 'args': {'satVal': 65535}},
 
             {'name': 'set_oa', 'crit': False},
@@ -121,6 +119,44 @@ class Kpf(instrument.Instrument):
         self.set_keyword('INSTSLCT', selected_inst, 'Selected Instrument')
 
         return True
+
+    def set_wavelength(self):
+        """
+        Set the wavelength dependent on what detectors were used.
+        """
+        # GREEN   = 'NO      '           / Was this camera found?
+        # RED     = 'NO      '           / Was this camera found?
+        # CA_HK   = 'YES     '           / Was this camera found?
+
+        green = self.get_keyword('GREEN')
+        red = self.get_keyword('RED')
+        hk = self.get_keyword('CA_HK')
+
+        # assume yes for green, red 445–590, 590-870 nm
+        wave_low = 4450
+        wave_high = 8700
+        if hk.lower() == 'yes':
+            wave_low = 3900
+        elif green.lower() == 'no':
+            wave_low = 5900
+
+        if red.lower() == 'no':
+            if green.lower() == 'no':
+                wave_high = 4450
+            else:
+                wave_high = 5900
+
+        wave_center = wave_low + (wave_high - wave_low) / 2.0
+
+        self.set_keyword('WAVEBLUE', wave_low,
+                         f'wavelength (angstroms) based on detectors used.')
+        self.set_keyword('WAVERED', wave_high,
+                         f'wavelength (angstroms) based on detectors used.')
+        self.set_keyword('WAVECNTR', wave_center,
+                         f'wavelength (angstroms) based on detectors used.')
+
+        return True
+
 
     def set_semester(self):
         """
@@ -216,7 +252,7 @@ class Kpf(instrument.Instrument):
             self.log_warn("KOAIMTYP_UDF")
             koaimtyp = 'undefined'
 
-        self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
+        self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type from IMTYPE')
 
         return True
 
