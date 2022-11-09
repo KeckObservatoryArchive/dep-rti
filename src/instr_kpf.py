@@ -93,8 +93,11 @@ class Kpf(instrument.Instrument):
 
         # check that the KOAID date matches the date of DATE-OBS Header Key.
         date_obs = self.get_keyword('DATE-OBS', useMap=False)
-        koaid_date = koaid_parts[1].replace('-', '')
-        if date_obs != koaid_date:
+        if not date_obs:
+            return False
+
+        koaid_date = koaid_parts[1]
+        if date_obs.replace('-', '') != koaid_date:
             return False
 
         # check that parts are:  date, int, int -- part 0 was added as KP
