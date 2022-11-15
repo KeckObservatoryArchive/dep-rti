@@ -13,7 +13,7 @@ import requests
 from socket import gethostname
 import yaml
 
-def send_to_slack(body, level="INFO"):
+def send_to_slack(body, instrument):
 
     configFile = 'config.live.ini'
     url = None
@@ -21,12 +21,10 @@ def send_to_slack(body, level="INFO"):
         with open(configFile) as f:
             config = yaml.safe_load(f)
 
-        url = config.get('API', {}).get('SLACK', None)
+        url = config.get('API', {}).get('SLACKAPP', None)
     if url != None:
         data = {}
-        data['user'] = f'{getuser()}@{gethostname()}'
-        data['status_code'] = level 
-        data['message'] = body
+        data['text'] = body
 
         msg = requests.post(url, json=data)
         if msg.status_code != 200:
@@ -86,10 +84,9 @@ def count_dir_files(dirs, startDate, endDate):
         # Filter out timestamps outside of the time range
         newFiles = [ x for x in newFiles if within_range(x) ]
 
-        files = [*files, newFiles]
+        files = [*files, *newFiles]
 
-    files = set(files) # remove duplicates
-    files = list(files)
+    files = [*set(files)] # remove duplicates
     return {
             'numFiles': len(files),
             'files': files
@@ -152,7 +149,7 @@ def make_report(instrument,
                 numLev2DBFiles,
                 missingFiles):
     strDirs = ",\n\t".join(dirs)
-    report = f"""
+    report = f"""\n
     Instrument:\t {instrument}
     UT date:\t {date}
     Number of incomplete ingests:\t {numIncomplete}
@@ -219,8 +216,9 @@ def make_report(instrument,
     if numError > 0:
         report += errMsg
         level = 'CRITICAL'
+    report = f"\nLevel: {level}" + report
 
-    return report, level 
+    return report 
 
 def main():
     db = get_database()
@@ -238,10 +236,9 @@ def main():
             if instrument.upper() == 'NIRSPEC' \
             else count_dir_files(metrics[0], date, endDate)
 
-    pdb.set_trace()
     missingFiles = get_missing_files(filesDict, rows)
 
-    report, level = make_report(instrument,
+    report = make_report(instrument,
                          date, 
                          *metrics,
                          filesDict, 
@@ -251,7 +248,7 @@ def main():
                          missingFiles
                         )
 
-    send_to_slack(report, level)
+    send_to_slack(report, instrument.upper())
 
 
 if __name__ == '__main__':
