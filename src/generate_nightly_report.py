@@ -15,10 +15,11 @@ import yaml
 
 def send_to_slack(body, instrument):
 
-    configFile = 'config.live.ini'
+    configPath = os.path.realpath(os.path.dirname(__file__) )
+    configPath = os.path.join(configPath, 'config.live.ini')
     url = None
-    if isfile(configFile):
-        with open(configFile) as f:
+    if isfile(configPath):
+        with open(configPath) as f:
             config = yaml.safe_load(f)
 
         url = config.get('API', {}).get('SLACKAPP', None)
@@ -33,7 +34,9 @@ def send_to_slack(body, instrument):
         print('Error sending message to Slack - no URL')
 
 def get_database():
-    return db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+    configPath = os.path.realpath(os.path.dirname(__file__) )
+    configPath = os.path.join(configPath, 'config.live.ini')
+    return db_conn.db_conn(configPath, configKey='DATABASE', persist=True)
     
 
 def del_db(db):
@@ -220,7 +223,7 @@ def make_report(instrument,
 
     return report 
 
-def main():
+def generate_report(instrument, date):
     db = get_database()
     lev0Rows = get_daily_table( db, date, endDate, instrument, level=0 )
     numLev0DBFiles = len( lev0Rows )
@@ -250,14 +253,72 @@ def main():
 
     send_to_slack(report, instrument.upper())
 
+def get_instruments(date, dome):
+    url = f"https://www.keck.hawaii.edu/software/db_api/telSchedule.php?cmd=getSchedule&date={datetime.strftime(date, '%Y-%m-%d')}"
+    resp = requests.get(url)
+    schedInstruments = [ x.get('Instrument') for x in resp.json() if x.get('Instrument', False)]
+    schedInstruments = [*set(schedInstruments)]
+    ignoreList = ['SSC', 'PCS', 'PCS+SSC']
+    schedInstruments = [ x for x in schedInstruments if not x in ignoreList ]
+
+
+    schedInstNames = []
+    for schedInst in schedInstruments:
+        for k, v in INSTRUMENT_MAP.items():
+            if schedInst in v:
+                schedInstNames.append(k)
+                break
+
+    schedInstNames = [ x for x in schedInstNames if x in DOME_INSTRUMENTS[dome] ] 
+    return schedInstNames 
+    
+def get_instrument_list():
+    url = lambda x: f"https://www.keck.hawaii.edu/software/db_api/telSchedule.php?cmd=getSchedule&date={datetime.strftime(x, '%Y-%m-%d')}"
+
+    date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    dates = [ date - timedelta(days=x) for x in range(400) ] 
+    instruments=[]
+    for date in dates: 
+        resp = requests.get(url(date))
+        dayInst = [ x.get('Instrument') for x in resp.json() if x.get('Instrument', False) ]
+        instruments = [*instruments,  *dayInst]
+
+    return [*set(instruments)] # return unique values
+
+INSTRUMENT_MAP = {
+    'NIRC2': ['NIRC2-LGS', 'NIRC2-NGS', 'NIRC2-PY'],
+    'NIRSPEC': ['NIRSPAO-NGS', 'NIRC2-PY+NIRSPAO', 'NIRSPAO+LGS', 'NIRC2-NGS+NIRSPAO', 'NIRSPEC'],
+    'ESI': ['ESI'],
+    'KPF': ['KPF'],
+    'SSC': ['SSC'],
+    'MOSFIRE': ['MOSFIRE'],
+    'NIRES': ['NIRES'], 
+    'LRIS': ['LRIS-ADC'],
+    'OSIRIS': ['OSIRIS-LGS, OSIRIS-NGS'],
+    'KCWI': ['KCWI'],
+    'PCS': ['PCS', 'PCS+SSC'],
+    'DEIMOS': ['DEIMOS'],
+    'HIRES': ['HIRESr', 'HIRESb'],
+}
+
+DOME_INSTRUMENTS = {
+    'K2': [ 'KCWI', 'DEIMOS', 'ESI', 'NIRC2', 'NIRES', 'NIRESPEC' ],
+    'K1': [ 'HIRES', 'OSIRIS', 'MOSFIRE', 'KPF', 'LRIS' ]
+}
 
 if __name__ == '__main__':
     TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
     parser = argparse.ArgumentParser(description='generate_nightly_report input parameters')
     parser.add_argument('--instrument', type=str, help='instrument to check that generates report')
     parser.add_argument('--date', type=str, help='date', default=None)
+    parser.add_argument('--dome', type=str, help='date', default=None)
 
     args = parser.parse_args()
+    dome = args.dome
+    if not dome:
+        hostname = os.uname()[1]
+        dome = 'K1' if hostname == 'vm-koarti' else 'K2'
+
     dateStr = args.date
     if dateStr:
         date = datetime.strptime(dateStr, TIME_FORMAT)
@@ -265,5 +326,10 @@ if __name__ == '__main__':
         date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     endDate = (date + timedelta(days=1))
     instrument = args.instrument
+    
+    if instrument:
+        generate_report(instrument, date)
+    else:
+        instruments = get_instruments(date, dome)
+        [generate_report(x, date) for x in instruments]
 
-    main()
