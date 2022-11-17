@@ -2,18 +2,21 @@
 This is the class to handle all the HIRES specific attributes
 """
 import os
-import imageio
+import glob
+import warnings
 import instrument
 from common import *
 import numpy as np
 from astropy.io import fits
+from astropy.visualization import (SqrtStretch, ImageNormalize, ZScaleInterval)
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 import logging
 log = logging.getLogger('koa_dep')
 
 
-class KPF(instrument.Instrument):
+class Kpf(instrument.Instrument):
 
     def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
         self.dev = False
@@ -32,11 +35,10 @@ class KPF(instrument.Instrument):
             {'name': 'set_koaimtyp', 'crit': True},
             {'name': 'set_prog_info', 'crit': True},
             {'name': 'set_propint', 'crit': True},
-            {'name': 'set_weather', 'crit': False},
 
-            # {'name': 'set_obsmode', 'crit': False},
-            # {'name': 'set_wcs', 'crit': False},
-            # {'name': 'set_skypa', 'crit': False},
+            {'name': 'set_weather', 'crit': False},
+            {'name': 'set_wavelength', 'crit': False},
+            # {'name': 'set_npixsat', 'crit': False, 'args': {'satVal': 65535}},
 
             {'name': 'set_oa', 'crit': False},
             {'name': 'set_datlevel', 'crit': False, 'args': {'level': 0}},
@@ -76,8 +78,7 @@ class KPF(instrument.Instrument):
 
         return super().make_koaid()
 
-    @staticmethod
-    def _validate_koaid(koaid):
+    def _validate_koaid(self, koaid):
         """
         Check that the KOAID from OFNAME,  is a valid KOAID.  Assumes KP.
         are the first three characters of koaid string.
@@ -85,10 +86,21 @@ class KPF(instrument.Instrument):
         :param koaid: <str> koaid format KP.<YYYYMMDD>.<int*5>.<int*2>
         :return:
         """
+        # check that the format has 4 parts delimited by decimals
         koaid_parts = koaid.split('.')
         if len(koaid_parts) != 4:
             return False
 
+        # check that the KOAID date matches the date of DATE-OBS Header Key.
+        date_obs = self.get_keyword('DATE-OBS', useMap=False)
+        if not date_obs:
+            return False
+
+        koaid_date = koaid_parts[1]
+        if date_obs.replace('-', '') != koaid_date:
+            return False
+
+        # check that parts are:  date, int, int -- part 0 was added as KP
         try:
             datetime.strptime(koaid_parts[1], '%Y%m%d')
             int(koaid_parts[2])
@@ -96,6 +108,7 @@ class KPF(instrument.Instrument):
         except ValueError:
             return False
 
+        # check that the length of the integer parts are correct.
         if len(koaid_parts[2]) != 5 or len(koaid_parts[3]) != 2:
             return False
 
@@ -112,12 +125,49 @@ class KPF(instrument.Instrument):
 
         if selected_inst != 'KPF':
             self.set_keyword('INSTRUME', 'KPF',
-                             f'set_inst: Setting instrument to KPF,  '
-                             f'selected inst: {selected_inst}')
+                             f'set_inst to KPF, selected inst: {selected_inst}')
 
         self.set_keyword('INSTSLCT', selected_inst, 'Selected Instrument')
 
         return True
+
+    def set_wavelength(self):
+        """
+        Set the wavelength dependent on what detectors were used.
+        """
+        # GREEN   = 'NO      '           / Was this camera found?
+        # RED     = 'NO      '           / Was this camera found?
+        # CA_HK   = 'YES     '           / Was this camera found?
+
+        green = self.get_keyword('GREEN')
+        red = self.get_keyword('RED')
+        hk = self.get_keyword('CA_HK')
+
+        # assume yes for green, red 445–590, 590-870 nm
+        wave_low = 4450
+        wave_high = 8700
+        if hk.lower() == 'yes':
+            wave_low = 3900
+        elif green.lower() == 'no':
+            wave_low = 5900
+
+        if red.lower() == 'no':
+            if green.lower() == 'no':
+                wave_high = 4450
+            else:
+                wave_high = 5900
+
+        wave_center = wave_low + (wave_high - wave_low) / 2.0
+
+        self.set_keyword('WAVEBLUE', wave_low,
+                         f'wavelength (angstroms) based on detectors used.')
+        self.set_keyword('WAVERED', wave_high,
+                         f'wavelength (angstroms) based on detectors used.')
+        self.set_keyword('WAVECNTR', wave_center,
+                         f'wavelength (angstroms) based on detectors used.')
+
+        return True
+
 
     def set_semester(self):
         """
@@ -213,20 +263,25 @@ class KPF(instrument.Instrument):
             self.log_warn("KOAIMTYP_UDF")
             koaimtyp = 'undefined'
 
-        self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
+        self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type from IMTYPE')
 
         return True
 
-    # TODO needs to be implemented
     def _get_koaimtype(self):
-        imagetyp = None
+
+        allowed = ('object', 'bias', 'dark', 'arclamp', 'flatlamp',
+                   'domeflat', 'twiflat', 'undefined')
 
         # if instrument not defined, return
-        instrume = self.get_keyword('INSTRUME')
-        if not instrume:
-            return None
+        imtype = self.get_keyword('IMTYPE')
+        if not imtype:
+            return 'undefined'
 
-        return imagetyp
+        imtype = imtype.lower()
+        if imtype in allowed:
+            return imtype
+
+        return 'undefined'
 
     def set_prog_info(self):
         """
@@ -240,7 +295,7 @@ class KPF(instrument.Instrument):
         progid = self.progid
 
         if progid:
-            return super().set_prog_info()
+            return self._set_prog_info()
 
         possible_keywords = ('PROGNAME', 'GRPROGNA', 'RDPROGNA')
         for iter, kw in enumerate(possible_keywords):
@@ -249,9 +304,15 @@ class KPF(instrument.Instrument):
                 if iter != 0:
                     self.set_keyword('PROGNAME', progid,
                                      f'PROGNAME set from {kw}')
-                return super().set_prog_info()
+                return self._set_prog_info()
 
-        return super().set_prog_info()
+        return self._set_prog_info()
+
+    def _set_prog_info(self):
+        ok = super().set_prog_info()
+        self.set_keyword('PROGTITL', self.extra_meta['PROGTITL'],
+                         'KOA: Program title set')
+        return ok
 
     def get_dir_list(self):
         """
@@ -292,37 +353,10 @@ class KPF(instrument.Instrument):
 
         return prefix
 
-    def set_wavelengths(self):
-        """
-        Determine and set wavelength range of spectum
-        """
-        return True
-
-
-    def set_gain_and_rn(self): # ccdtype
-        """
-        Assign values for CCD gain and read noise
-        """
-        return True
-
-    def set_skypa(self):
-        return True
-
+    # TODO,  not sure of which extension or all?
     def set_image_stats(self):
         """
         Adds mean, median, std keywords to header
-        """
-        return True
-
-    def get_numamps(self):
-        """
-        Determine number of amplifiers
-        """
-        return True
-
-    def set_sig2nois(self):
-        """
-        Calculates S/N for middle CCD image
         """
         return True
 
@@ -351,6 +385,17 @@ class KPF(instrument.Instrument):
         # form filepaths
         for extn in ext_names:
             self._write_img(img_data, extn, basename, outdir)
+
+    # TODO define ENG for daytime cals
+    def has_target_info(self):
+        ut = self.get_keyword('UT', False)
+        if not ut:
+            return True
+
+        if self.is_daytime(ut):
+            return False
+
+        return True
 
     # ---------------------
     # JPG writing functions
@@ -475,22 +520,88 @@ class KPF(instrument.Instrument):
         if img_data[extn] is None or img_data[extn].size == 0:
             return
 
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+        idata = img_data[extn]
+
         jpg_filepath = f'{outdir}/{basename}_{extn.lower()}.jpg'
-        imageio.imwrite(jpg_filepath, self._convert_to_unit8(img_data[extn]))
 
+        norm = ImageNormalize(idata, interval=ZScaleInterval(),
+                              stretch=SqrtStretch())
 
-    @staticmethod
-    def _convert_to_unit8(np_array):
+        shape = idata.shape
+
+        # create jpg
+        dpi = 100
+        width_inches = shape[1] / dpi
+        height_inches = shape[0] / dpi
+        fig = plt.figure(figsize=(width_inches, height_inches), frameon=False,
+                         dpi=dpi)
+
+        plt.axis('off')
+        ax = fig.add_axes([0, 0, 1, 1])
+        plt.imshow(idata, origin='lower', norm=norm, cmap='gray')
+        plt.savefig(jpg_filepath)
+        plt.close()
+
+        warnings.filterwarnings("default", category=RuntimeWarning)
+
+    # beyond level 0 functions
+    def copy_drp_files(self):
+        self.status['service'] = 'DRP'
+
+        return super().copy_drp_files()
+
+    def get_drp_files_list(self, datadir, koaid, level):
         """
-        Convert the float32[64] image numpy array to type = int8 inorder to write
-        to grey scale JPG.
+        Return list of files to archive for DRP specific to KPF.
 
-        :param np_array: <numpy.dtype[float32]> - image array to convert
-        :return: <numpy uint8> - image array with datatype unit8
+        @param datadir: <str> the location of 'stage_file'
+        @param koaid: <str> the koaid of the data
+        @param level: <int> the data level,  >=1
+        @return:
+
+        KPF/[DATE]/L1
+            KP.20221029.25049.52_L1.fits
+
+        /[DATE]/QLP
+            KP.20221029.19915.35_1D_spectrum.png
+            KP.20221029.19915.35_2D_Frame_GREEN_CCD.png
+            KP.20221029.19915.35_2D_Frame_RED_CCD.png
+            KP.20221029.19915.35_3_science_fibres_GREEN_CCD.png
+            KP.20221029.19915.35_3_science_fibres_RED_CCD.png
+            KP.20221029.19915.35_Column_cut_GREEN_CCD.png
+            KP.20221029.19915.35_Column_cut_RED_CCD.png
+            KP.20221029.19915.35_Histogram_GREEN_CCD.png
+            KP.20221029.19915.35_Histogram_RED_CCD.png
+            KP.20221029.19915.35_order_trace_GREEN_CCD.png
+            KP.20221029.19915.35_order_trace_RED_CCD.png
+            KP.20221029.19915.35_simple_ccf.png
         """
+        if level != 1:
+            raise NotImplementedError(f"Level {level} is not implemented!")
 
-        return (((np_array - np_array.min()) /
-                 (np_array.max() - np_array.min())) * 255.9).astype(np.uint8)
+        # datadir = /koadata/KPF/stage/20221029//s/sdata1701/kpfdev/L0/KP.20221029.19915.35.fits
+        # want : /kpfdata/KPF_DRP/20221029/L1/
+        root_path = datadir.split('/s/')[0].replace('stage/', '').replace('koadata', 'kpfdata').replace('KPF/', 'KPF_DRP/')
+
+        # quicklook images
+        qlp_file_suffix = '.png'
+        qlp_dir = f'{root_path}/QLP/fig/'
+        qlp_filelist = glob.glob(f'{qlp_dir}/{koaid}*{qlp_file_suffix}')
+
+        # lev1
+        lev1_suffix = '.fits'
+        lev1_dir = f'{root_path}/L1'
+        lev1_filelist = glob.glob(f'{lev1_dir}/{koaid}*{lev1_suffix}')
+
+        return lev1_filelist + qlp_filelist
+
+
+
+
+
+
 
 
 
