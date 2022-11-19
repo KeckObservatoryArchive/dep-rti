@@ -11,8 +11,8 @@ from email.mime.text import MIMEText
 import datetime as dt
 import db_conn
 import socket
-sys.path.append('/koa/koa-rti/default/common')
-from slack import send_to_slack
+#sys.path.append('/koa/koa-rti/default/common')
+#from slack import send_to_slack
 
 #globals
 MAX_EMAIL_SEC = 2*60*60
@@ -94,8 +94,8 @@ def main(dev=False, admin_email=None, slack=False):
         db.query('koa', 'insert into dep_error_notify set email_time=NOW()')
     else:
         print("\nNOT SENDING EMAIL")
-    if dev and slack:
-        send_to_slack(msg)
+#    if dev and slack:
+#        send_to_slack(msg)
 
 
 def gen_last_error_report(row):
