@@ -209,7 +209,7 @@ class Kpf(instrument.Instrument):
             return True
 
         # get necessary keywords - also GRELAPS and RDELAPS
-        elasped = self.get_keyword('ELASPED', useMap=False)
+        elasped = self.get_keyword('ELAPSED', useMap=False)
         if elasped is not None:
             log.info('set_elaptime: determining ELAPTIME from KPF ELASPED')
             elaptime = round(elasped)
