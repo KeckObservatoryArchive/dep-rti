@@ -11,6 +11,7 @@ from getpass import getuser
 from os.path import dirname, isfile
 import requests
 from socket import gethostname
+from astropy.io import fits as fits
 import yaml
 
 def send_to_slack(body, instrument):
@@ -223,6 +224,23 @@ def make_report(instrument,
 
     return report 
 
+def get_associated_fcs_files(filesDict, rows, missingFiles):
+    files = filesDict.get('files', [])
+    whitelist = []
+    for row in rows:
+        filename = row.get('ofname', '')
+        if not os.path.exists(filename):
+            continue
+        hdus = fits.open(filename)
+        hdr = hdus[0].header
+        fcsreffi = hdr.get('FCSREFFI')
+        if not fcsreffi:
+            continue
+        whitelist.append(fcsreffi)
+    return whitelist 
+
+        
+
 def generate_report(instrument, date):
     db = get_database()
     lev0Rows = get_daily_table( db, date, endDate, instrument, level=0 )
@@ -240,6 +258,11 @@ def generate_report(instrument, date):
             else count_dir_files(metrics[0], date, endDate)
 
     missingFiles = get_missing_files(filesDict, rows)
+
+    if instrument.upper() == 'DEIMOS':
+        whitelist = get_associated_fcs_files(filesDict, rows, missingFiles)
+        # remove referenced fcs files from missingFile list
+        missingFiles = [ x for x in missingFiles if x[2:] in whitelist ]
 
     report = make_report(instrument,
                          date, 
