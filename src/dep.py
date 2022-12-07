@@ -1303,7 +1303,6 @@ class DEP:
         Converts the primary header into a dictionary and inserts that 
         data into the json column of the headers database table.
         '''
-
         d = {}
         for key in self.fits_hdr.keys():
             if key == 'COMMENT' or key == '' or key in d.keys():
@@ -1314,11 +1313,19 @@ class DEP:
 
         query = 'insert into headers set koaid=%s, header=%s'
         vals = (self.koaid, json.dumps(d),)
+
         if self.reprocess:
-            query = 'update headers set header=%s where koaid=%s'
-            vals = (json.dumps(d), self.koaid,)
+            # check to see if the value is the headers table.
+            query_chk = 'select koaid from headers where koaid=%s'
+            result = self.db.query('koa', query_chk, values=(self.koaid,))
+
+            if result:
+                query = 'update headers set header=%s where koaid=%s'
+                vals = (json.dumps(d), self.koaid,)
+
         result = self.db.query('koa', query, values=vals)
-        if result is False: 
+
+        if not result:
             self.log_warn('HEADER_TABLE_INSERT_FAIL', query)
             return False
 
