@@ -741,6 +741,9 @@ class DEP:
         extra_meta[koaid] = self.extra_meta
         extra_meta[koaid]['FILESIZE_MB'] = self.filesize_mb
         extra_meta[koaid]['SEMID'] = self.get_semid()
+        propint = extra_meta[koaid]['PROPINT']
+        if propint != 18:
+            self.update_koa_status('propint', propint)
 
         keydefs = f"{self.config['MISC']['METADATA_TABLES_DIR']}/KOA_{self.instr}_Keyword_Table.txt"
         metaoutfile =  self.levdir + '/' + self.koaid + '.metadata.table'
