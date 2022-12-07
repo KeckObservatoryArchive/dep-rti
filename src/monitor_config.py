@@ -23,7 +23,7 @@ instr_keymap = {
         'instr'      :  'KPF',
         'trigger'    :  'LOUTFILE',
         'val'        :  None,
-        'heartbeat'  :  ['DISP1CLK', 1],
+        'heartbeat'  :  ['DISP1CLK', 5],
         'transfer'   : 1
     },
     'kcwi_fcs': {
