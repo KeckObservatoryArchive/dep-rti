@@ -121,9 +121,9 @@ class DEP:
             {'name': 'run_drp',               'crit': True},
             {'name': 'create_md5sum',         'crit': True},
             {'name': 'update_dep_stats',      'crit': True},
+            {'name': 'add_header_to_db',      'crit': False},
             {'name': 'transfer_ipac',         'crit': True},
             {'name': 'check_koapi_send',      'crit': False},
-            {'name': 'add_header_to_db',      'crit': False},
             {'name': 'copy_raw_fits',         'crit': False},
             {'name': 'run_lev1',              'crit': True},
         ]
