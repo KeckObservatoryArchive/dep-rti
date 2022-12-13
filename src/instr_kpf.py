@@ -131,6 +131,7 @@ class Kpf(instrument.Instrument):
 
         return True
 
+
     def set_wavelength(self):
         """
         Set the wavelength dependent on what detectors were used.
@@ -214,7 +215,7 @@ class Kpf(instrument.Instrument):
             log.info('set_elaptime: determining ELAPTIME from KPF ELASPED')
             elaptime = round(elasped)
         else:
-            elaptime = self._beg_end_time_diff(self)
+            elaptime = self._beg_end_time_diff()
 
         if elaptime is None:
             log.warning('set_elaptime: Could not set ELAPTIME')
