@@ -121,9 +121,9 @@ class DEP:
             {'name': 'run_drp',               'crit': True},
             {'name': 'create_md5sum',         'crit': True},
             {'name': 'update_dep_stats',      'crit': True},
+            {'name': 'add_header_to_db',      'crit': False},
             {'name': 'transfer_ipac',         'crit': True},
             {'name': 'check_koapi_send',      'crit': False},
-            {'name': 'add_header_to_db',      'crit': False},
             {'name': 'copy_raw_fits',         'crit': False},
             {'name': 'run_lev1',              'crit': True},
         ]
@@ -741,6 +741,9 @@ class DEP:
         extra_meta[koaid] = self.extra_meta
         extra_meta[koaid]['FILESIZE_MB'] = self.filesize_mb
         extra_meta[koaid]['SEMID'] = self.get_semid()
+        propint = extra_meta[koaid]['PROPINT']
+        if propint != 18:
+            self.update_koa_status('propint', propint)
 
         keydefs = f"{self.config['MISC']['METADATA_TABLES_DIR']}/KOA_{self.instr}_Keyword_Table.txt"
         metaoutfile =  self.levdir + '/' + self.koaid + '.metadata.table'
@@ -1235,7 +1238,7 @@ class DEP:
         log.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
-        cmd = f'rsync -avzR --no-t --files-from={xfrOutfile} {fromDir} {toLocation}'
+        cmd = f'rsync -avzR --no-t --compress-level=1 --files-from={xfrOutfile} {fromDir} {toLocation}'
         log.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
@@ -1300,7 +1303,6 @@ class DEP:
         Converts the primary header into a dictionary and inserts that 
         data into the json column of the headers database table.
         '''
-
         d = {}
         for key in self.fits_hdr.keys():
             if key == 'COMMENT' or key == '' or key in d.keys():
@@ -1311,11 +1313,19 @@ class DEP:
 
         query = 'insert into headers set koaid=%s, header=%s'
         vals = (self.koaid, json.dumps(d),)
+
         if self.reprocess:
-            query = 'update headers set header=%s where koaid=%s'
-            vals = (json.dumps(d), self.koaid,)
+            # check to see if the value is the headers table.
+            query_chk = 'select koaid from headers where koaid=%s'
+            result = self.db.query('koa', query_chk, values=(self.koaid,))
+
+            if result:
+                query = 'update headers set header=%s where koaid=%s'
+                vals = (json.dumps(d), self.koaid,)
+
         result = self.db.query('koa', query, values=vals)
-        if result is False: 
+
+        if not result:
             self.log_warn('HEADER_TABLE_INSERT_FAIL', query)
             return False
 
