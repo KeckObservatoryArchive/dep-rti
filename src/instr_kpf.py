@@ -131,6 +131,7 @@ class Kpf(instrument.Instrument):
 
         return True
 
+
     def set_wavelength(self):
         """
         Set the wavelength dependent on what detectors were used.

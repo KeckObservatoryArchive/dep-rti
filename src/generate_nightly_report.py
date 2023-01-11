@@ -375,8 +375,9 @@ if __name__ == '__main__':
     if dateStr:
         date = datetime.strptime(dateStr, TIME_FORMAT)
     else:
-        date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    endDate = (date + timedelta(days=1))
+        #date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        date = datetime.now() - timedelta(days=1)
+        endDate = (date + timedelta(days=2))
     instrument = args.instrument
     
     if instrument:

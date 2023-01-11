@@ -1238,7 +1238,7 @@ class DEP:
         log.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
-        cmd = f'rsync -avzR --no-t --files-from={xfrOutfile} {fromDir} {toLocation}'
+        cmd = f'rsync -avzR --no-t --compress-level=1 --files-from={xfrOutfile} {fromDir} {toLocation}'
         log.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
