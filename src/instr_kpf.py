@@ -214,7 +214,7 @@ class Kpf(instrument.Instrument):
             log.info('set_elaptime: determining ELAPTIME from KPF ELASPED')
             elaptime = round(elasped)
         else:
-            elaptime = self._beg_end_time_diff(self)
+            elaptime = self._beg_end_time_diff()
 
         if elaptime is None:
             log.warning('set_elaptime: Could not set ELAPTIME')
@@ -244,7 +244,7 @@ class Kpf(instrument.Instrument):
 
             log.info('set_elaptime: determining ELAPTIME from DATE-END - DATE-BEG')
 
-            return round(tdiff)
+            return round(tdiff.seconds)
 
         return None
 
