@@ -121,9 +121,9 @@ class DEP:
             {'name': 'run_drp',               'crit': True},
             {'name': 'create_md5sum',         'crit': True},
             {'name': 'update_dep_stats',      'crit': True},
+            {'name': 'add_header_to_db',      'crit': False},
             {'name': 'transfer_ipac',         'crit': True},
             {'name': 'check_koapi_send',      'crit': False},
-            {'name': 'add_header_to_db',      'crit': False},
             {'name': 'copy_raw_fits',         'crit': False},
             {'name': 'run_lev1',              'crit': True},
         ]
@@ -219,7 +219,8 @@ class DEP:
         """
         Creates a logger based on rootdir, instr and cur date.
         NOTE: We create a temp log file first and once we have the KOAID,
-        we will rename the logfile and change the filehandler (see dep.change_logger)
+        we will rename the logfile and change the filehandler
+            (see dep.change_logger)
         """
 
         name = 'koa_dep'
@@ -740,6 +741,9 @@ class DEP:
         extra_meta[koaid] = self.extra_meta
         extra_meta[koaid]['FILESIZE_MB'] = self.filesize_mb
         extra_meta[koaid]['SEMID'] = self.get_semid()
+        propint = extra_meta[koaid]['PROPINT']
+        if propint != 18:
+            self.update_koa_status('propint', propint)
 
         keydefs = f"{self.config['MISC']['METADATA_TABLES_DIR']}/KOA_{self.instr}_Keyword_Table.txt"
         metaoutfile =  self.levdir + '/' + self.koaid + '.metadata.table'
@@ -769,17 +773,23 @@ class DEP:
             #wrap in try since some ext headers have been found to be corrupted
             try:
                 hdu = self.fits_hdu[i]
-                if 'TableHDU' not in str(type(hdu)): continue
+                if 'TableHDU' not in str(type(hdu)) or not hdu.name:
+                    continue
 
                 #calc col widths
                 dataStr = ''
                 colWidths = []
                 for idx, colName in enumerate(hdu.data.columns.names):
-                    try:
+                    if hdu.data.formats[idx][1:].isdigit():
                         fmtWidth = int(hdu.data.formats[idx][1:])
-                    except:
+                    elif hdu.data.formats[idx][:-1].isdigit():
                         fmtWidth = int(hdu.data.formats[idx][:-1])
-                        if fmtWidth < 16: fmtWidth = 16
+                    else:
+                        fmtWidth = 16
+
+                    if fmtWidth < 16:
+                        fmtWidth = 16
+
                     colWidth = max(fmtWidth, len(colName))
                     colWidths.append(colWidth)
 
@@ -833,20 +843,18 @@ class DEP:
         '''
 
         # Skip if this entry is not for a DRP
+        print(f"status {self.status['service']}")
         if self.status['service'] != 'DRP':
             return True
 
-        #get list of koaids we are dealing with (lev1 is just one koaid)
+        # get list of koaids we are dealing with (lev1 is just one koaid)
         datadir = self.status['stage_file']
         koaids = [self.status['koaid']]
-#        if   self.level == 1: koaids = [self.status['koaid']]
-#        elif self.level == 2: koaids = self.get_unique_koaids_in_dir(datadir)
 
-        #For each koaid, get associated drp files and copy them to outdir.
-        #Keep dict of files by koaid.
+        # For each koaid, get associated drp files and copy them to outdir.
+        # Keep dict of files by koaid.
         self.drp_files = {}
         for koaid in koaids:
-#            if self.level == 2: self.koaid = koaid
             files = self.get_drp_files_list(datadir, koaid, self.level)
             if files == False:
                 self.log_error('FILE_NOT_FOUND', f"{koaid} level {self.level}")
@@ -879,9 +887,6 @@ class DEP:
                     self.log_error('FILE_COPY_ERROR', f"{srcfile} to {destfile}")
                     return False
 
-#        if self.level == 2:
-#            self.update_koa_status('status', 'WAITING')
-#
         return True
       
 
@@ -1233,7 +1238,7 @@ class DEP:
         log.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
-        cmd = f'rsync -avzR --no-t --files-from={xfrOutfile} {fromDir} {toLocation}'
+        cmd = f'rsync -avzR --no-t --compress-level=1 --files-from={xfrOutfile} {fromDir} {toLocation}'
         log.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
@@ -1292,13 +1297,11 @@ class DEP:
 
         return True
 
-
     def add_header_to_db(self):
         '''
         Converts the primary header into a dictionary and inserts that 
         data into the json column of the headers database table.
         '''
-
         d = {}
         for key in self.fits_hdr.keys():
             if key == 'COMMENT' or key == '' or key in d.keys():
@@ -1309,11 +1312,19 @@ class DEP:
 
         query = 'insert into headers set koaid=%s, header=%s'
         vals = (self.koaid, json.dumps(d),)
+
         if self.reprocess:
-            query = 'update headers set header=%s where koaid=%s'
-            vals = (json.dumps(d), self.koaid,)
+            # check to see if the value is the headers table.
+            query_chk = 'select koaid from headers where koaid=%s'
+            result = self.db.query('koa', query_chk, values=(self.koaid,))
+
+            if result:
+                query = 'update headers set header=%s where koaid=%s'
+                vals = (json.dumps(d), self.koaid,)
+
         result = self.db.query('koa', query, values=vals)
-        if result is False: 
+
+        if not result:
             self.log_warn('HEADER_TABLE_INSERT_FAIL', query)
             return False
 

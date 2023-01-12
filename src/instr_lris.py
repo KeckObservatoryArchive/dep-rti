@@ -543,7 +543,7 @@ class Lris(instrument.Instrument):
         ra      = self.get_keyword('RA')
         dec     = self.get_keyword('DEC')
         if ra == None or dec == None:
-            self.log.warning('set_wcs: Could not set WCS')
+            log.warn('set_wcs: Could not set WCS')
             return True
 
         pixcorrect = lambda x: (x/pixelscale) + 1024

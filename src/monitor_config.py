@@ -18,13 +18,12 @@ instr_keymap = {
         'heartbeat'  : ['DISPCLK', 1],
         'transfer'   : 0
     },
-
     'kpf': {
         'ktl_service':  'kpfassemble',
         'instr'      :  'KPF',
         'trigger'    :  'LOUTFILE',
         'val'        :  None,
-        'heartbeat'  :  ['ITERATION', 30],
+        'heartbeat'  :  ['DISP1CLK', 5],
         'transfer'   : 1
     },
     'kcwi_fcs': {

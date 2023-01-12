@@ -653,6 +653,7 @@ class Deimos(instrument.Instrument):
             row = self.db.query('koa', query, getOne=True)
             if row:
                 fcskoaid = row['koaid']
+                if fcskoaid == None: return True                
                 if not fcskoaid.endswith('.fits'):
                     fcskoaid = f"{fcskoaid}.fits"
 
