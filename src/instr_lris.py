@@ -102,9 +102,12 @@ class Lris(instrument.Instrument):
         Get FITS file prefix
         '''
         instr = self.get_instr()
-        if   instr == 'lrisblue': prefix = 'LB'
-        elif instr == 'lris'    : prefix = 'LR'
-        else                    : prefix = ''
+        if instr in ('lrisblue', 'lrispblue'):
+            prefix = 'LB'
+        elif instr in ('lris', 'lrispred', 'lrisp'):
+            prefix = 'LR'
+        else:
+            prefix = ''
         return prefix
 
 
@@ -116,9 +119,9 @@ class Lris(instrument.Instrument):
         #direct match (or starts with match)?
         ok = False
         instrume = self.get_keyword('INSTRUME')
-        if instrume in ('LRIS', 'LRISBLUE'):
+        if self._is_red(instrume) or self._is_blue(instrume):
             ok = True
-        if (not ok):
+        if not ok:
             self.log_error("SET_INSTR_ERROR", instrume)
         return ok
 
@@ -221,10 +224,10 @@ class Lris(instrument.Instrument):
                     if lamps == '0,0,0,0,0,1':
                         return 'flatlamp'
                     else:
-                        if instrume == 'LRIS':
+                        if self._is_red(instrume):
                             if graname != 'mirror':
                                 return 'arclamp'
-                        elif instrume == 'LRISBLUE':
+                        elif self.is_blue(instrume):
                             if grisname != 'clear':
                                 return 'arclamp'
                 else:
@@ -245,10 +248,10 @@ class Lris(instrument.Instrument):
                 if halogen == 'on':
                     return 'flatlamp'
                 elif 'on' in [neon,argon,cadmium,zinc,krypton,xenon,feargon,deuterium]:
-                    if instrume == 'LRIS':
+                    if self._is_red(instrume):
                         if graname != 'mirror':
                             return 'arclamp'
-                    elif instrume == 'LRISBLUE':
+                    elif self._is_blue(instrume):
                         if grisname != 'clear':
                             return 'arclamp'
                 elif all(element == 'off' for element in [neon,argon,cadmium,zinc,halogen,krypton,xenon,feargon,deuterium]):
@@ -271,15 +274,16 @@ class Lris(instrument.Instrument):
         grism = self.get_keyword('GRISNAME')
         grating = self.get_keyword('GRANAME')
         angle = self.get_keyword('GRANGLE')
-        instr = self.get_keyword('INSTRUME')
+        instrume = self.get_keyword('INSTRUME')
 
-        if instr == 'LRISBLUE':
+        if self._is_blue(instrume):
+
             if ('cl' in grism) or ('NB' in grism):
                 obsmode = 'IMAGING'
             else:
                 obsmode = 'SPEC'
-        elif instr == 'LRIS':
-            if (grating == 'mirror'):
+        elif self._is_red(instrume):
+            if grating == 'mirror':
                 obsmode = 'IMAGING'
             else:
                 obsmode = 'SPEC'
@@ -303,7 +307,7 @@ class Lris(instrument.Instrument):
 
         #Imaging mode
         if obsmode == 'IMAGING':
-            if instr == 'LRIS':
+            if self._is_red(instr):
                 flt = self.get_keyword('REDFILT')
                 wavearr = dict({'clear':[3500,9000],
                                 'B':[3800,5300],
@@ -322,7 +326,7 @@ class Lris(instrument.Instrument):
                                 'NB9135':[9100,9200],
                                 'NB9148':[9050,9250],
                                 'NB4325':[9050,9520]})
-            elif instr == 'LRISBLUE':
+            elif self._is_blue(instr):
                 flt = self.get_keyword('BLUFILT')
                 wavearr = dict({'clear':[3000,6500],
                                 'U':[3050,4000],
@@ -336,7 +340,7 @@ class Lris(instrument.Instrument):
 
         #Spectroscopy mode
         else:
-            if instr == 'LRIS':
+            if self._is_red(instr):
                 wlen = self.get_keyword('WAVELEN')
                 if not wlen: return True
                 wavearr = dict({'150/7500':[wlen-12288/2,wlen+12288/2],
@@ -364,7 +368,7 @@ class Lris(instrument.Instrument):
                                     '831/8200':[wlen-1900/2,wlen+1900/2],
                                     '900/5500':[wlen-1740/2,wlen+1740/2],
                                     '1200/7500':[wlen-1310/2,wlen+1310/2]})
-            elif instr == 'LRISBLUE':
+            elif self._is_blue(instr):
                 #longslit
                 if 'long_' in slitmask or 'pol_' in slitmask:
                     wavearr = dict({'300/5000':[1570,7420],
@@ -401,10 +405,10 @@ class Lris(instrument.Instrument):
         #if wavelength range encompasses dichroic cutoff
         #LRIS: minmax to wavered
         #LRISBLUE: waveblue to minmax
-        if instr == 'LRIS':
+        if self._is_red(instr):
             if waveblue < minmax:
                 waveblue = minmax
-        elif instr == 'LRISBLUE':
+        elif self._is_blue(instr):
             if wavered > minmax:
                 wavered = minmax
 
@@ -440,10 +444,10 @@ class Lris(instrument.Instrument):
 
         #red or blue?
         instr = self.get_keyword('INSTRUME')
-        if instr == 'LRISBLUE':
+        if self._is_blue(instr):
             gain = gainblue
             rn = rnblue
-        elif instr == 'LRIS':
+        elif self._is_red(instr):
             gain = gainred
             rn = rnred
 
@@ -501,7 +505,7 @@ class Lris(instrument.Instrument):
         Determine number of amplifiers
         '''
         #separate logic for LRISBLUE
-        if self.get_keyword('INSTRUME') == 'LRISBLUE':
+        if self._is_blue(self.get_keyword('INSTRUME')):
             amplist = self.get_keyword('AMPLIST', default='').strip()
             if   amplist == '1,0,0,0':  numamps = 1
             elif amplist == '2,0,0,0':  numamps = 1
@@ -530,7 +534,8 @@ class Lris(instrument.Instrument):
     def set_wcs(self):
 
         # skip for RED after upgrade (20210422)
-        if self.get_keyword('INSTRUME') == 'LRIS': return True
+        if self._is_red(self.get_keyword('INSTRUME')):
+            return True
 
         #only do this for IMAGING
         obsmode = self.get_keyword('OBSMODE')
@@ -649,7 +654,7 @@ class Lris(instrument.Instrument):
         dispersion = 0
         fwhm = 0
         instr = self.get_keyword('INSTRUME')
-        if instr ==  'LRIS':
+        if self._is_red(instr):
             grating = self.get_keyword('GRANAME')
             gratdict = dict({'150/7500':[3.00,0],
                              '300/5000':[0,9.18],
@@ -665,7 +670,7 @@ class Lris(instrument.Instrument):
                 [dispersion,fwhm] = gratdict.get(grating)
             except:
                 dispersion,fwhm = 0,0
-        elif instr == 'LRISBLUE':
+        elif self._is_blue(instr):
             grism = self.get_keyword('GRISNAME')
             grismdict = dict({'300/5000':[1.43,8.80],
                               '400/3400':[1.09,6.80],
@@ -809,7 +814,7 @@ class Lris(instrument.Instrument):
 
             #get ccdloc and adjust for type
             ccdloc = int(self.get_keyword('CCDLOC',ext=ext))
-            if self.get_keyword('INSTRUME') == 'LRISBLUE':
+            if self._is_blue(self.get_keyword('INSTRUME')):
                 ccdloc += 1
 
             #get amplifier location and adjust for type
@@ -852,7 +857,7 @@ class Lris(instrument.Instrument):
         hdr0 = hdus[0].header
 
         # is this a red file (after 2021-04-16)?
-        if hdr0['INSTRUME'] == 'LRIS':
+        if self._is_red(hdr0['INSTRUME']):
             data = hdus[0].data
 
             # use histogram equalization to increase contrast
@@ -1129,3 +1134,15 @@ class Lris(instrument.Instrument):
                 self.extra_meta['MJD-OBS'] = mjd
 
         return True
+
+    def _is_blue(self, inst_name):
+        if inst_name in ('LRISBLUE', 'LRISpBLUE'):
+            return True
+
+        return False
+
+    def _is_red(self, inst_name):
+        if inst_name in ('LRIS', 'LRISp', 'LRISpRED'):
+            return True
+
+        return False
