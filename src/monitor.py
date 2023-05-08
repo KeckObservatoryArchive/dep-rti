@@ -40,7 +40,7 @@ last_email_times = None
 PROC_CHECK_SEC = 1.0
 KTL_START_RETRY_SEC = 60.0
 SERVICE_CHECK_SEC = 60.0
-QUEUE_CHECK_SEC = 60.0
+QUEUE_CHECK_SEC = 10.0
 EMAIL_INTERVAL_MINUTES = 60
 
 
@@ -65,7 +65,7 @@ def main():
         try:
             time.sleep(300)
             monitor.log.debug(f'Monitor saying hi every 5 minutes ('
-                              f'{monitor.instr} {monitor.service_name})')
+                              f'{monitor.instr} {monitor.service_uniquename})')
         except Exception as err:
             monitor.log.debug(f'Error waking up {err}.')
             break
@@ -102,6 +102,10 @@ class Monitor:
         try:
             self.keys = monitor_config.instr_keymap[inst_mode_name]
             self.service_name = self.keys['ktl_service']
+            try:
+                self.service_uniquename = self.keys['ktl_uniquename']
+            except:
+                self.service_uniquename = self.service_name
             self.instr = self.keys['instr']
         except KeyError:
             err = f"Instrument name: {inst_mode_name}, " \
@@ -132,7 +136,7 @@ class Monitor:
 
     def monitor_start(self):
         # run KTL monitor for service
-        self.monitor = KtlMonitor(self.service_name, self.keys, self, self.log)
+        self.monitor = KtlMonitor(self.service_name, self.service_uniquename, self.keys, self, self.log)
         self.monitor.start()
 
         # start interval to monitor DEP processes for completion
@@ -156,9 +160,10 @@ class Monitor:
                 # reconnect to the database,  the delete interrupts connection
                 self._connect_db()
 
-        # If we removed any jobs, check queue
-        if removed:
-            self.check_queue()
+# This has been causing race conditions with KTL and the DB - not needed
+#        # If we removed any jobs, check queue
+#        if removed:
+#            self.check_queue()
 
         # call this function every N seconds
         # NOTE: we could do this faster
@@ -180,7 +185,7 @@ class Monitor:
         now = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         query = ("insert into koa_status set level=0,"
                 f"   instrument='{self.instr}' "
-                f" , service='{self.service_name}' "
+                f" , service='{self.service_uniquename}' "
                 f" , ofname='{filepath}' "
                 f" , status='QUEUED' "
                 f" , creation_time='{now}' ")
@@ -254,7 +259,7 @@ class Monitor:
         query = (f"select * from koa_status where level=0 "
                  f" and status='QUEUED' "
                  f" and instrument='{self.instr}' "
-                 f" and service='{self.service_name}' "
+                 f" and service='{self.service_uniquename}' "
                  f" order by creation_time asc limit 1")
 
         row = self._get_db_result('koa', query, get_one=True)
@@ -359,7 +364,7 @@ class Monitor:
 
         # always log/print
         self.log.error(f'{errcode}: {text}')
-        handle_error(errcode, text, self.instr, self.service_name, check_time)
+        handle_error(errcode, text, self.instr, self.service_uniquename, check_time)
 
     def _get_db_result(self, db_name, query, get_one=False, retry=True):
         result = self.db.query(db_name, query, getOne=get_one)
@@ -383,9 +388,10 @@ class KtlMonitor:
         queue_mgr (obj): Class object that contains callback 'add_to_queue' function.
         log (obj): logger object
     '''
-    def __init__(self, service_name, keys, queue_mgr, log):
+    def __init__(self, service_name, service_uniquename, keys, queue_mgr, log):
         self.log = log
         self.service_name = service_name
+        self.service_uniquename = service_uniquename
         self.keys = keys
         self.queue_mgr = queue_mgr
         self.service = None
@@ -394,7 +400,8 @@ class KtlMonitor:
         self.resuscitations = None
         self.instr = keys['instr']
         self.log.info(f"KtlMonitor: instr: {self.instr}, service: "
-                      f"{service_name}, trigger: {keys['trigger']}")
+                      f"{service_name}, name: {service_uniquename}, "
+                      f"trigger: {keys['trigger']}")
         self.delay = 0.25
         if 'delay' in self.keys.keys(): self.delay = self.keys['delay']
 
@@ -447,15 +454,15 @@ class KtlMonitor:
             kw = self.service[hb]
             kw.read(timeout=1)
             if self.service.resuscitations != self.resuscitations:
-                self.log.debug(f"KTL service {self.service_name} resuscitations changed.")
+                self.log.debug(f"KTL service {self.service_uniquename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
         except Exception as e:
             self.check_failed = True
-            self.log.debug(f"{self.instr} KTL service '{self.service_name}' heartbeat read failed.")
-            self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.service_name)
+            self.log.debug(f"{self.instr} KTL service '{self.service_uniquename}' heartbeat read failed.")
+            self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.service_uniquename)
         else:
             if self.check_failed:
-                self.log.debug(f"KTL service {self.service_name} read successful after prior failure.")
+                self.log.debug(f"KTL service {self.service_uniquename} read successful after prior failure.")
             self.check_failed = False
         finally:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
