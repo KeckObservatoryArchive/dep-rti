@@ -398,8 +398,10 @@ class DEP:
     def check_koaid_db_entry(self):
 
         #Query for existing KOAID record
+        service = self.status['service']
         query = (f"select * from koa_status "
-                 f" where level={self.level} and koaid='{self.koaid}'")
+                 f" where level={self.level} and koaid='{self.koaid}'"
+                 f" and service='{service}'")
         rows = self.db.query('koa', query)
         if rows is False:
             self.log_error('QUERY_ERROR', query)
