@@ -42,6 +42,14 @@ instr_keymap = {
         'heartbeat'  : ['ITERATION', 1],
         'transfer'   : 1
     },
+    'kcwi_red': {
+        'ktl_service': 'krds',
+        'instr'      : 'KCWI',
+        'trigger'    : 'LOUTFILE',
+        'val'        : None,
+        'heartbeat'  : ['ITERATION', 1],
+        'transfer'   : 1
+    },
 
     'nires_img': {
         'ktl_service': 'nids',

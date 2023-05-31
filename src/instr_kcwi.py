@@ -15,7 +15,6 @@ from skimage import exposure
 import traceback
 import glob
 from pathlib import Path
-
 import logging
 log = logging.getLogger('koa_dep')
 
@@ -203,22 +202,31 @@ class Kcwi(instrument.Instrument):
 
         slicer = self.get_keyword('IFUNAM').lower()
         camera = self.get_keyword('CAMERA')
-        bcwave = self.get_keyword('BCWAVE', default=0)
-        #lowercase camera if not None
-        try:
-            camera = camera.lower()
-        except:
-            pass
         binning = self.get_keyword('BINNING')
-        gratname = self.get_keyword('BGRATNAM').lower()
-        nodmask = self.get_keyword('BNASNAM').lower()
-        
+        #lowercase camera if not None
+        camera = camera.lower() if camera is not None else camera
+
+        prefix = "R" if camera=="red" else "B"
+        cwave = self.get_keyword(prefix+'CWAVE', default=0)
+        gratname = self.get_keyword(prefix+'GRATNAM').lower()
+        nodmask = self.get_keyword(prefix+'NASNAM').lower()
         # Configuration for KB
-        configurations = {'bl' : {'waves':2000, 'large':900, 'medium':1800, 'small':3600},
-                  'bm' : {'waves':850, 'large':2000, 'medium':4000, 'small':8000},
-                  'bh3' : {'waves':500, 'large':4500, 'medium':9000, 'small':18000},
-                  'bh2' : {'waves':405, 'large':4500, 'medium':9000, 'small':18000},
-                  'bh1' : {'waves':400, 'large':4500, 'medium':9000, 'small':18000}}
+        #TODO: verify red side values
+        configurations = {
+                          'bl'  : {'waves':2000, 'large':900, 'medium':1800, 'small':3600},
+                          'bm'  : {'waves':850, 'large':2000, 'medium':4000, 'small':8000},
+                          'bh3' : {'waves':500, 'large':4500, 'medium':9000, 'small':18000},
+                          'bh2' : {'waves':405, 'large':4500, 'medium':9000, 'small':18000},
+                          'bh1' : {'waves':400, 'large':4500, 'medium':9000, 'small':18000},
+                          #TODO: verify these numbers are accurate.
+                          #'rl'  : {'waves':275, 'large': 500, 'medium':1000, 'small':2000},
+                          #'rm1' : {'waves':145, 'large':1400, 'medium':2800, 'small':5600},
+                          #'rm2' : {'waves':190, 'large':1400, 'medium':2800, 'small':5600},
+                          #'rh4' : {'waves':80, 'large':3250, 'medium':6500, 'small':13000},
+                          #'rh3' : {'waves':90, 'large':3250, 'medium':6500, 'small':13000},
+                          #'rh2' : {'waves':75, 'large':3250, 'medium':6500, 'small':13000},
+                          #'rh1' : {'waves':60, 'large':3250, 'medium':6500, 'small':13000}
+                          }
         
         # Slit width by slicer, slit length is always 20.4"
         slits = {'large':'1.35', 'medium':'0.69', 'small':'0.35'}
@@ -227,8 +235,8 @@ class Kcwi(instrument.Instrument):
             slitlen = 20.4
         #get wavelengths from configuration dictionary
         if gratname in configurations.keys() and slicer in slits.keys():
-            if bcwave > 0:
-                wavecntr = round(bcwave)
+            if cwave > 0:
+                wavecntr = round(cwave)
                 waveblue = round(wavecntr - configurations.get(gratname)['waves']/2)
                 wavered  = round(wavecntr + configurations.get(gratname)['waves']/2)
             specres = configurations.get(gratname)[slicer]
@@ -239,7 +247,8 @@ class Kcwi(instrument.Instrument):
                 wavered = wavecntr + diff
         
         # Camera plate scale, arcsec/pixel unbinned
-        pscale = {'fpc':0.0075, 'blue':0.147}
+        #TODO verify pscale for red
+        pscale = {'fpc':0.0075, 'blue':0.147, 'red': 0.147}
         if camera in pscale.keys():
             try:
                 dispscal = pscale.get(camera) * binning

@@ -19,7 +19,7 @@ INST_MAPPING = {
                  'DEIMOS': {'DE', 'DF'},
                  'ESI': {'EI'},
                  'HIRES': {'HI'},
-                 'KCWI': {'KB', 'KF'}, 
+                 'KCWI': {'KB', 'KF', 'KR'}, 
                  'LRIS': {'LB', 'LR'},
                  'MOSFIRE': {'MF'},
                  'OSIRIS': {'OI', 'OS'},
