@@ -371,7 +371,7 @@ class Monitor:
         if result is False and retry:
             self.log.debug("try reconnecting to database")
             self._connect_db()
-            self._get_db_result(db_name, query, get_one=get_one, retry=False)
+            result = self._get_db_result(db_name, query, get_one=get_one, retry=False)
 
         return result
 
