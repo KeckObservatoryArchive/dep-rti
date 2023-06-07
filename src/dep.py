@@ -1291,7 +1291,6 @@ class DEP:
                 apiUrl = f'{apiUrl}&reingest=true'
             if not self.rtui:
                 apiUrl = f'{apiUrl}&rtui=false'
-            print(apiUrl)
 
 
             log.info(f'sending ingest API call {apiUrl}')
