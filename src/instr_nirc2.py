@@ -102,7 +102,8 @@ class Nirc2(instrument.Instrument):
         if koaid:
             if len(self.fits_hdu) > 1:
                 self.isImageCube = True
-                koaid += '_raw'
+                koaid += '_unp'
+                self.rtui = False
 
         return koaid
 

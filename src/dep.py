@@ -66,6 +66,7 @@ class DEP:
         self.config = None
         self.db = None
         self.filesize_mb = 0.0
+        self.rtui = True
 
     def __del__(self):
 
@@ -409,7 +410,8 @@ class DEP:
 
         #If entry exists and we are not reprocessing, return error
         if len(rows) > 0 and not self.reprocess:
-            self.log_invalid('DUPLICATE_KOAID')
+#            self.log_invalid('DUPLICATE_KOAID')
+            self.log_warn('DUPLICATE_KOAID', "KOAID already exists.")
             return False
 
         #Now that KOAID check is passed, update koa_status.koaid
@@ -787,7 +789,7 @@ class DEP:
                     elif hdu.data.formats[idx][:-1].isdigit():
                         fmtWidth = int(hdu.data.formats[idx][:-1])
                     else:
-                        fmtWidth = 16
+                        fmtWidth = 24
 
                     if fmtWidth < 16:
                         fmtWidth = 16
@@ -1016,7 +1018,7 @@ class DEP:
             self.copy_raw_fits(invalid=True)
 
         #call check_dep_status_errors
-        if status == 'ERROR' and not self.dev:
+        if (status == 'ERROR' or status == 'WARN') and not self.dev:
             check_dep_status_errors.main(dev=self.dev, admin_email=self.config['REPORT']['ADMIN_EMAIL'])
 
 
@@ -1287,6 +1289,9 @@ class DEP:
                     apiUrl = f'{apiUrl}&koaid={self.koaid}'
             if self.reprocess:
                 apiUrl = f'{apiUrl}&reingest=true'
+            if not self.rtui:
+                apiUrl = f'{apiUrl}&rtui=false'
+
 
             log.info(f'sending ingest API call {apiUrl}')
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')

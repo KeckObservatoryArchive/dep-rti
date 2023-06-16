@@ -40,7 +40,7 @@ last_email_times = None
 PROC_CHECK_SEC = 1.0
 KTL_START_RETRY_SEC = 60.0
 SERVICE_CHECK_SEC = 60.0
-QUEUE_CHECK_SEC = 10.0
+QUEUE_CHECK_SEC = 30.0
 EMAIL_INTERVAL_MINUTES = 60
 
 
@@ -371,7 +371,7 @@ class Monitor:
         if result is False and retry:
             self.log.debug("try reconnecting to database")
             self._connect_db()
-            self._get_db_result(db_name, query, get_one=get_one, retry=False)
+            result = self._get_db_result(db_name, query, get_one=get_one, retry=False)
 
         return result
 
