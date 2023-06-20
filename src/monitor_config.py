@@ -34,6 +34,14 @@ instr_keymap = {
         'heartbeat'  : ['ITERATION', 30],
         'transfer'   : 1
     },
+    'kcwi_svs': {
+        'ktl_service': 'ksvs',
+        'instr'      : 'KCWI',
+        'trigger'    : 'LASTFILE',
+        'val'        : None,
+        'heartbeat'  : ['ITERATION', 30],
+        'transfer'   : 1
+    },
     'kcwi_blue': {
         'ktl_service': 'kbds',
         'instr'      : 'KCWI',
