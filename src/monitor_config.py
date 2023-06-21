@@ -151,9 +151,9 @@ instr_keymap = {
         'transfer'      : 1
     },
 
-    'nirc2_raw': {
+    'nirc2_unp': {
         'ktl_service'  : 'alad',
-        'ktl_uniquename': 'alad_nirc2_raw',
+        'ktl_uniquename': 'alad_nirc2_unp',
         'instr'         : 'NIRC2',
         'trigger'      : 'RAWFITSFILE',
         'val'           : None,
