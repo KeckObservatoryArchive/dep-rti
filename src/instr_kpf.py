@@ -278,6 +278,11 @@ class Kpf(instrument.Instrument):
         if not imtype:
             return 'undefined'
 
+        # handle the SoCal files
+        if imtype == 'Object':
+            if self.get_keyword('OBJECT') == 'SoCal':
+                return 'solar'
+
         imtype = imtype.lower()
         if imtype in allowed:
             return imtype
