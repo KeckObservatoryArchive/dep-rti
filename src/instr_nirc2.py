@@ -101,7 +101,7 @@ class Nirc2(instrument.Instrument):
         koaid = super().make_koaid()
         if koaid:
             # FILETYPE = unprocessed/processed
-            filetype = self.get_keyword('FILETYPE')
+            filetype = self.get_keyword('LEV0TYPE')
             # For case before FILETYPE existed
             if filetype == None:
                 if len(self.fits_hdu) > 1:
