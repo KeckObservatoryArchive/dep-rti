@@ -507,8 +507,8 @@ class KtlMonitor:
                 filepath = f'/s{filepath}'
 
             # check for invalid filepath
-            if '/sdata' not in filepath:
-                self.log.error(f"INVALID FILEPATH (no 'sdata')\t{self.instr}\t{keyword.service}\t{filepath}")
+            if '/sdata' not in filepath and '/operations' not in filepath:
+                self.log.error(f"INVALID FILEPATH (no 'sdata' or 'operations')\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
             if '/osiris/test/' in filepath:
                 self.log.error(f"INVALID FILEPATH\t{self.instr}\t{keyword.service}\t{filepath}")
