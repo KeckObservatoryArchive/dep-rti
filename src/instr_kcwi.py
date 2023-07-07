@@ -84,6 +84,8 @@ class Kcwi(instrument.Instrument):
                     prefix = 'KR'
                 elif camera == 'fpc':
                     prefix = 'KF'
+                elif camera == 'svc':
+                    prefix = 'KS'
                 else:
                     prefix = ''
             except:
@@ -158,6 +160,8 @@ class Kcwi(instrument.Instrument):
             camera = ''
         if camera == 'fpc':
             koaimtyp = 'fpc'
+        elif camera == 'svc':
+            koaimtyp = 'svc'
         elif self.get_keyword('XPOSURE') == 0.0:
             koaimtyp = 'bias'
         elif self.get_keyword('IMTYPE'):
@@ -247,7 +251,7 @@ class Kcwi(instrument.Instrument):
                 wavered = wavecntr + diff
         
         # Camera plate scale, arcsec/pixel unbinned
-        #TODO verify pscale for red
+        #TODO verify pscale for red, svc
         pscale = {'fpc':0.0075, 'blue':0.147, 'red': 0.147}
         if camera in pscale.keys():
             try:
