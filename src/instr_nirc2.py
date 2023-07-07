@@ -100,8 +100,16 @@ class Nirc2(instrument.Instrument):
         '''
         koaid = super().make_koaid()
         if koaid:
-            if len(self.fits_hdu) > 1:
-                self.isImageCube = True
+            # FILETYPE = unprocessed/processed
+            filetype = self.get_keyword('LEV0TYPE')
+            # For case before FILETYPE existed
+            if filetype == None:
+                if len(self.fits_hdu) > 1:
+                    self.isImageCube = True
+            else:
+                if filetype.lower() == 'unprocessed':
+                    self.isImageCube = True
+            if self.isImageCube == True:
                 koaid += '_unp'
                 self.rtui = False
 

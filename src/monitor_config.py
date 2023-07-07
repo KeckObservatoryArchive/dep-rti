@@ -34,6 +34,14 @@ instr_keymap = {
         'heartbeat'  : ['ITERATION', 30],
         'transfer'   : 1
     },
+    'kcwi_svs': {
+        'ktl_service': 'ksvs',
+        'instr'      : 'KCWI',
+        'trigger'    : 'LASTFILE',
+        'val'        : None,
+        'heartbeat'  : ['ITERATION', 30],
+        'transfer'   : 1
+    },
     'kcwi_blue': {
         'ktl_service': 'kbds',
         'instr'      : 'KCWI',
@@ -143,9 +151,9 @@ instr_keymap = {
         'transfer'      : 1
     },
 
-    'nirc2_raw': {
+    'nirc2_unp': {
         'ktl_service'  : 'alad',
-        'ktl_uniquename': 'alad_nirc2_raw',
+        'ktl_uniquename': 'alad_nirc2_unp',
         'instr'         : 'NIRC2',
         'trigger'      : 'RAWFITSFILE',
         'val'           : None,
@@ -188,5 +196,24 @@ instr_keymap = {
         'val'           : None,
         'heartbeat'     : ['ITERATION', 1],
         'transfer'      : 1
+    },
+    'guiderk1': {
+        'ktl_service':  'koa',
+        'instr'      :  'GUIDER',
+        'ktl_uniquename': 'koa_guider_k1',
+        'trigger'    :  'K1GUIDERFILE',
+        'val'        :   None,
+        'heartbeat'  :   ['DISPCLK', 5],
+        'transfer'   :   0
+    },
+
+    'guiderk2': {
+        'ktl_service':  'koa',
+        'instr'      :  'GUIDER',
+        'ktl_uniquename': 'koa_guider_k2',
+        'trigger'    :  'K2GUIDERFILE',
+        'val'        :   None,
+        'heartbeat'  :   ['DISPCLK', 5],
+        'transfer'   :   0
     }
 }
