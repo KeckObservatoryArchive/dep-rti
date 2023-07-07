@@ -139,7 +139,7 @@ class Guider(instrument.Instrument):
         too = self.get_api_data(f'{api}cmd=getToORequest&date={self.hstdate}')
         sched = []
         for entry in too:
-            if entry['Instrument'] != instrument:
+            if entry['Instrument'] != instr:
                 continue
             proj = {}
             proj['Type'] = 'ToO'
