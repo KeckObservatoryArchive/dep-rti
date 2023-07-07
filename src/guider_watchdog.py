@@ -79,10 +79,10 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
             if has_camname == True:
                 if self.telnr == 1:
                     ktl_keyword = 'koa.lastfile'
-                    ktl_keyword_name = 'LASTFILE'
+                    ktl_keyword_name = 'K1GUIDERFILE'
                 else:
                     ktl_keyword = 'koa.loutfile'
-                    ktl_keyword_name = 'LOUTFILE'
+                    ktl_keyword_name = 'K2GUIDERFILE'
                
             if result not in ('ssc','pcs') and not os.path.islink(event.src_path):
                 keyword = ktl.cache(ktl_keyword)
