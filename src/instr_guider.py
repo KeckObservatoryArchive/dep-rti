@@ -82,7 +82,7 @@ class Guider(instrument.Instrument):
         # Check to see if one exists in the original directory.  If not, create it.
         jpg = self.status['ofname'].replace('.fits', '.jpg')
         if os.path.isfile(jpg):
-            log.info('Copying ', jpg)
+            log.info(f'Copying {jpg}')
             outfile = f"{self.dirs['lev0']}/{self.koaid}.jpg"
             shutil.copy(jpg, outfile)
         else:
