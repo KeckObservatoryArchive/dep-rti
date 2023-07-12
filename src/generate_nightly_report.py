@@ -184,7 +184,9 @@ def make_report(instrument,
                 numLev0DBFiles,
                 numLev1DBFiles,
                 numLev2DBFiles,
-                missingFiles):
+                missingFiles,
+                debug
+               ):
     strDirs = ",\n\t".join(dirs)
 
     dateStr = datetime.strftime(date, '%Y-%m-%d')
@@ -225,7 +227,7 @@ def make_report(instrument,
             report += f"""    Number of nscam FITS in OUTDIRS:\t {numNscam}\n"""
 
     missingFiles.sort()
-    if len(missingFiles) > 50:
+    if len(missingFiles) > 50 and not debug:
         missingFiles = missingFiles[0:49]
         strMissingFiles = ",\n\t".join(missingFiles[0:49]).replace(' ', '')
         strMissingFiles += "\n\t and more..."
@@ -335,7 +337,8 @@ def generate_report(instrument, date, debug=False):
                          numLev0DBFiles,
                          numLev1DBFiles,
                          numLev2DBFiles,
-                         missingFiles
+                         missingFiles,
+                         debug
                         )
 
     numFilesTotal = filesDict.get('numFiles')
@@ -374,6 +377,7 @@ if __name__ == '__main__':
     dateStr = args.date
     if dateStr:
         date = datetime.strptime(dateStr, TIME_FORMAT)
+        endDate = (date + timedelta(days=2))
     else:
         #date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         date = datetime.now() - timedelta(days=1)

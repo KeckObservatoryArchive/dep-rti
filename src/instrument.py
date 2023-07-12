@@ -1097,9 +1097,9 @@ class Instrument(dep.DEP):
         # level 2 (note: includes level 1 stuff, see above)
         if level == 2:
             searchfiles = [
-                f"{datadir}/{maskConfig}.calib",
-                f"{datadir}/{maskConfig}.log",
-                f"{datadir}/{maskConfig}.pypeit"
+                f"{datadir}/../{maskConfig}.calib",
+                f"{datadir}/../{maskConfig}.log",
+                f"{datadir}/../{maskConfig}.pypeit"
             ]
             for f in searchfiles:
                 if os.path.isfile(f): files.append(f)

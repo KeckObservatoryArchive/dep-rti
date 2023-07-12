@@ -9,7 +9,7 @@ import scipy.stats
 import os
 import subprocess
 from socket import gethostname
-
+from common import *
 import logging
 log = logging.getLogger('koa_dep')
 
@@ -23,6 +23,7 @@ class Nirc2(instrument.Instrument):
         # Set any unique keyword index values here
         self.keymap['OFNAME'] = 'FILENAME'
 
+        self.isImageCube = False
 
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
@@ -84,11 +85,41 @@ class Nirc2(instrument.Instrument):
         '''
         Check OUTDIR to verify NIRC2 and add INSTRUME
         '''
+        if self.get_keyword('INSTRUME', default='') != '':
+            return True
         if 'nirc' in self.get_keyword('OUTDIR'):
             #update instrument
             self.set_keyword('INSTRUME', 'NIRC2', 'KOA: Instrument')
 
         return True
+
+    def make_koaid(self):
+        '''
+        Calls the main class make_koaid() and updates koaid,
+        if needed, for raw image cube files.
+        '''
+        koaid = super().make_koaid()
+        if koaid:
+            # FILETYPE = unprocessed/processed
+            filetype = self.get_keyword('LEV0TYPE')
+            # For case before FILETYPE existed
+            if filetype == None:
+                if len(self.fits_hdu) > 1:
+                    self.isImageCube = True
+            else:
+                if filetype.lower() == 'unprocessed':
+                    self.isImageCube = True
+            if self.isImageCube == True:
+                koaid += '_unp'
+                self.rtui = False
+
+        return koaid
+
+    def set_image_stats(self):
+        # Skip if this an image cube
+        if self.isImageCube:
+            return True
+        return super().set_image_stats()
 
     def set_koaimtyp(self):
         '''
@@ -96,7 +127,29 @@ class Nirc2(instrument.Instrument):
         Calls get_koaimtyp for algorithm
         '''
 
-        koaimtyp = self.get_koaimtyp()
+        # New for the NIRC2 upgrade - use IMTYPE first
+        imtype = self.get_keyword('IMTYPE')
+
+        #map to KOAIMTYP value
+        koaimtyp = 'undefined'
+        validValsMap = {
+            'arclamp'    : 'arclamp',
+            'bias'       : 'bias',
+            'calib'      : 'calib',
+            'dark'       : 'dark',
+            'domeflat'   : 'domeflat',
+            'flatlamp'   : 'flatlamp',
+            'flatlampoff': 'flatlampoff',
+            'object'     : 'object',
+        }
+
+        if (imtype != None and imtype.lower() in validValsMap):
+            koaimtyp = validValsMap[imtype.lower()]
+
+        #use algorithm
+        else:
+            koaimtyp = self.get_koaimtyp()
+
         if (koaimtyp == 'undefined'):
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
@@ -216,6 +269,10 @@ class Nirc2(instrument.Instrument):
         '''
         Set the WCS keywords for NIRC2 images
         '''
+        # Skip if this an image cube
+        if self.isImageCube:
+            return True
+
         pixscale = radecsys = wcsdim = 'null'
         crval1 = crval2 = crpix1 = crpix2 = 'null'
         cd1_1 = cd1_2 = cd2_1 = cd2_2 = 'null'
@@ -260,9 +317,8 @@ class Nirc2(instrument.Instrument):
             pixscale = {'narrow':0.009952, 'medium':0.019829, 'wide':0.039686}
             pazero = {'narrow':0.448, 'medium':0.7, 'wide':0.7} # narrow = 0.7-0.252, correction from Yelda etal 2010
 
-            crval1 = rakey
-            crval2 = deckey
-
+            crval1 = convert_ra_dec_to_degrees('RA', rakey)
+            crval2 = convert_ra_dec_to_degrees('DEC', deckey)
 
             sign = 1
             pa = pa1 - pazero[camname]
@@ -387,6 +443,10 @@ class Nirc2(instrument.Instrument):
 
 
     def set_npixsat(self):
+        # Skip if this an image cube
+        if self.isImageCube:
+            return True
+
         satVal = self.get_keyword('COADDS')*18000.0
         return super().set_npixsat(satVal=satVal)
 
@@ -395,6 +455,10 @@ class Nirc2(instrument.Instrument):
         '''
         Determines number of saturated pixels above linearity, adds NLINEAR to header
         '''
+        # Skip if this an image cube
+        if self.isImageCube:
+            return True
+
         if satVal == None:
             satVal = self.get_keyword('COADDS')*5000.0            
         if satVal == None:
@@ -413,6 +477,10 @@ class Nirc2(instrument.Instrument):
         '''
         Calculates S/N for CCD image
         '''
+        # Skip if this an image cube
+        if self.isImageCube:
+            return True
+
         image = self.fits_hdu[0].data
 
         naxis1 = self.get_keyword('NAXIS1')
@@ -447,7 +515,6 @@ class Nirc2(instrument.Instrument):
         drp = self.config[self.instr]['DRP']
         if os.path.isfile(drp):
             drp = f"{drp} {self.dirs['output']}"
-            print(drp)
 
             cmd = []
             for word in drp.split(' '):
@@ -496,6 +563,13 @@ class Nirc2(instrument.Instrument):
         return False
 
 
+    def make_jpg(self):
+        # Skip if this an image cube
+        if self.isImageCube:
+            return True
+        return super().make_jpg()
+
+
     def get_drp_files_list(self, datadir, koaid, level):
         '''
         Return list of files to archive for DRP specific to NIRC2.
@@ -515,7 +589,6 @@ class Nirc2(instrument.Instrument):
                 f"{datadir}/{koaid}_drp.jpg"
             ]
             for f in searchfiles:
-                print(f)
                 if os.path.isfile(f): files.append(f)
 
         if len(files) == 0:

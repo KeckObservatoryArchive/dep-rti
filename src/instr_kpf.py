@@ -271,12 +271,17 @@ class Kpf(instrument.Instrument):
     def _get_koaimtype(self):
 
         allowed = ('object', 'bias', 'dark', 'arclamp', 'flatlamp',
-                   'domeflat', 'twiflat', 'undefined')
+                   'domeflat', 'twiflat', 'solar', 'undefined')
 
         # if instrument not defined, return
         imtype = self.get_keyword('IMTYPE')
         if not imtype:
             return 'undefined'
+
+        # handle the SoCal files
+        if imtype == 'Object':
+            if self.get_keyword('OBJECT') == 'SoCal':
+                return 'solar'
 
         imtype = imtype.lower()
         if imtype in allowed:
