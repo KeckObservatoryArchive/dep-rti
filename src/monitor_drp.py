@@ -40,7 +40,7 @@ from archive import Archive
 last_email_times = None
 PROC_CHECK_SEC = 1.0
 QUEUE_CHECK_SEC = 30.0
-MAX_PROCESSES = 5
+MAX_PROCESSES = 1
 
 
 
@@ -172,7 +172,7 @@ class Monitor():
 
         #check that we have not exceeded max num procs
         if len(self.procs) >= MAX_PROCESSES:
-            self.handle_error('MAX_PROCESSES', MAX_PROCESSES)
+#            self.handle_error('MAX_PROCESSES', MAX_PROCESSES)
             return
 
         #set status to PROCESSING

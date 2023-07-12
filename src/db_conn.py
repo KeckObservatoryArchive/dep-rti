@@ -112,6 +112,7 @@ class db_conn(object):
 
         result = False
         cursor = None
+        conn   = None
 
         try:
             # determine query type and check for read only restriction

@@ -305,8 +305,11 @@ class Lris(instrument.Instrument):
         grism = self.get_keyword('GRISNAME')
         slitmask = str(self.get_keyword('SLITMASK', default=''))
 
+        wavearr = {}
+        
         #Imaging mode
         if obsmode == 'IMAGING':
+            flt = ''
             if self._is_red(instr):
                 flt = self.get_keyword('REDFILT')
                 wavearr = dict({'clear':[3500,9000],

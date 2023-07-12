@@ -336,6 +336,8 @@ class Metadata():
     def convert_type(self, val, vtype):
         '''convert to either integer or float if vtype specifies'''
         try:
+            if vtype in ['integer', 'double'] and val == None:
+                return 'null'
             if vtype=='integer':
                 return int(val)
             elif vtype=='double':

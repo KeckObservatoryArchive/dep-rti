@@ -72,3 +72,64 @@ def get_progid_assign(assigns, utc):
             return progid
     return parts[-1]
 
+
+def convert_ra_dec_to_sexigesimal(coord, value):
+    ''' Convert a float value to sexigecimal'''
+
+    if not isinstance(value, (float,int)):
+        return value
+
+    # Convert from degrees to hours
+    if coord != 'DEC':
+        value = value / 15.0
+
+    # Check sign for negative declinations
+    sign = ''
+    if value < 0:
+        sign = '-'
+        value = value * -1
+
+    # Convert to HH:MM:SS.SS or DD:MM:SS.SS
+    hour_deg = int(value)
+    value = (value - hour_deg) * 60
+    minutes = int(value)
+    value = (value - minutes) * 60
+    seconds = round(value, 2)
+    hour_deg = str(hour_deg).zfill(2)
+    minutes  = str(minutes).zfill(2)
+    seconds  = str(seconds).zfill(2)
+    return f"{sign}{hour_deg}:{minutes}:{seconds}"
+
+
+def convert_ra_dec_to_degrees(coord, value):
+    ''' Convert a float value to sexigecimal'''
+
+    if not isinstance(value, (str)):
+        return value
+
+    # Split by :
+    split = value.split(':')
+    if len(split) != 3:
+        return value
+    split[0] = int(split[0])
+    split[1] = int(split[1])
+    split[2] = float(split[2])
+
+    # Handle the sign
+    sign = 1
+    if split[0] < 0:
+        sign = -1
+        split[0] = split[0] * sign
+
+    # Combine to a double
+    newValue = split[0] + (split[1]/60.0) + (split[2]/3600.0)
+
+    # Convert from hours to degrees
+    if coord != 'DEC':
+        newValue = newValue * 15.0
+
+    # Check sign
+    newValue = newValue * sign
+
+    return newValue
+
