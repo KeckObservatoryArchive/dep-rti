@@ -271,7 +271,7 @@ class Kpf(instrument.Instrument):
     def _get_koaimtype(self):
 
         allowed = ('object', 'bias', 'dark', 'arclamp', 'flatlamp',
-                   'domeflat', 'twiflat', 'solar', 'undefined')
+                   'domeflat', 'twiflat', 'undefined')
 
         # if instrument not defined, return
         imtype = self.get_keyword('IMTYPE')

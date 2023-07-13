@@ -676,7 +676,7 @@ class DEP:
         #delete files matching KOAID*
         try:
             log.info(f'Deleting local files in {self.levdir}')
-            for path in Path(self.levdir).rglob(f'*{self.koaid}*'):
+            for path in Path(self.levdir).rglob(f'*{self.koaid}.*'):
                 path = str(path)
                 log.info(f"removing file: {path}")
                 os.remove(path)
@@ -923,7 +923,9 @@ class DEP:
             if self.level == 0:
                 md5Outfile = f'{outdir}/{self.koaid}.md5sum.table'
                 log.info(f'Creating {md5Outfile}')
-                make_dir_md5_table(outdir, None, md5Outfile, regex=self.koaid)
+                # Now that KOAID can have _[value], need the ending .
+                kid = f'{self.koaid}\.'
+                make_dir_md5_table(outdir, None, md5Outfile, regex=kid)
                 self.xfr_files.append(md5Outfile)                
             elif self.level in (1, 2):
                 for koaid, files in self.drp_files.items():
@@ -1147,7 +1149,7 @@ class DEP:
         '''Recursive search for all files with KOAID in filename.'''
         search = f"{self.levdir}/{self.koaid}*"
         files = []
-        for path in Path(self.levdir).rglob(f'*{self.koaid}*'):
+        for path in Path(self.levdir).rglob(f'*{self.koaid}.*'):
             path = str(path)
             if f"{self.koaid}.log" in path:
                 continue

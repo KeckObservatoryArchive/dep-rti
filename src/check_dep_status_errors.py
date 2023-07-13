@@ -56,7 +56,7 @@ def main(dev=False, admin_email=None, slack=False):
     #query for any records that have blank status but have status code.
     q = ("select instrument, count(*) as count, status_code from koa_status "
 #         " where status='COMPLETE' and status_code is not NULL and status_code != '' "
-         " where status in ('PROCESSING','TRANSFERRING','TRANFERRED','COMPLETE') and status_code is not NULL and status_code != '' "
+         " where status in ('PROCESSING','TRANSFERRING','TRANFERRED','COMPLETE') and status_code<>'' "
          "  and reviewed=0 "
          " group by instrument, status_code order by instrument asc")
     warns = db.query('koa', q)
