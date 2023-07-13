@@ -1149,7 +1149,7 @@ class DEP:
         '''Recursive search for all files with KOAID in filename.'''
         search = f"{self.levdir}/{self.koaid}*"
         files = []
-        for path in Path(self.levdir).rglob(f'*{self.koaid}\.*'):
+        for path in Path(self.levdir).rglob(f'*{self.koaid}.*'):
             path = str(path)
             if f"{self.koaid}.log" in path:
                 continue
