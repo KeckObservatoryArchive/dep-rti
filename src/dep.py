@@ -923,7 +923,9 @@ class DEP:
             if self.level == 0:
                 md5Outfile = f'{outdir}/{self.koaid}.md5sum.table'
                 log.info(f'Creating {md5Outfile}')
-                make_dir_md5_table(outdir, None, md5Outfile, regex=self.koaid)
+                # Now that KOAID can have _[value], need the ending .
+                kid = f'{self.koaid}\.'
+                make_dir_md5_table(outdir, None, md5Outfile, regex=kid)
                 self.xfr_files.append(md5Outfile)                
             elif self.level in (1, 2):
                 for koaid, files in self.drp_files.items():
