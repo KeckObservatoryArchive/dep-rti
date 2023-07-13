@@ -136,6 +136,7 @@ class Nirc2(instrument.Instrument):
             'arclamp'    : 'arclamp',
             'bias'       : 'bias',
             'calib'      : 'calib',
+            'calibration': 'calib',
             'dark'       : 'dark',
             'domeflat'   : 'domeflat',
             'flatlamp'   : 'flatlamp',
