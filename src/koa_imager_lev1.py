@@ -107,6 +107,9 @@ class KoaImagerDrp(FileSystemEventHandler):
         if not filename.endswith('.fits') or filename in self.fileList:
             return
 
+        if self.instrument == 'NIRC2' and '_unp' in filename:
+            return
+
         if self.instrument == 'OSIRIS' and not filename.startswith('OI'):
             return
 
@@ -134,6 +137,8 @@ class KoaImagerDrp(FileSystemEventHandler):
             files.sort()
             for file in files:
                 if not file.endswith('.fits'):
+                    continue
+                if self.instrument == 'NIRC2' and '_unp' in file:
                     continue
                 if self.instrument == 'OSIRIS' and not file.startswith('OI'):
                     continue
