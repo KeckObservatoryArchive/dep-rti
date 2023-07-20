@@ -71,8 +71,12 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
         has_camname = False
         try:
             hdul = fits.open(event.src_path)
+            instr_name = hdul[0].header['currinst']
             result = hdul[0].header['camname']
-            has_camname = True
+            if result:
+                has_camname = True
+            else:
+                has_camname = False
         except:
             has_camname = False
         finally:
@@ -84,13 +88,15 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
                     ktl_keyword = 'koa.k2guiderfile'
                     ktl_keyword_name = 'K2GUIDERFILE'
                
-            if result not in ('ssc','pcs') and not islink(event.src_path):
-                keyword = ktl.cache(ktl_keyword)
-                keyword.write(event.src_path)
-                value = keyword.read()
-                self.log.info("***** Service=koa, Keyword=" + ktl_keyword_name + ", Value=" + value + " *****")
+                if result not in ('ssc','pcs') and not islink(event.src_path):
+                    keyword = ktl.cache(ktl_keyword)
+                    keyword.write(event.src_path)
+                    value = keyword.read()
+                    self.log.info("***** Service=koa, Keyword=" + ktl_keyword_name + ", Value=" + value + " *****")
+                else:
+                    self.log.info(" ***** Ignored: " + event.src_path + " is a sym link instead of a valid fits file *****")
             else:
-                self.log.info(" ***** Ignored: result is " + result + " or src_path is a sym link instead of a valid fits file *****")
+                self.log.info(" ***** Ignored: Invalid file " + event.src_path + " for " + instr_name + " *****")
             hdul.close()
 
 def main():
@@ -148,8 +154,8 @@ def main():
                 if observer.is_alive():
                     time.sleep(wait_time)
                     event_handler.log.info("...Watchdog Observer Running at hour " + str(hourNow) + " UTC...")
-                else:
-                    event_handler.log.info("...Watchdog Observer Stopped...")
+                #else:
+                    #event_handler.log.info("...Watchdog Observer Stopped...")
             else: 
                 if observer.is_alive():
                     event_handler.log.info("\nSky Hours (19:00-9:00 HST or 4:00-19:00 UTC)...\n")
@@ -159,7 +165,7 @@ def main():
                 sys.exit()
 
     except KeyboardInterrupt:
-        event_handler.log.info("\nTerminating due to interrupt...\n")
+        event_handler.log.info("\nTerminating watchdog due to interrupt...\n")
         observer.stop()
 
     event_handler.log.info("...Joining (Thread Blocker) Watchdog Observer - Please Wait...\n")
