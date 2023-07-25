@@ -37,7 +37,8 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
         """Creates a logger"""
 
         # Create logger object
-        name = f'koa_guider_lev0'
+        name = f'guider_watchdog_k'
+        name += '1' if self.telnr == 1 else '2'
         log = logging.getLogger(name)
         log.setLevel(logging.DEBUG)
 
@@ -51,7 +52,7 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
         handle.setFormatter(formatter)
         log.addHandler(handle)
 
-        # add stdout to output so we don't need both log and print statements(>= warni|                                                                                      
+        # add stdout to output so we don't need both log and print statements(>= warning only)
         sh = logging.StreamHandler(sys.stdout)
         sh.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
@@ -71,8 +72,12 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
         has_camname = False
         try:
             hdul = fits.open(event.src_path)
+            instr_name = hdul[0].header['currinst']
             result = hdul[0].header['camname']
-            has_camname = True
+            if result:
+                has_camname = True
+            else:
+                has_camname = False
         except:
             has_camname = False
         finally:
@@ -84,13 +89,15 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
                     ktl_keyword = 'koa.k2guiderfile'
                     ktl_keyword_name = 'K2GUIDERFILE'
                
-            if result not in ('ssc','pcs') and not islink(event.src_path):
-                keyword = ktl.cache(ktl_keyword)
-                keyword.write(event.src_path)
-                value = keyword.read()
-                self.log.info("***** Service=koa, Keyword=" + ktl_keyword_name + ", Value=" + value + " *****")
+                if result not in ('ssc','pcs') and not islink(event.src_path):
+                    keyword = ktl.cache(ktl_keyword)
+                    keyword.write(event.src_path)
+                    value = keyword.read()
+                    self.log.info("Service=koa, Keyword=" + ktl_keyword_name + ", Value=" + value)
+                else:
+                    self.log.info("Ignored: " + event.src_path + " is a sym link instead of a valid fits file")
             else:
-                self.log.info(" ***** Ignored: result is " + result + " or src_path is a sym link instead of a valid fits file *****")
+                self.log.info("Ignored: Invalid file " + event.src_path + " for " + instr_name)
             hdul.close()
 
 def main():
@@ -147,22 +154,19 @@ def main():
             if hourNow >= beginHour and hourNow < endHour:
                 if observer.is_alive():
                     time.sleep(wait_time)
-                    event_handler.log.info("...Watchdog Observer Running at hour " + str(hourNow) + " UTC...")
-                else:
-                    event_handler.log.info("...Watchdog Observer Stopped...")
             else: 
                 if observer.is_alive():
-                    event_handler.log.info("\nSky Hours (19:00-9:00 HST or 4:00-19:00 UTC)...\n")
-                    event_handler.log.info("\n...Stopping Watchdog Observer at hour " + str(hourNow) + " UTC...\n")
+                    event_handler.log.info("Sky Hours (19:00-9:00 HST or 4:00-19:00 UTC)...")
+                    event_handler.log.info("...Stopping Watchdog Observer at hour " + str(hourNow) + " UTC...")
                     observer.stop()
-                event_handler.log.info("\n...Exiting Guider Watchdog...\n")
+                event_handler.log.info("...Exiting Guider Watchdog...")
                 sys.exit()
 
     except KeyboardInterrupt:
-        event_handler.log.info("\nTerminating due to interrupt...\n")
+        event_handler.log.info("Terminating watchdog due to interrupt...")
         observer.stop()
 
-    event_handler.log.info("...Joining (Thread Blocker) Watchdog Observer - Please Wait...\n")
+    event_handler.log.info("...Joining (Thread Blocker) Watchdog Observer - Please Wait...")
     observer.join()
 
 if __name__ == '__main__':
