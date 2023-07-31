@@ -225,7 +225,7 @@ class Kcwi(instrument.Instrument):
                           'rl'  : {'waves':275, 'large': 10500, 'medium':7000, 'small':3500},
                           'rm1' : {'waves':145, 'large':4050, 'medium':2700, 'small':1350},
                           'rm2' : {'waves':190, 'large':4700, 'medium':2800, 'small':1900},
-                          'rh1' : {'waves':60, 'large':1800, 'medium':1200, 'small'600},
+                          'rh1' : {'waves':60, 'large':1800, 'medium':1200, 'small':600},
                           'rh2' : {'waves':75, 'large':2025, 'medium':1350, 'small':675},
                           'rh3' : {'waves':90, 'large':2400, 'medium':1600, 'small':800},
                           'rh4' : {'waves':80, 'large':2775, 'medium':1850, 'small':925},
