@@ -215,7 +215,6 @@ class Kcwi(instrument.Instrument):
         gratname = self.get_keyword(prefix+'GRATNAM').lower()
         nodmask = self.get_keyword(prefix+'NASNAM').lower()
         # Configuration for KB
-        #TODO: verify red side values
         configurations = {
                           'bl'  : {'waves':2000, 'large':900, 'medium':1800, 'small':3600},
                           'bm'  : {'waves':850, 'large':2000, 'medium':4000, 'small':8000},
@@ -223,13 +222,13 @@ class Kcwi(instrument.Instrument):
                           'bh2' : {'waves':405, 'large':4500, 'medium':9000, 'small':18000},
                           'bh1' : {'waves':400, 'large':4500, 'medium':9000, 'small':18000},
                           #TODO: verify these numbers are accurate.
-                          #'rl'  : {'waves':275, 'large': 500, 'medium':1000, 'small':2000},
-                          #'rm1' : {'waves':145, 'large':1400, 'medium':2800, 'small':5600},
-                          #'rm2' : {'waves':190, 'large':1400, 'medium':2800, 'small':5600},
-                          #'rh4' : {'waves':80, 'large':3250, 'medium':6500, 'small':13000},
-                          #'rh3' : {'waves':90, 'large':3250, 'medium':6500, 'small':13000},
-                          #'rh2' : {'waves':75, 'large':3250, 'medium':6500, 'small':13000},
-                          #'rh1' : {'waves':60, 'large':3250, 'medium':6500, 'small':13000}
+                          'rl'  : {'waves':275, 'large': 10500, 'medium':7000, 'small':3500},
+                          'rm1' : {'waves':145, 'large':4050, 'medium':2700, 'small':1350},
+                          'rm2' : {'waves':190, 'large':4700, 'medium':2800, 'small':1900},
+                          'rh1' : {'waves':60, 'large':1800, 'medium':1200, 'small':600},
+                          'rh2' : {'waves':75, 'large':2025, 'medium':1350, 'small':675},
+                          'rh3' : {'waves':90, 'large':2400, 'medium':1600, 'small':800},
+                          'rh4' : {'waves':80, 'large':2775, 'medium':1850, 'small':925},
                           }
         
         # Slit width by slicer, slit length is always 20.4"
