@@ -29,6 +29,7 @@ class Guider(instrument.Instrument):
 
         # Set any unique keyword index values here
         #self.keymap['UTC'] = 'UT'
+        self.rtui = False
 
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
@@ -38,11 +39,14 @@ class Guider(instrument.Instrument):
             {'name':'set_ut',          'crit': True},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
+            {'name':'set_frameno',      'crit': True},
             {'name':'set_semester',    'crit': True},
             {'name':'set_prog_info',   'crit': True},
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
             {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
+            {'name':'set_filter',       'crit': False},
+            {'name':'set_wavelengths',  'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
             {'name':'set_dqa_vers',    'crit': False},
@@ -253,6 +257,34 @@ class Guider(instrument.Instrument):
             koaimtyp = self.get_keyword('IMTYPE').lower()
         return koaimtyp
 
+    # modified from instrument.py
+    def set_frameno(self):
+        """
+        Adds FRAMENO keyword to header if it doesn't exist
+        """
+        # skip if it exists
+        if self.get_keyword('FRAMENO', False) != None: return True
+
+        # derive FRAMENO value from DATAFILE if it doesn't exist
+        frameno = self.get_keyword('FRAMENO')
+        if (frameno == None):
+
+            datafile = self.get_keyword('DATAFILE')
+            if (datafile == None):
+                self.log_warn("SET_FRAMENO_ERROR")
+                return False
+
+            frameno = datafile.replace('.fits', '')
+            num = frameno.rfind('_') + 1
+            frameno = frameno[num:]
+            frameno = int(frameno)
+
+            self.set_keyword('FRAMENO', frameno, 'KOA: Image frame number (derived from filename)')
+
+        # update existing FRAMENO
+        self.set_keyword('FRAMENO', frameno, 'KOA: Image frame number')
+        return True
+
     # from instr_lris.py
     def set_elaptime(self):
         '''
@@ -277,3 +309,63 @@ class Guider(instrument.Instrument):
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
 
         return True
+
+
+    def set_filter(self):
+        '''
+        If FILTER keyword doesn't exist, create from FILTER0 and FILTER1
+        '''
+
+        if self.get_keyword('FILTER', False) != None: return True
+
+        filter0 = self.get_keyword('FILTER0', default='')
+        filter1 = self.get_keyword('FILTER1', default='')
+
+        filter = '+'.join((filter0, filter1))
+
+        #update keyword
+        self.set_keyword('FILTER', filter, 'KOA: set from FILTER0 and FILTER1')
+        return True
+
+
+    def set_wavelengths(self):
+        '''
+        Sets WAVEBLUE, CNTR, RED (in microns, u) based on FILTER value
+        '''
+        filters = {}
+        filters['ACAM']       = {'blue':3.800,  'cntr':6.400,  'red':7.000}
+        filters['ACAMA']      = {'blue':3.800,  'cntr':6.400,  'red':7.000}
+        filters['DEIMOS']     = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
+        filters['ESI']        = {'blue':'null', 'cntr':'null', 'red':'null'}
+        filters['HIRESSLIT']  = {'blue':3.600,  'cntr':6.800,  'red':10.000}
+        filters['BG38']       = {'blue':3.350,  'cntr':4.700,  'red':6.050}
+        filters['KCWIA']      = {'blue':3.800,  'cntr':6.400,  'red':7.000}
+        filters['KPF']        = {'blue':0.950,  'cntr':1.075,  'red':1.200}
+        filters['LRISOFFSET'] = {'blue':3.800,  'cntr':6.400,  'red':7.000}
+        filters['V']          = {'blue':5.000,  'cntr':6.000,  'red':7.000}
+        filters['LRISSLIT']   = {'blue':3.800,  'cntr':6.400,  'red':7.000}  # same as LRISOFFSET
+        filters['MOSFIRE']    = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
+        filters['NIRESA']     = {'blue':3.800,  'cntr':6.400,  'red':7.000}
+        filters['NIRESSPLIT']    = {'blue':1.9500, 'cntr':2.1225, 'red':2.2950} #  K'
+        filters['NIRSPECM']   = {'blue':3.800,  'cntr':6.400,  'red':7.000}
+        filters['RG780']      = {'blue':7.800,  'cntr':'null', 'red':'null'} # tbd
+        filters['NSCAM']      = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
+
+        # replace open with <blank> (use actual filter)
+
+        filter = self.get_keyword('FILTER', default='')
+
+        waveblue = wavecntr = wavered = 'null'
+        for filt, waves in filters.items():
+            if filt in filter.upper():
+                waveblue = waves['blue']
+                wavecntr = waves['cntr']
+                wavered = waves['red']
+                break
+
+        self.set_keyword('WAVEBLUE', waveblue, 'KOA: Approximate blue end wavelength (u)')
+        self.set_keyword('WAVECNTR', wavecntr, 'KOA: Approximate central wavelength (u)')
+        self.set_keyword('WAVERED', wavered, 'KOA: Approximate red end wavelength (u)')
+
+        return True
+
