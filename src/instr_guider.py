@@ -143,7 +143,7 @@ class Guider(instrument.Instrument):
         too = self.get_api_data(f'{api}cmd=getToORequest&date={self.hstdate}')
         sched = []
         for entry in too:
-            if entry['Instrument'] != instr:
+            if entry['Instrument'] != instr or entry['StartTimeActual'] == None:
                 continue
             proj = {}
             proj['Type'] = 'ToO'
@@ -151,7 +151,7 @@ class Guider(instrument.Instrument):
             for key in ['TelNr','Instrument','ProjCode']:
                 proj[key] = entry[key]
             proj['StartTime'],proj['EndTime'] = \
-                self.convert_to_start_end(self.utdate, entry['StartTime'], entry['Duration'])
+                self.convert_to_start_end(self.utdate, entry['StartTimeActual'], entry['DurationActual'])
             sched.append(proj)
 
         url = api.replace('telSchedule','twilightApi')
@@ -213,12 +213,13 @@ class Guider(instrument.Instrument):
                 if ut >= start and ut <= end:
                     log.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
                     return entry['ProjCode']
-                if num == 0 and ut < start:
-                    log.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
-                    return entry['ProjCode']
-                if num == len(data)-1 and ut > end:
-                    log.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
-                    return entry['ProjCode']
+                if entry['Type'] == 'Classical':
+                    if num == 0 and ut < start:
+                        log.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
+                        return entry['ProjCode']
+                    if num == len(data)-1 and ut > end:
+                        log.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
+                        return entry['ProjCode']
         return 'NONE'
 
     def set_koaimtyp(self):
