@@ -39,14 +39,14 @@ class Guider(instrument.Instrument):
             {'name':'set_ut',          'crit': True},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
-            {'name':'set_frameno',      'crit': True},
+            {'name':'set_frameno',     'crit': True},
             {'name':'set_semester',    'crit': True},
             {'name':'set_prog_info',   'crit': True},
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
-            {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
-            {'name':'set_filter',       'crit': False},
-            {'name':'set_wavelengths',  'crit': False},
+            {'name':'set_datlevel',    'crit': False, 'args': {'level':0}},
+            {'name':'set_filter',      'crit': False},
+            {'name':'set_wavelengths', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
             {'name':'set_dqa_vers',    'crit': False},
@@ -262,19 +262,20 @@ class Guider(instrument.Instrument):
         """
         Adds FRAMENO keyword to header if it doesn't exist
         """
+
         # skip if it exists
         if self.get_keyword('FRAMENO', False) != None: return True
 
-        # derive FRAMENO value from DATAFILE if it doesn't exist
+        # derive FRAMENO value from the original filename if it doesn't exist
         frameno = self.get_keyword('FRAMENO')
         if (frameno == None):
 
-            datafile = self.get_keyword('DATAFILE')
-            if (datafile == None):
+            ofname = os.path.basename(self.filepath)
+            if (ofname == None):
                 self.log_warn("SET_FRAMENO_ERROR")
                 return False
 
-            frameno = datafile.replace('.fits', '')
+            frameno = ofname.replace('.fits', '')
             num = frameno.rfind('_') + 1
             frameno = frameno[num:]
             frameno = int(frameno)
