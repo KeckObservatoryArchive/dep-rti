@@ -322,7 +322,10 @@ class Guider(instrument.Instrument):
 
         filter0 = self.get_keyword('FILTER0', default='')
         filter1 = self.get_keyword('FILTER1', default='')
-        filter = '+'.join(filter(None(filter0, filter1)))
+        if filter0 == '' and filter1 == '':
+            filter = 'blank'
+        else:
+            filter = '+'.join(filter(None(filter0, filter1)))
 
         #update keyword
         self.set_keyword('FILTER', filter, 'KOA: set from FILTER0 and FILTER1')
