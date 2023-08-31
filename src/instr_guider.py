@@ -339,44 +339,39 @@ class Guider(instrument.Instrument):
         filters['ACAM']       = {'blue':3.800,  'cntr':6.400,  'red':7.000}
         filters['ACAMA']      = {'blue':3.800,  'cntr':6.400,  'red':7.000}
         filters['DEIMOS']     = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
-        filters['ESI']        = {'blue':'null', 'cntr':'null', 'red':'null'}
+        filters['ESI']        = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
         filters['HIRESSLIT']  = {'blue':3.600,  'cntr':6.800,  'red':10.000}
         filters['BG38']       = {'blue':3.350,  'cntr':4.700,  'red':6.050}
         filters['KCWIA']      = {'blue':3.800,  'cntr':6.400,  'red':7.000}
         filters['KPF']        = {'blue':0.950,  'cntr':1.075,  'red':1.200}
-        filters['LRISOFFSET'] = {'blue':3.800,  'cntr':6.400,  'red':7.000}
+        filters['LRISOFFSET'] = {'blue':3.800,  'cntr':6.400,  'red':7.000}  # same as LRISSLIT
         filters['V']          = {'blue':5.000,  'cntr':6.000,  'red':7.000}
         filters['LRISSLIT']   = {'blue':3.800,  'cntr':6.400,  'red':7.000}  # same as LRISOFFSET
         filters['MOSFIRE']    = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
         filters['NIRESA']     = {'blue':3.800,  'cntr':6.400,  'red':7.000}
-        filters['NIRESSLIT']  = {'blue':1.9500, 'cntr':2.1225, 'red':2.2950} #  K'
+        filters['NIRESSLIT']  = {'blue':1.9500, 'cntr':2.1225, 'red':2.2950} #  K' or K-Prime
         filters['NIRSPECM']   = {'blue':3.800,  'cntr':6.400,  'red':7.000}
         filters['RG780']      = {'blue':7.800,  'cntr':'null', 'red':'null'} # tbd
         filters['NSCAM']      = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
 
-        # FILTER value may not always be available, so CAMNAME is provided
-        # as a filter source
+        # FILTER value may not always be available, so CAMNAME is provided as a filter source
+        # ToDo: test for case that filterSource is '' and return false
 
         filterSource = ''
 
-        # test for NULL?
         camname = self.get_keyword('CAMNAME', default='').upper()
         if camname in filters.keys():
             filterSource = camname
 
         filterList = self.get_keyword('FILTER', default='').upper().split('+')
 
-        # test for filterList not empty?
         filterName = ''
         for fitem in filterList: 
             if fitem in filters.keys(): 
                 filterName = fitem
-                #return False
 
         if filterName in filters.keys():
             filterSource = filterName
-        #else:
-            #return False
 
         # set wavelengths
         waveblue = wavecntr = wavered = 'null'
