@@ -64,10 +64,10 @@ def main():
     while True:
         try:
             time.sleep(300)
-            monitor.log.debug(f'Monitor saying hi every 5 minutes ('
+            monitor.log.info(f'Monitor saying hi every 5 minutes ('
                               f'{monitor.instr} {monitor.service_uniquename})')
         except Exception as err:
-            monitor.log.debug(f'Error waking up {err}.')
+            monitor.log.error(f'Error waking up {err}.')
             break
     monitor.log.info(f'Exiting {__file__}')
 
@@ -152,7 +152,7 @@ class Monitor:
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
             if p.exitcode is not None:
-                self.log.debug(f'---Removing completed process PID={p.pid}, '
+                self.log.info(f'---Removing completed process PID={p.pid}, '
                                f'exitcode={p.exitcode}')
                 del self.procs[i]
                 removed += 1
@@ -191,7 +191,7 @@ class Monitor:
                 f" , creation_time='{now}' ")
         self.log.info(query)
 
-        result = self._get_db_result('koa', query)
+        result = self._get_db_result('koa', query, filepath=filepath)
         if result is False:
             self.handle_error('DATABASE_ERROR', query)
             return
@@ -284,7 +284,7 @@ class Monitor:
             return False
 
         # pop from queue and process it
-        self.log.debug(f"Processing DB record ID={row['id']}, "
+        self.log.info(f"Processing DB record ID={row['id']}, "
                        f"filepath={row['ofname']}")
         try:
             self.process_file(self.instr, row['id'])
@@ -316,7 +316,7 @@ class Monitor:
         proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, id))
         proc.start()
         self.procs.append(proc)
-        self.log.debug(f'DEP started as system process ID: {proc.pid}')
+        self.log.info(f'DEP started as system process ID: {proc.pid}')
 
     def spawn_processing(self, instr, dbid):
         '''Call archiving for a single file by DB ID.'''
@@ -366,11 +366,15 @@ class Monitor:
         self.log.error(f'{errcode}: {text}')
         handle_error(errcode, text, self.instr, self.service_uniquename, check_time)
 
-    def _get_db_result(self, db_name, query, get_one=False, retry=True):
+    def _get_db_result(self, db_name, query, get_one=False, retry=True, filepath=None):
         result = self.db.query(db_name, query, getOne=get_one)
         if result is False and retry:
             self.log.debug("try reconnecting to database")
             self._connect_db()
+            if filepath != None:
+                if self.is_duplicate_file(filepath):
+                    self.log.info(f'Database entry for {filepath} exists')
+                    return True
             result = self._get_db_result(db_name, query, get_one=get_one, retry=False)
 
         return result
@@ -450,19 +454,21 @@ class KtlMonitor:
         service reconnect.
         '''
         try:
-            hb = self.keys['heartbeat'][0]
-            kw = self.service[hb]
-            kw.read(timeout=1)
+#            hb = self.keys['heartbeat'][0]
+#            kw = self.service[hb]
+#            kw.read(timeout=1)
             if self.service.resuscitations != self.resuscitations:
-                self.log.debug(f"KTL service {self.service_uniquename} resuscitations changed.")
+                self.log.info(f"KTL service {self.service_uniquename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
         except Exception as e:
+            self.log.info(f'check_service() - heartbeat check failed')
+            self.log.debug(e)
             self.check_failed = True
-            self.log.debug(f"{self.instr} KTL service '{self.service_uniquename}' heartbeat read failed.")
+            self.log.info(f"{self.instr} KTL service '{self.service_uniquename}' heartbeat read failed.")
             self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.service_uniquename)
         else:
             if self.check_failed:
-                self.log.debug(f"KTL service {self.service_uniquename} read successful after prior failure.")
+                self.log.info(f"KTL service {self.service_uniquename} read successful after prior failure.")
             self.check_failed = False
         finally:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
@@ -472,7 +478,7 @@ class KtlMonitor:
         try:
             # Assume first read after a full restart is old
             if self.last_mtime is None:
-                self.log.debug(f'Skipping (assuming first broadcast is old)')
+                self.log.info(f'Skipping (assuming first broadcast is old)')
                 self.last_mtime = -1
                 return
 
@@ -480,7 +486,7 @@ class KtlMonitor:
             if keyword['populated'] == False:
                 self.log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
-            self.log.debug(f'on_new_file: {keyword.name}={keyword.ascii}')
+            self.log.info(f'on_new_file: {keyword.name}={keyword.ascii}')
 
             # Get trigger val and if 'reqval' is defined make sure trigger equals reqval
             keys = self.keys
@@ -530,7 +536,7 @@ class KtlMonitor:
                 self.queue_mgr.handle_error(err, traceback.format_exc())
 
             if self.last_mtime == mtime:
-                self.log.debug(f'Skipping (last mtime = {self.last_mtime})')
+                self.log.info(f'Skipping (last mtime = {self.last_mtime})')
                 self.last_mtime = mtime
                 return
             self.last_mtime = mtime
@@ -556,7 +562,7 @@ class KtlMonitor:
                 mtime = os.stat(filepath).st_mtime
                 return mtime
             except Exception as e:
-                self.log.debug(f'delaying {self.delay}s, {filepath} not found')
+                self.log.info(f'delaying {self.delay}s, {filepath} not found')
                 pass
 
         msg = f'FILE_READ_ERROR at {dt.datetime.now().strftime("%H:%M:%S")}'
