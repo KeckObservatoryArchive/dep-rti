@@ -55,7 +55,6 @@ class Guider(instrument.Instrument):
         return self.run_functions(funcs)
 
     def get_prefix(self):
-        #instr = self.get_instr()
         instr = "GR"
         return instr
 
@@ -323,12 +322,12 @@ class Guider(instrument.Instrument):
         filter0 = self.get_keyword('FILTER0', default='')
         filter1 = self.get_keyword('FILTER1', default='')
         if filter0 == '' and filter1 == '':
-            filter = 'blank'
+            filterName = 'blank'
         else:
-            filter = '+'.join(filter(None(filter0, filter1)))
+            filterName = '+'.join(filter(None,(filter0, filter1)))
 
         #update keyword
-        self.set_keyword('FILTER', filter, 'KOA: set from FILTER0 and FILTER1')
+        self.set_keyword('FILTER', filterName, 'KOA: set from FILTER0 and FILTER1')
         return True
 
 
@@ -350,21 +349,42 @@ class Guider(instrument.Instrument):
         filters['LRISSLIT']   = {'blue':3.800,  'cntr':6.400,  'red':7.000}  # same as LRISOFFSET
         filters['MOSFIRE']    = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
         filters['NIRESA']     = {'blue':3.800,  'cntr':6.400,  'red':7.000}
-        filters['NIRESSPLIT']    = {'blue':1.9500, 'cntr':2.1225, 'red':2.2950} #  K'
+        filters['NIRESSLIT']  = {'blue':1.9500, 'cntr':2.1225, 'red':2.2950} #  K'
         filters['NIRSPECM']   = {'blue':3.800,  'cntr':6.400,  'red':7.000}
         filters['RG780']      = {'blue':7.800,  'cntr':'null', 'red':'null'} # tbd
         filters['NSCAM']      = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
 
-        # replace open with <blank> (use actual filter)
+        # FILTER value may not always be available, so CAMNAME is provided
+        # as a filter source
 
-        filter = self.get_keyword('FILTER', default='')
+        filterSource = ''
 
+        # test for NULL?
+        camname = self.get_keyword('CAMNAME', default='').upper()
+        if camname in filters.keys():
+            filterSource = camname
+
+        filterList = self.get_keyword('FILTER', default='').upper().split('+')
+
+        # test for filterList not empty?
+        filterName = ''
+        for fitem in filterList: 
+            if fitem in filters.keys(): 
+                filterName = fitem
+                #return False
+
+        if filterName in filters.keys():
+            filterSource = filterName
+        #else:
+            #return False
+
+        # set wavelengths
         waveblue = wavecntr = wavered = 'null'
         for filt, waves in filters.items():
-            if filt in filter.upper():
+            if filt in filterSource.upper():
                 waveblue = waves['blue']
                 wavecntr = waves['cntr']
-                wavered = waves['red']
+                wavered  = waves['red']
                 break
 
         self.set_keyword('WAVEBLUE', waveblue, 'KOA: Approximate blue end wavelength (u)')
