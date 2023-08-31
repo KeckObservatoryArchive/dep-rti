@@ -26,6 +26,7 @@ def is_server_running(server, interpreter=None, port=None, extra=False, report=F
     if port:        chk_set.add(port)
     if extra:       chk_set.add(extra)
     if interpreter: chk_set.add(interpreter)
+    print(chk_set)
     for proc in psutil.process_iter():
         pinfo = proc.as_dict(attrs=['name', 'username', 'pid', 'cmdline'])
 
@@ -46,7 +47,7 @@ def is_server_running(server, interpreter=None, port=None, extra=False, report=F
         return 0
     elif len(matches) > 1:
         if report: print("WARN: MULTIPLE MATCHES: \n" + str(matches))
-        return matches[0]['pid']
+        return 0 # matches[0]['pid']
     else:
         if report: print("FOUND PROCESS: " + str(matches[0]))
         return matches[0]['pid']
