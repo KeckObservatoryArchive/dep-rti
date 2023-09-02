@@ -333,39 +333,40 @@ class Guider(instrument.Instrument):
 
     def set_wavelengths(self):
         '''
-        Sets WAVEBLUE, CNTR, RED (in microns, u) based on FILTER value
+        Sets WAVEBLUE, WAVECNTR, WAVERED (in microns, u) based on FILTER value
         '''
         filters = {}
-        filters['ACAM']       = {'blue':3.800,  'cntr':6.400,  'red':7.000}
-        filters['ACAMA']      = {'blue':3.800,  'cntr':6.400,  'red':7.000}
-        filters['DEIMOS']     = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
-        filters['ESI']        = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
-        filters['HIRESSLIT']  = {'blue':3.600,  'cntr':6.800,  'red':10.000}
-        filters['BG38']       = {'blue':3.350,  'cntr':4.700,  'red':6.050}
-        filters['KCWIA']      = {'blue':3.800,  'cntr':6.400,  'red':7.000}
+        filters['ACAM']       = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['ACAMA']      = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['DEIMOS']     = {'blue':'null', 'cntr':'null', 'red':'null'}    # tbd
+        filters['ESI']        = {'blue':0.390,  'cntr':0.745,  'red':1.100}     # set to instrument sensitivity
+        filters['HIRESSLIT']  = {'blue':0.360,  'cntr':0.680,  'red':1.000}
+        filters['BG38']       = {'blue':0.335,  'cntr':0.470,  'red':0.605}
+        filters['KCWIA']      = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['KPF']        = {'blue':0.950,  'cntr':1.075,  'red':1.200}
-        filters['LRISOFFSET'] = {'blue':3.800,  'cntr':6.400,  'red':7.000}  # same as LRISSLIT
-        filters['V']          = {'blue':5.000,  'cntr':6.000,  'red':7.000}
-        filters['LRISSLIT']   = {'blue':3.800,  'cntr':6.400,  'red':7.000}  # same as LRISOFFSET
-        filters['MOSFIRE']    = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
-        filters['NIRESA']     = {'blue':3.800,  'cntr':6.400,  'red':7.000}
-        filters['NIRESSLIT']  = {'blue':1.9500, 'cntr':2.1225, 'red':2.2950} #  K' or K-Prime
-        filters['NIRSPECM']   = {'blue':3.800,  'cntr':6.400,  'red':7.000}
-        filters['RG780']      = {'blue':7.800,  'cntr':'null', 'red':'null'} # tbd
-        filters['NSCAM']      = {'blue':'null', 'cntr':'null', 'red':'null'} # tbd
+        filters['LRISOFFSET'] = {'blue':0.380,  'cntr':0.640,  'red':0.700}      # same as LRISSLIT
+        filters['V']          = {'blue':o.500,  'cntr':0.600,  'red':0.700}
+        filters['LRISSLIT']   = {'blue':0.380,  'cntr':0.640,  'red':0.700}      # same as LRISOFFSET
+        filters['MOSFIRE']    = {'blue':0.700,  'cntr':0.850,  'red':1.000}     # cntr is midpoint est of B and R
+        filters['NIRESA']     = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['NIRESSLIT']  = {'blue':1.950,  'cntr':2.1225, 'red':2.295}     # K' or K-Prime
+        filters['NIRSPECM']   = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['RG780']      = {'blue':0.780,  'cntr':0.890,  'red':1.000}     # cntr is midpoint est of B and R
+        filters['NSCAM']      = {'blue':0.950,  'cntr':3.225,  'red':5.500}      # set to instrument sensitivity
 
-        # FILTER value may not always be available, so CAMNAME is provided as a filter source
-        # ToDo: test for case that filterSource is '' and return false
+        # FILTER[0,1] values may not be available, so CAMNAME is provided as the 
+        # default filter source to be overwritten when FILTERs are specified
 
+        filterName = ''
         filterSource = ''
 
         camname = self.get_keyword('CAMNAME', default='').upper()
         if camname in filters.keys():
-            filterSource = camname
+            #filterSource = camname
+            filterName = camname
 
         filterList = self.get_keyword('FILTER', default='').upper().split('+')
 
-        filterName = ''
         for fitem in filterList: 
             if fitem in filters.keys(): 
                 filterName = fitem
