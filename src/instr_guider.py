@@ -345,7 +345,7 @@ class Guider(instrument.Instrument):
         filters['KCWIA']      = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['KPF']        = {'blue':0.950,  'cntr':1.075,  'red':1.200}
         filters['LRISOFFSET'] = {'blue':0.380,  'cntr':0.640,  'red':0.700}      # same as LRISSLIT
-        filters['V']          = {'blue':o.500,  'cntr':0.600,  'red':0.700}
+        filters['V']          = {'blue':0.500,  'cntr':0.600,  'red':0.700}
         filters['LRISSLIT']   = {'blue':0.380,  'cntr':0.640,  'red':0.700}      # same as LRISOFFSET
         filters['MOSFIRE']    = {'blue':0.700,  'cntr':0.850,  'red':1.000}     # cntr is midpoint est of B and R
         filters['NIRESA']     = {'blue':0.380,  'cntr':0.640,  'red':0.700}
