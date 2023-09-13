@@ -338,21 +338,21 @@ class Guider(instrument.Instrument):
         filters = {}
         filters['ACAM']       = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['ACAMA']      = {'blue':0.380,  'cntr':0.640,  'red':0.700}
-        filters['DEIMOS']     = {'blue':'null', 'cntr':'null', 'red':'null'}    # tbd
-        filters['ESI']        = {'blue':0.390,  'cntr':0.745,  'red':1.100}     # set to instrument sensitivity
+        filters['DEIMOS']     = {'blue':0.400,  'cntr':0.650,  'red':0.900}     # BVRI
+        filters['ESI']        = {'blue':0.400,  'cntr':0.650,  'red':0.900}     # BVRI
         filters['HIRESSLIT']  = {'blue':0.360,  'cntr':0.680,  'red':1.000}
         filters['BG38']       = {'blue':0.335,  'cntr':0.470,  'red':0.605}
         filters['KCWIA']      = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['KPF']        = {'blue':0.950,  'cntr':1.075,  'red':1.200}
-        filters['LRISOFFSET'] = {'blue':0.380,  'cntr':0.640,  'red':0.700}      # same as LRISSLIT
+        filters['LRISOFFSET'] = {'blue':0.380,  'cntr':0.640,  'red':0.700}     # same as LRISSLIT
         filters['V']          = {'blue':0.500,  'cntr':0.600,  'red':0.700}
-        filters['LRISSLIT']   = {'blue':0.380,  'cntr':0.640,  'red':0.700}      # same as LRISOFFSET
-        filters['MOSFIRE']    = {'blue':0.700,  'cntr':0.850,  'red':1.000}     # cntr is midpoint est of B and R
+        filters['LRISSLIT']   = {'blue':0.380,  'cntr':0.640,  'red':0.700}     # same as LRISOFFSET
+        filters['MOSFIRE']    = {'blue':0.700,  'cntr':0.850,  'red':1.000}     # E2V CCD47-20BT; cntr is midpoint est
         filters['NIRESA']     = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['NIRESSLIT']  = {'blue':1.950,  'cntr':2.1225, 'red':2.295}     # K' or K-Prime
         filters['NIRSPECM']   = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['RG780']      = {'blue':0.780,  'cntr':0.890,  'red':1.000}     # cntr is midpoint est of B and R
-        filters['NSCAM']      = {'blue':0.950,  'cntr':3.225,  'red':5.500}      # set to instrument sensitivity
+        filters['NSCAM']      = {'blue':0.950,  'cntr':3.225,  'red':5.500}     # set to instrument sensitivity
 
         # FILTER[0,1] values may not be available, so CAMNAME is provided as the 
         # default filter source to be overwritten when FILTERs are specified
