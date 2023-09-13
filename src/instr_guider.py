@@ -335,7 +335,7 @@ class Guider(instrument.Instrument):
 
     def set_wavelengths(self):
         '''
-        Sets WAVEBLUE, WAVECNTR, WAVERED (in microns, u) based on FILTER value
+        Sets WAVEBLUE, WAVECNTR, WAVERED (in microns) based on FILTER value
         '''
         filters = {}
         filters['ACAM']       = {'blue':0.380,  'cntr':0.640,  'red':0.700}
@@ -385,9 +385,9 @@ class Guider(instrument.Instrument):
                 wavered  = waves['red']
                 break
 
-        self.set_keyword('WAVEBLUE', waveblue, 'KOA: Approximate blue end wavelength (u)')
-        self.set_keyword('WAVECNTR', wavecntr, 'KOA: Approximate central wavelength (u)')
-        self.set_keyword('WAVERED', wavered, 'KOA: Approximate red end wavelength (u)')
+        self.set_keyword('WAVEBLUE', waveblue, 'KOA: Approximate blue end wavelength (in microns)')
+        self.set_keyword('WAVECNTR', wavecntr, 'KOA: Approximate central wavelength (in microns)')
+        self.set_keyword('WAVERED', wavered, 'KOA: Approximate red end wavelength (in microns)')
 
         return True
 
