@@ -29,6 +29,7 @@ class Guider(instrument.Instrument):
 
         # Set any unique keyword index values here
         #self.keymap['UTC'] = 'UT'
+        self.rtui = False
 
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
@@ -38,11 +39,14 @@ class Guider(instrument.Instrument):
             {'name':'set_ut',          'crit': True},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
+            {'name':'set_frameno',     'crit': True},
             {'name':'set_semester',    'crit': True},
             {'name':'set_prog_info',   'crit': True},
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
-            {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
+            {'name':'set_datlevel',    'crit': False, 'args': {'level':0}},
+            {'name':'set_filter',      'crit': False},
+            {'name':'set_wavelengths', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
             {'name':'set_dqa_vers',    'crit': False},
@@ -51,7 +55,6 @@ class Guider(instrument.Instrument):
         return self.run_functions(funcs)
 
     def get_prefix(self):
-        #instr = self.get_instr()
         instr = "GR"
         return instr
 
@@ -139,7 +142,9 @@ class Guider(instrument.Instrument):
         too = self.get_api_data(f'{api}cmd=getToORequest&date={self.hstdate}')
         sched = []
         for entry in too:
-            if entry['Instrument'] != instr:
+            if entry['Instrument'] != instr or \
+               entry['StartTimeActual'] == None or \
+               entry['DurationActual'] == None:
                 continue
             proj = {}
             proj['Type'] = 'ToO'
@@ -147,7 +152,7 @@ class Guider(instrument.Instrument):
             for key in ['TelNr','Instrument','ProjCode']:
                 proj[key] = entry[key]
             proj['StartTime'],proj['EndTime'] = \
-                self.convert_to_start_end(self.utdate, entry['StartTime'], entry['Duration'])
+                self.convert_to_start_end(self.utdate, entry['StartTimeActual'], entry['DurationActual'])
             sched.append(proj)
 
         url = api.replace('telSchedule','twilightApi')
@@ -209,12 +214,13 @@ class Guider(instrument.Instrument):
                 if ut >= start and ut <= end:
                     log.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
                     return entry['ProjCode']
-                if num == 0 and ut < start:
-                    log.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
-                    return entry['ProjCode']
-                if num == len(data)-1 and ut > end:
-                    log.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
-                    return entry['ProjCode']
+                if entry['Type'] == 'Classical':
+                    if num == 0 and ut < start:
+                        log.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
+                        return entry['ProjCode']
+                    if num == len(data)-1 and ut > end:
+                        log.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
+                        return entry['ProjCode']
         return 'NONE'
 
     def set_koaimtyp(self):
@@ -253,6 +259,35 @@ class Guider(instrument.Instrument):
             koaimtyp = self.get_keyword('IMTYPE').lower()
         return koaimtyp
 
+    # modified from instrument.py
+    def set_frameno(self):
+        """
+        Adds FRAMENO keyword to header if it doesn't exist
+        """
+
+        # skip if it exists
+        if self.get_keyword('FRAMENO', False) != None: return True
+
+        # derive FRAMENO value from the original filename if it doesn't exist
+        frameno = self.get_keyword('FRAMENO')
+        if (frameno == None):
+
+            ofname = os.path.basename(self.filepath)
+            if (ofname == None):
+                self.log_warn("SET_FRAMENO_ERROR")
+                return False
+
+            frameno = ofname.replace('.fits', '')
+            num = frameno.rfind('_') + 1
+            frameno = frameno[num:]
+            frameno = int(frameno)
+
+            self.set_keyword('FRAMENO', frameno, 'KOA: Image frame number (derived from filename)')
+
+        # update existing FRAMENO
+        self.set_keyword('FRAMENO', frameno, 'KOA: Image frame number')
+        return True
+
     # from instr_lris.py
     def set_elaptime(self):
         '''
@@ -277,3 +312,82 @@ class Guider(instrument.Instrument):
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
 
         return True
+
+
+    def set_filter(self):
+        '''
+        If FILTER keyword doesn't exist, create from FILTER0 and FILTER1
+        '''
+
+        if self.get_keyword('FILTER', False) != None: return True
+
+        filter0 = self.get_keyword('FILTER0', default='')
+        filter1 = self.get_keyword('FILTER1', default='')
+        if filter0 == '' and filter1 == '':
+            filterName = 'blank'
+        else:
+            filterName = '+'.join(filter(None,(filter0, filter1)))
+
+        #update keyword
+        self.set_keyword('FILTER', filterName, 'KOA: set from FILTER0 and FILTER1')
+        return True
+
+
+    def set_wavelengths(self):
+        '''
+        Sets WAVEBLUE, WAVECNTR, WAVERED (in microns) based on FILTER value
+        '''
+        filters = {}
+        filters['ACAM']       = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['ACAMA']      = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['DEIMOS']     = {'blue':0.400,  'cntr':0.650,  'red':0.900}     # BVRI
+        filters['ESI']        = {'blue':0.400,  'cntr':0.650,  'red':0.900}     # BVRI
+        filters['HIRESSLIT']  = {'blue':0.360,  'cntr':0.680,  'red':1.000}
+        filters['BG38']       = {'blue':0.335,  'cntr':0.470,  'red':0.605}
+        filters['KCWIA']      = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['KPF']        = {'blue':0.950,  'cntr':1.075,  'red':1.200}
+        filters['LRISOFFSET'] = {'blue':0.380,  'cntr':0.640,  'red':0.700}     # same as LRISSLIT
+        filters['V']          = {'blue':0.500,  'cntr':0.600,  'red':0.700}
+        filters['LRISSLIT']   = {'blue':0.380,  'cntr':0.640,  'red':0.700}     # same as LRISOFFSET
+        filters['MOSFIRE']    = {'blue':0.700,  'cntr':0.850,  'red':1.000}     # E2V CCD47-20BT; cntr is midpoint est
+        filters['NIRESA']     = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['NIRESSLIT']  = {'blue':1.950,  'cntr':2.1225, 'red':2.295}     # K' or K-Prime
+        filters['NIRSPECM']   = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['RG780']      = {'blue':0.780,  'cntr':0.890,  'red':1.000}     # cntr is midpoint est of B and R
+        filters['NSCAM']      = {'blue':0.950,  'cntr':3.225,  'red':5.500}     # set to instrument sensitivity
+
+        # FILTER[0,1] values may not be available, so CAMNAME is provided as the 
+        # default filter source to be overwritten when FILTERs are specified
+
+        filterName = ''
+        filterSource = ''
+
+        camname = self.get_keyword('CAMNAME', default='').upper()
+        if camname in filters.keys():
+            #filterSource = camname
+            filterName = camname
+
+        filterList = self.get_keyword('FILTER', default='').upper().split('+')
+
+        for fitem in filterList: 
+            if fitem in filters.keys(): 
+                filterName = fitem
+
+        if filterName in filters.keys():
+            filterSource = filterName
+
+        # set wavelengths
+        waveblue = wavecntr = wavered = 'null'
+        for filt, waves in filters.items():
+            if filt in filterSource.upper():
+                waveblue = waves['blue']
+                wavecntr = waves['cntr']
+                wavered  = waves['red']
+                break
+
+        self.set_keyword('WAVEBLUE', waveblue, 'KOA: Approximate blue end wavelength (in microns)')
+        self.set_keyword('WAVECNTR', wavecntr, 'KOA: Approximate central wavelength (in microns)')
+        self.set_keyword('WAVERED', wavered, 'KOA: Approximate red end wavelength (in microns)')
+
+        return True
+

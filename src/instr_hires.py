@@ -128,6 +128,11 @@ class Hires(instrument.Instrument):
         if self.get_keyword('TTIME', False) == None:    return koaimtyp
 
         lampname = self.get_keyword('LAMPNAME', False)
+        if lampname == 'undefined':
+            qtz1 = self.get_keyword('LAMPQTZ1', False)
+            qtz2 = self.get_keyword('LAMPQTZ2', False)
+            if qtz1 == True or qtz2 == True:
+                lampname = 'quartz'
         ttime = self.get_keyword('TTIME', False)
         lmirrin = self.get_keyword('LMIRRIN', False)
         darkclos = self.get_keyword('DARKCLOS', False)

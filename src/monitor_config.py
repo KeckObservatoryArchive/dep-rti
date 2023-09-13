@@ -204,7 +204,7 @@ instr_keymap = {
         'trigger'    :  'K1GUIDERFILE',
         'val'        :   None,
         'heartbeat'  :   ['DISPCLK', 5],
-        'transfer'   :   0
+        'transfer'   :   1
     },
 
     'guiderk2': {
@@ -214,6 +214,6 @@ instr_keymap = {
         'trigger'    :  'K2GUIDERFILE',
         'val'        :   None,
         'heartbeat'  :   ['DISPCLK', 5],
-        'transfer'   :   0
+        'transfer'   :   1
     }
 }
