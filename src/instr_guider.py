@@ -303,7 +303,7 @@ class Guider(instrument.Instrument):
         ttime  = self.get_keyword('TTIME')
         if ttime != None:
             log.info('set_elaptime: determining ELAPTIME from TTIME')
-            elaptime = round(ttime)
+            elaptime = round(ttime,2)
 
         if elaptime == 'null':
             log.warn('set_elaptime: Could not set ELAPTIME')
