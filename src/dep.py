@@ -211,7 +211,7 @@ class DEP:
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-                                  persist=True)
+                                  persist=True, log_obj=log)
 
         return True
 
@@ -1149,7 +1149,7 @@ class DEP:
         '''Recursive search for all files with KOAID in filename.'''
         search = f"{self.levdir}/{self.koaid}*"
         files = []
-        for path in Path(self.levdir).rglob(f'*{self.koaid}*'):
+        for path in Path(self.levdir).rglob(f'*{self.koaid}.*'):
             path = str(path)
             if f"{self.koaid}.log" in path:
                 continue
