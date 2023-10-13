@@ -316,6 +316,10 @@ class Monitor:
             # check if the ut date changed
             current_date = dt.datetime.utcnow().strftime('%Y%m%d')
             if self.utd != current_date:
+                # clear logs
+                for handler in self.log.handlers[:]:
+                    self.log.removeHandler(handler)
+
                 self.utd = current_date
                 self.log = self.create_logger(
                     self.config[self.instr]['ROOTDIR'],
@@ -360,6 +364,7 @@ class Monitor:
         # Create logger object
         name = f'koa_monitor_{instr}_{service}'
         log = logging.getLogger(name)
+
         log.setLevel(log_level)
 
         # paths
@@ -385,9 +390,10 @@ class Monitor:
         handle.setFormatter(formatter)
         log.addHandler(handle)
 
-        log_level = log_level_map[self.config['MISC']['STD_OUT_LOG_LEVEL']]
         # add stdout to output so we don't need both log and print statements
         # (>= warning only)
+        log_level = log_level_map[self.config['MISC']['STD_OUT_LOG_LEVEL']]
+
         sh = logging.StreamHandler(sys.stdout)
         sh.setLevel(log_level)
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s - %(message)s')
