@@ -1,11 +1,6 @@
 import os
 import yaml
-
-# import psycopg2
-# from psycopg2.extras import RealDictCursor
-
 import pymysql.cursors
-
 
 
 class db_conn(object):
@@ -30,11 +25,11 @@ class db_conn(object):
     - configKey: Optionally define a config dict key if config is within a larger yaml file.
     '''
 
-    def __init__(self, configFile, configKey=None, persist=False):
+    def __init__(self, configFile, configKey=None, persist=False, log_obj=None):
 
         self.persist = persist
         self.readOnly = 0
-        self.VALID_DB_TYPES = ('mysql', 'postgresql')
+        self.log = log_obj
 
         #parse config file
         assert os.path.isfile(configFile), f"ERROR: config file '{configFile}' does not exist.  Exiting."
@@ -45,7 +40,6 @@ class db_conn(object):
 
         #keep dict of database connections
         self.conns = {}
-
 
     def connect(self, database):
         '''
@@ -68,23 +62,20 @@ class db_conn(object):
         user         = config['user']
         pwd          = config['pwd']
         port         = int(config['port']) if 'port' in config else 0
-        type         = config['type']
-
-        #check type is valid
-        assert type in self.VALID_DB_TYPES, f"ERROR: database type '{type}' not supported.  Exiting."
 
         #connect
         try:
-            if  type == 'mysql': 
-                conv=pymysql.converters.conversions.copy()
-                conv[10]=str       # convert dates to strings        
-                conn = pymysql.connect(user=user, password=pwd, host=server, database=db, autocommit=True, conv=conv)
-            elif type == 'postgresql': 
-                #todo: figure out conv for psycopg2
-                conn = psycopg2.connect(user=user, password=pwd, host=server, port=port, database=db)
+            conv = pymysql.converters.conversions.copy()
+            conv[10] = str       # convert dates to strings
+            conn = pymysql.connect(
+                user=user, password=pwd, host=server, database=db,
+                connect_timeout=10, read_timeout=10, write_timeout=10,
+                autocommit=True, conv=conv
+            )
         except Exception as e:
             conn = None
-            print("ERROR: Could not connect to database.", e)
+            self.log_msg(f"ERROR: Could not connect to database. {e}",
+                         level=0)
 
         #save connection
         if self.persist:
@@ -114,21 +105,28 @@ class db_conn(object):
         cursor = None
         conn   = None
 
+        self.log_msg('starting query', level=2)
         try:
             # determine query type and check for read only restriction
             qtype = query.strip().split()[0]
             if self.readOnly and qtype in ('insert', 'update'):
-                print('ERROR: Attempting to write to DB in read-only mode.')
+                self.log_msg('ERROR: Attempting to write to DB in read-only mode.',
+                             level=0)
                 return False
 
             # get cursor
             conn = self.connect(database)
+            self.log_msg('connected', level=2)
+
             cursor = conn.cursor(pymysql.cursors.DictCursor)
+            self.log_msg('got cursor', level=2)
 
         except Exception as e:
             self.clean_up(conn, cursor)
-            print('ERROR getting cursor: ', e)
+            self.log_msg(f'ERROR getting cursor: {e}', level=0)
             return False
+
+        self.log_msg('connection completed.', level=2)
 
         try:
             # execute query and determine return value by qtype
@@ -138,11 +136,15 @@ class db_conn(object):
                 else:
                     cursor.execute(query, values)
             else:
-                print(f'ERROR no cursor?')
+                self.log_msg(f'ERROR cursor is not defined.', level=0)
         except Exception as e:
             self.clean_up(conn, cursor)
-            print(f'ERROR executing query: {query} {values}', e)
+            self.log_msg(f'ERROR executing query: {query} {values}, {e}',
+                         level=0)
             return False
+
+        self.log_msg('query executed.', level=2)
+
         try:
             if cursor:
                 if qtype == 'select':
@@ -154,8 +156,10 @@ class db_conn(object):
                 cursor.close()
         except Exception as e:
             self.clean_up(conn, cursor)
-            print('ERROR getting result: ', e)
+            self.log_msg(f'ERROR getting result: {e}', level=0)
             return False
+
+        self.log_msg('got results.', level=2)
 
         try:
             # requesting one result
@@ -165,7 +169,8 @@ class db_conn(object):
                 else:
                     result = result[0]
 
-            # requesting single column (to remove associative / dictionary key for easy query)
+            # requesting single column (to remove associative / dictionary
+            # key for easy query)
             if getColumn and result:
                 if isinstance(result, list):
                     result = [row[getColumn] for row in result]
@@ -173,13 +178,43 @@ class db_conn(object):
                     result = result[getColumn]
 
         except Exception as e:
-            print('ERROR parsing result: ', e)
+            self.log_msg(f'ERROR parsing result: {e}', level=0)
             return False
+
 
         finally:
             self.clean_up(conn, cursor)
 
+        self.log_msg('query and cleanup complete.', level=2)
+
         return result
+
+    def log_msg(self, msg, level=None):
+        """
+        0 = error
+        1 = warning
+        2 = debug
+        3 = info
+
+        :param msg: the message to log
+        :type msg: str
+        :param level: the logging level
+        :type level: int
+        """
+
+        msg = f'db_conn - {msg}'
+        if self.log:
+            if not level or level == 3:
+                self.log.info(f'{msg}')
+            elif level == 0:
+                self.log.error(f'{msg}')
+                print
+            elif level == 1:
+                self.log.warning(f'{msg}')
+            elif level == 2:
+                self.log.debug(f'{msg}')
+        else:
+            print(f'stdout: {msg}')
 
     def clean_up(self, conn, cursor):
         if not self.persist:

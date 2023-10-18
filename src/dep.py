@@ -211,7 +211,7 @@ class DEP:
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-                                  persist=True)
+                                  persist=True, log_obj=log)
 
         return True
 

@@ -1,5 +1,5 @@
 #!/kroot/rel/default/bin/kpython3
-'''
+"""
 Desc: Daemon to monitor for new FITS files and send to DEP for archiving.
 Monitors KTL keywords to find new files for archiving.  Uses the database as its queue 
 so the queue is not in memory.  Keeps a list of spawned processes to manage how many 
@@ -12,7 +12,7 @@ Usage:
 Reference:
     http://spg.ucolick.org/KTLPython/index.html
 
-'''
+"""
 import sys
 import argparse
 import datetime as dt
@@ -45,7 +45,7 @@ EMAIL_INTERVAL_MINUTES = 60
 
 
 def main():
-    '''Handle command line args and create monitor object for service.'''
+    """Handle command line args and create monitor object for service."""
 
     # Arg parser
     parser = argparse.ArgumentParser()
@@ -73,11 +73,11 @@ def main():
 
 
 class Monitor:
-    '''
+    """
     Class to monitor KTL service to find new files to archive.  
     When a new file is detected via KTL, will insert a record into DB.
     Monitors DB queue and spawns new DEP archive processes per datafile.
-    '''
+    """
     def __init__(self, inst_mode_name):
 
         # init other vars
@@ -94,9 +94,6 @@ class Monitor:
         # load config file
         with open('config.live.ini') as f: 
             self.config = yaml.safe_load(f)
-
-        # Establish database connection
-        self._connect_db()
 
         # get ktl-service-name and instrument from the name of instrument + mode
         try:
@@ -117,16 +114,20 @@ class Monitor:
         self.transfer = self.keys.get('transfer', False)
 
         # create logger first
+        self.utd = dt.datetime.utcnow().strftime('%Y%m%d')
         self.log = self.create_logger(self.config[self.instr]['ROOTDIR'],
                                       self.instr, self.service_name)
         self.log.info(f"Starting KOA Monitor for {self.instr} "
                       f"{self.service_name}")
 
+        # Establish database connection
+        self._connect_db()
+
         self.monitor_start()
 
     def _connect_db(self):
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-                                  persist=True)
+                                  persist=True, log_obj=self.log)
 
     def __del__(self):
 
@@ -136,7 +137,8 @@ class Monitor:
 
     def monitor_start(self):
         # run KTL monitor for service
-        self.monitor = KtlMonitor(self.service_name, self.service_uniquename, self.keys, self, self.log)
+        self.monitor = KtlMonitor(self.service_name, self.service_uniquename,
+                                  self.keys, self, self.log)
         self.monitor.start()
 
         # start interval to monitor DEP processes for completion
@@ -144,33 +146,23 @@ class Monitor:
         self.queue_monitor()
 
     def process_monitor(self):
-        '''Remove any processes from list that are complete.'''
+        """Remove any processes from list that are complete."""
 
         # Loop procs and remove from list if complete
         # NOTE: looping in reverse so we can delete without messing up looping
-        removed = 0
-        for i in reversed(range(len(self.procs))):
-            p = self.procs[i]
-            if p.exitcode is not None:
-                self.log.info(f'---Removing completed process PID={p.pid}, '
-                               f'exitcode={p.exitcode}')
-                del self.procs[i]
-                removed += 1
+        removed_procs = [p for p in self.procs if not p.is_alive()]
+        self.procs = [p for p in self.procs if p.is_alive()]
 
-                # reconnect to the database,  the delete interrupts connection
-                self._connect_db()
-
-# This has been causing race conditions with KTL and the DB - not needed
-#        # If we removed any jobs, check queue
-#        if removed:
-#            self.check_queue()
+        for p in removed_procs:
+            self.log.info(f'Removed completed process ID={p.pid}, '
+                          f'exitcode={p.exitcode}')
 
         # call this function every N seconds
         # NOTE: we could do this faster
         threading.Timer(PROC_CHECK_SEC, self.process_monitor).start()
 
-    def add_to_queue(self, filepath):
-        '''Add a file to queue for processing'''
+    def add_to_queue(self, filepath, retry=True):
+        """Add a file to queue for processing"""
 
         # Check if this is an exact duplicate file in name and contents
         try:
@@ -193,27 +185,35 @@ class Monitor:
 
         result = self._get_db_result('koa', query, filepath=filepath)
         if result is False:
-            self.handle_error('DATABASE_ERROR', query)
-            return
+            if retry:
+                self.log.warning(f'DATABASE_ERROR,  retrying query: {query}')
+                return self.add_to_queue(filepath, retry=False)
+            if not retry:
+                self.handle_error('DATABASE_ERROR', query)
+                return
 
         # check queue
         self.check_queue()
 
-    def is_duplicate_file(self, filepath):
-        '''
+    def is_duplicate_file(self, filepath, retry=True):
+        """
         Check koa_status for most recent record with same ofname.
         If not staged and (queued or processing) then it is definitely a duplicate.
         If staged and file contents/hash are same, the we will skip this file.
         NOTE: This is to get around unsolved duplicate trigger broadcast issue.
-        '''
+        """
         query = ("select * from koa_status " 
                  f" where ofname='{filepath}' "
                  " order by id desc limit 1")
 
         row = self._get_db_result('koa', query, get_one=True)
         if row is False:
-            self.handle_error('DATABASE_ERROR', query)
-            return False
+            if retry:
+                self.log.warning(f'DATABASE_ERROR,  retrying query: {query}')
+                return self.is_duplicate_file(filepath, retry=False)
+            if not retry:
+                self.handle_error('DATABASE_ERROR', query)
+                return False
 
         if len(row) == 0:
             return False
@@ -228,7 +228,8 @@ class Monitor:
                                  f"broadcast same as {row['id']}. Skipping.")
                 return True            
             else:
-                # If it is in some other state (invalid, error), we want to process the current one
+                # If it is in some other state (invalid, error), we want to
+                # process the current one
                 return False
 
         # check files exists (stage_file could be moved)
@@ -252,8 +253,8 @@ class Monitor:
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
 
-    def check_queue(self):
-        '''Check queue for jobs that need to be spawned.'''
+    def check_queue(self, retry=True):
+        """Check queue for jobs that need to be spawned."""
         self.last_queue_check = time.time()
 
         query = (f"select * from koa_status where level=0 "
@@ -263,80 +264,119 @@ class Monitor:
                  f" order by creation_time asc limit 1")
 
         row = self._get_db_result('koa', query, get_one=True)
+
         if row is False:
-#            self.handle_error('DATABASE_ERROR', query)
+            self.log.debug(f'row is False, query: {query}, row: {row}')
             return False
 
         if len(row) == 0:
-            return 
+            self.log.debug(f'row == 0, query: {query}, row: {row}')
+            return False 
 
         # check that we have not exceeded max num procs
         if len(self.procs) >= self.max_procs:
             self.handle_error('MAX_PROCESSES', self.max_procs)
-            return
+            return False
 
         # set status to PROCESSING
         query = f"update koa_status set status='PROCESSING' where id={row['id']}"
 
         result = self._get_db_result('koa', query)
         if result is False:
-            self.handle_error('DATABASE_ERROR', query)
-            return False
+            if retry:
+                self.log.warning(f'DATABASE_ERROR,  retrying query: {query}')
+                return self.check_queue(retry=False)
+            if not retry:
+                self.handle_error('DATABASE_ERROR', query)
+                return False
 
         # pop from queue and process it
         self.log.info(f"Processing DB record ID={row['id']}, "
-                       f"filepath={row['ofname']}")
+                      f"filepath={row['ofname']}")
         try:
             self.process_file(self.instr, row['id'])
         except Exception as e:
             self.handle_error('PROCESS_ERROR',
-                              f"ID={row['id']}, filepath={row['ofname']}\n, "
+                              f"ID={row['id']}, filepath={row['ofname']}\n, {e}"
                               f"{traceback.format_exc()}")
 
     def queue_monitor(self):
-        '''
+        """
         Periodically check the queue when idle.
         NOTE: Queue is re-checked when an entry is made in the queue or if
         a job finishes.  However, if an entry is manually entered in queue
         outside of nominal operation, this will pick it up.
-        '''
+        """
         now = time.time()
         diff = int(now - self.last_queue_check) if self.last_queue_check else 0
+
         if diff >= QUEUE_CHECK_SEC or not self.last_queue_check:
+
+            # check if the ut date changed
+            current_date = dt.datetime.utcnow().strftime('%Y%m%d')
+            if self.utd != current_date:
+                # clear logs
+                for handler in self.log.handlers[:]:
+                    self.log.removeHandler(handler)
+
+                self.utd = current_date
+                self.log = self.create_logger(
+                    self.config[self.instr]['ROOTDIR'],
+                    self.instr,  self.service_name
+                )
+
             self.check_queue()
 
         # call this function every N seconds
         threading.Timer(QUEUE_CHECK_SEC, self.queue_monitor).start()
 
     def process_file(self, instr, id):
-        '''Spawn archiving for a single file by database ID.'''
+        """
+        Spawn archiving for a single file by database ID.
+
         # NOTE: Using multiprocessing instead of subprocess so we can spawn loaded functions
         # as a separate process which saves us the ~0.5 second overhead of launching python.
+        """
 
-        proc = multiprocessing.Process(target=self.spawn_processing, args=(self.instr, id))
+        proc = multiprocessing.Process(target=self.spawn_processing,
+                                       args=(self.instr, id))
         proc.start()
         self.procs.append(proc)
         self.log.info(f'DEP started as system process ID: {proc.pid}')
 
     def spawn_processing(self, instr, dbid):
-        '''Call archiving for a single file by DB ID.'''
+        """Call archiving for a single file by DB ID."""
         obj = Archive(self.instr, dbid=dbid, transfer=self.transfer)
 
     def create_logger(self, rootdir, instr, service):
         """Creates a logger based on rootdir, instr, service name and date"""
+        log_level_map = {
+            'DEBUG': logging.DEBUG,
+            'INFO': logging.INFO,
+            'WARNING': logging.WARNING,
+            'ERROR': logging.ERROR,
+            'CRITICAL': logging.CRITICAL
+        }
+        log_level = log_level_map[self.config['MISC']['LOG_LEVEL']]
 
         # Create logger object
         name = f'koa_monitor_{instr}_{service}'
         log = logging.getLogger(name)
-        log.setLevel(logging.DEBUG)
+
+        log.setLevel(log_level)
 
         # paths
-        processDir = f'{rootdir}/{instr.upper()}'
-        logFile =  f'{processDir}/{name}.log'
+        processDir = f'{rootdir}/{instr.upper()}/log/'
+        logFile = f'{processDir}/{name}_{self.utd}.log'
 
         # create directory if it does not exist
         try:
             Path(processDir).mkdir(parents=True, exist_ok=True)
+
+            # check that the file exists, if not create it.
+            if not Path(logFile).is_file():
+                with open(logFile, 'w') as file:
+                    file.write('Log file created.')
         except Exception as e:
             print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
             return False
@@ -344,44 +384,53 @@ class Monitor:
         # Create a file handler
         handle = logging.FileHandler(logFile)
         handle.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s: %(message)s')
         handle.setFormatter(formatter)
         log.addHandler(handle)
 
-        # add stdout to output so we don't need both log and print statements(>= warning only)
+        # add stdout to output so we don't need both log and print statements
+        # (>= warning only)
+        log_level = log_level_map[self.config['MISC']['STD_OUT_LOG_LEVEL']]
+
         sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+        sh.setLevel(log_level)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s - %(message)s')
         sh.setFormatter(formatter)
         log.addHandler(sh)
         
         # init message and return
         log.info(f'logger created for {instr} {service} at {logFile}')
+
+        # add to the std out log the location of the log
+        print(f'logger created for {instr} {service} at {logFile}')
+
         return log
 
     def handle_error(self, errcode, text='', check_time=True):
-        '''Email admins the error but only if we haven't sent one recently.'''
+        """Email admins the error but only if we haven't sent one recently."""
 
         # always log/print
         self.log.error(f'{errcode}: {text}')
         handle_error(errcode, text, self.instr, self.service_uniquename, check_time)
 
     def _get_db_result(self, db_name, query, get_one=False, retry=True, filepath=None):
+        self.log.debug(f'db params: {self.db}, {db_name}, {query}, '
+                       f'{get_one}, {retry}, {filepath}')
         result = self.db.query(db_name, query, getOne=get_one)
         if result is False and retry:
-            self.log.debug("try reconnecting to database")
-            self._connect_db()
             if filepath != None:
                 if self.is_duplicate_file(filepath):
                     self.log.info(f'Database entry for {filepath} exists')
                     return True
-            result = self._get_db_result(db_name, query, get_one=get_one, retry=False)
+
+            result = self._get_db_result(db_name, query, get_one=get_one,
+                                         retry=False, filepath=filepath)
 
         return result
 
 
 class KtlMonitor:
-    '''
+    """
     Class to handle monitoring a distinct keyword for an instrument to
     determine when a new image has been written.
 
@@ -391,7 +440,7 @@ class KtlMonitor:
                      as well as special formatting to construct filepath.
         queue_mgr (obj): Class object that contains callback 'add_to_queue' function.
         log (obj): logger object
-    '''
+    """
     def __init__(self, service_name, service_uniquename, keys, queue_mgr, log):
         self.log = log
         self.service_name = service_name
@@ -410,7 +459,7 @@ class KtlMonitor:
         if 'delay' in self.keys.keys(): self.delay = self.keys['delay']
 
     def start(self):
-        '''Start monitoring 'trigger' keyword for new files.'''
+        """Start monitoring 'trigger' keyword for new files."""
 
         keys = self.keys
 
@@ -448,15 +497,12 @@ class KtlMonitor:
             self.resuscitations = self.service.resuscitations
 
     def check_service(self):
-        '''
+        """
         Periodically check that service is still working with a read of heartbeat keyword.
         Also keep tabs on resuscitation value and logs when it changes. This should indicate
         service reconnect.
-        '''
+        """
         try:
-#            hb = self.keys['heartbeat'][0]
-#            kw = self.service[hb]
-#            kw.read(timeout=1)
             if self.service.resuscitations != self.resuscitations:
                 self.log.info(f"KTL service {self.service_uniquename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
@@ -474,7 +520,7 @@ class KtlMonitor:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
 
     def on_new_file(self, keyword):
-        '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
+        """Callback for KTL monitoring.  Gets full filepath and takes action."""
         try:
             # Assume first read after a full restart is old
             if self.last_mtime is None:
@@ -482,10 +528,13 @@ class KtlMonitor:
                 self.last_mtime = -1
                 return
 
+            self.log.debug(f'last_mtime: {self.last_mtime}')
+
             # make sure keyword is populated
             if keyword['populated'] == False:
                 self.log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
+
             self.log.info(f'on_new_file: {keyword.name}={keyword.ascii}')
 
             # Get trigger val and if 'reqval' is defined make sure trigger equals reqval
@@ -495,6 +544,8 @@ class KtlMonitor:
                 self.log.info(f'Trigger val of {keyword.ascii} != {reqval}')
                 return
 
+            self.log.debug(f'keys, reqval: {keys} {reqval}')
+
             # get full file path
             format = self.keys.get('format', None)
             zfill = self.keys.get('zfill', None)
@@ -502,6 +553,8 @@ class KtlMonitor:
                 filepath = self.get_formatted_filepath(format, zfill)
             else:
                 filepath = keyword.ascii
+
+            self.log.debug(f'filepath: {filepath}')
 
             # check for blank filepath
             if not filepath or not filepath.strip():
@@ -539,6 +592,7 @@ class KtlMonitor:
                 self.log.info(f'Skipping (last mtime = {self.last_mtime})')
                 self.last_mtime = mtime
                 return
+
             self.last_mtime = mtime
 
         except Exception as e:
@@ -547,6 +601,7 @@ class KtlMonitor:
 
         # send back to queue manager
         self.queue_mgr.add_to_queue(filepath)
+      
 
     def _handle_file_not_found(self, filepath):
         """
@@ -588,12 +643,12 @@ class KtlMonitor:
         return False
 
     def get_formatted_filepath(self, format, zfill):
-        '''
+        """
         Construct filepath from multiple KTL keywords. See instr_keys module global defined above.
         Parameters:
             format (str): Path formatting containing keywords in curlies to replace with KTL values
             zfill (dict): Map KTL keywords to '0' zfill.
-        '''
+        """
         filepath = format
         matches = re.findall("{.*?}", format)
         for key in matches:
@@ -608,7 +663,7 @@ class KtlMonitor:
 
 
 def handle_error(errcode, text=None, instr=None, service=None, check_time=True):
-    '''Email admins the error but only if we haven't sent one recently.'''
+    """Email admins the error but only if we haven't sent one recently."""
 
     # always log/print
     print(f'{errcode}: {text}')

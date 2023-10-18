@@ -12,6 +12,7 @@ from os import walk, makedirs, chdir, remove, system
 from os.path import isdir, isfile, islink, basename, dirname
 from socket import gethostname
 from watchdog.events import PatternMatchingEventHandler
+#from watchdog.events import RegexMatchingEventHandler
 from watchdog.observers.polling import PollingObserver
 from astropy.io import fits
 
@@ -32,6 +33,11 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
                                              patterns=['*.fits'],
                                              ignore_directories=True,
                                              case_sensitive=False)
+
+#        RegexMatchingEventHandler.__init__(self,
+#                                             regexes=['\w+.*_\d{4}.fits'],
+#                                             ignore_directories=True,
+#                                             case_sensitive=False)
 
     def create_logger(self):
         """Creates a logger"""
@@ -70,8 +76,15 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
 
         # read fits header
         has_camname = False
+        instr_name = 'UNDEFINED'
+        result = 'UNDEFINED'
+        hdul = NULL
+
+        # consider breaking fits.open() into a separate try block
+        # to deal with when  fits.open() hangs
         try:
             hdul = fits.open(event.src_path)
+            #hdul_len = len(hdul[0].header)
             instr_name = hdul[0].header['currinst']
             result = hdul[0].header['camname']
             if result:

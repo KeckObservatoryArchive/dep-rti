@@ -144,12 +144,12 @@ class Osiris(instrument.Instrument):
         '''
 
         # AO calibrations
-        pcsfname = self.get_keyword('PCSFNAME', default='')
-        pcsfx    = self.get_keyword('PCSFX', default=-999)
-        pcsfy    = self.get_keyword('PCSFY', default=-999)
-        pcsflz   = self.get_keyword('PCSFLZ', default=-999)
-        pcsfx, pcsfy, pcsflz = self.check_type_str([pcsfx, pcsfy, pcsflz], 0)
-        if pcsfx != 0 and pcsfy != 0 and pcsflz != 0:
+        pcuname = self.get_keyword('PCUNAME', default='')
+        pcux    = self.get_keyword('PCUX', default=-999)
+        pcuy    = self.get_keyword('PCUY', default=-999)
+        pcuz    = self.get_keyword('PCUZ', default=-999)
+        pcux, pcuy, pcuz = self.check_type_str([pcux, pcuy, pcuz], 0)
+        if pcux != 0 and pcuy != 0 and pcuz != 0:
             return 'calib'
 
         # dark if filter is Drk (set_filter() previously called)
