@@ -264,14 +264,13 @@ class Monitor:
                  f" order by creation_time asc limit 1")
 
         row = self._get_db_result('koa', query, get_one=True)
-        self.log.debug(f'check_queue - select queue result {row}')
 
         if row is False:
-            self.log.debug(f'return 1, row (results) is False {query}')
+            self.log.debug(f'row is False, query: {query}, row: {row}')
             return False
 
         if len(row) == 0:
-            self.log.debug(f'return 2 row (results) == 0 {query}')
+            self.log.debug(f'row == 0, query: {query}, row: {row}')
             return False 
 
         # check that we have not exceeded max num procs
@@ -327,7 +326,6 @@ class Monitor:
                 )
 
             self.check_queue()
-            self.log.debug(f'check_queue completed')
 
         # call this function every N seconds
         threading.Timer(QUEUE_CHECK_SEC, self.queue_monitor).start()
@@ -416,20 +414,17 @@ class Monitor:
         handle_error(errcode, text, self.instr, self.service_uniquename, check_time)
 
     def _get_db_result(self, db_name, query, get_one=False, retry=True, filepath=None):
-        # reconnect as a test
-        self.log.debug(f'db obj {self.db}, {db_name}, {query}, {get_one}, {retry}, {filepath}')
+        self.log.debug(f'db params: {self.db}, {db_name}, {query}, '
+                       f'{get_one}, {retry}, {filepath}')
         result = self.db.query(db_name, query, getOne=get_one)
         if result is False and retry:
-            # TODO seems unnecessary
-            # self._connect_db()
-            # self.log.debug(f'_get_db_result -- reconnected to db')
-            
             if filepath != None:
                 if self.is_duplicate_file(filepath):
                     self.log.info(f'Database entry for {filepath} exists')
                     return True
 
-            result = self._get_db_result(db_name, query, get_one=get_one, retry=False, filepath=filepath)
+            result = self._get_db_result(db_name, query, get_one=get_one,
+                                         retry=False, filepath=filepath)
 
         return result
 
@@ -508,9 +503,6 @@ class KtlMonitor:
         service reconnect.
         """
         try:
-#            hb = self.keys['heartbeat'][0]
-#            kw = self.service[hb]
-#            kw.read(timeout=1)
             if self.service.resuscitations != self.resuscitations:
                 self.log.info(f"KTL service {self.service_uniquename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
@@ -529,7 +521,6 @@ class KtlMonitor:
 
     def on_new_file(self, keyword):
         """Callback for KTL monitoring.  Gets full filepath and takes action."""
-        self.log.debug(f'starting new file')
         try:
             # Assume first read after a full restart is old
             if self.last_mtime is None:
@@ -608,14 +599,9 @@ class KtlMonitor:
             self.queue_mgr.handle_error('KTL_READ_ERROR', traceback.format_exc())
             return
 
-        self.log.debug(f'add_to_queue: {filepath}')
-
         # send back to queue manager
         self.queue_mgr.add_to_queue(filepath)
       
-        self.log.debug(f'on_new_file complete')
-
-
 
     def _handle_file_not_found(self, filepath):
         """
