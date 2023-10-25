@@ -1,10 +1,14 @@
 import datetime as dt
+import logging
+from pathlib import Path
 import os
+from sys import stdout
 import hashlib
 import json
 import glob
 import re
 import yaml
+from DDOILoggerClient import DDOILogger as dl
 
 
 def make_file_md5(infile, outfile):
@@ -133,3 +137,49 @@ def convert_ra_dec_to_degrees(coord, value):
 
     return newValue
 
+
+def create_logger(name='koa_dep', logFile=None, configLoc='./config.live.ini', **kwargs):
+    """
+    Creates a logger based on rootdir, instr and cur date.
+    NOTE: We create a temp log file first and once we have the KOAID,
+    we will rename the logfile and change the filehandler
+        (see dep.change_logger)
+    """
+
+    # Create logger object
+    logger = logging.getLogger(name)
+    lvl = kwargs.get('logLevel', logging.INFO)
+    logger.setLevel(lvl)
+
+    #Remove all handlers
+    #NOTE: This is important if processing multiple files with archive.py since
+    #we reuse global log object and do some renaming of log file (see change_logger())
+    logger.handlers = []
+
+    # Create a file handler
+    if logFile:
+        handle = logging.FileHandler(logFile)
+        lvl = kwargs.get('fileLogLevel', logging.INFO)
+        handle.setLevel(lvl)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+        handle.setFormatter(formatter)
+        logger.addHandler(handle)
+
+    #add stdout to output so we don't need both log and print statements(>= warning only)
+    sh = logging.StreamHandler(stdout)
+
+    lvl = kwargs.get('stdoutLogLevel', logging.WARNING)
+    sh.setLevel(lvl)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
+
+    # add additonal log keys that we want to include in the log schema
+    kwargs = { **kwargs, 'subsystem': name} 
+    zmq_log_handler = dl.ZMQHandler( configLoc, **kwargs )
+    logger.addHandler(zmq_log_handler)
+    
+    #init message and return
+    logger.info(f'logger created for {name} at {logFile}')
+    print(f'Logging to {logFile}')
+    return logger 

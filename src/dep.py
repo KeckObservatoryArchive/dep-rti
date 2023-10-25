@@ -67,6 +67,7 @@ class DEP:
         self.db = None
         self.filesize_mb = 0.0
         self.rtui = True
+        self.configLoc = './config.live.ini'
 
     def __del__(self):
 
@@ -83,7 +84,7 @@ class DEP:
         try:
             ok = True
             if ok: ok = self.init()
-            if ok: ok = self.create_logger()
+            if ok: ok = self.create_dep_logger()
             if ok: ok = self.get_level()
             if ok:
                 if   self.level == 0: ok = self.process_lev0()
@@ -194,7 +195,7 @@ class DEP:
         os.chdir(scriptpath)
 
         # load config file
-        with open('config.live.ini') as f: 
+        with open(self.configLoc) as f: 
             self.config = yaml.safe_load(f)
 
         # helpful vars from config
@@ -210,13 +211,13 @@ class DEP:
         if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
 
         # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-                                  persist=True, log_obj=log)
+        self.db = db_conn.db_conn(self.configLoc, configKey='DATABASE',
+                                  persist=True, logger_name='koa_dep')
 
         return True
 
 
-    def create_logger(self):
+    def create_dep_logger(self):
         """
         Creates a logger based on rootdir, instr and cur date.
         NOTE: We create a temp log file first and once we have the KOAID,
@@ -224,19 +225,12 @@ class DEP:
             (see dep.change_logger)
         """
 
-        name = 'koa_dep'
-        rootdir = self.config[self.instr]['ROOTDIR']
-        instr = self.instr
-
-        # Create logger object
-        global log
-        log = logging.getLogger(name)
-        log.setLevel(logging.INFO)
+        name = 'koa.dep'
 
         #paths 
-        processDir = f'{rootdir}/{instr.upper()}'
+        processDir = f'{self.rootdir}/{self.instr.upper()}'
         ymd = dt.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-        logFile =  f'{processDir}/logtmp/{name}_{instr.upper()}_{ymd}.log'
+        logFile =  f'{processDir}/logtmp/{name}_{self.instr.upper()}_{ymd}.log'
 
         #create directory if it does not exist
         try:
@@ -247,29 +241,12 @@ class DEP:
             self.log_error('WRITE_ERROR')
             return False
 
-        #Remove all handlers
-        #NOTE: This is important if processing multiple files with archive.py since
-        #we reuse global log object and do some renaming of log file (see change_logger())
-        log.handlers = []
+        logger = create_logger(name, logFile)
+        logger = logging.getLogger(name)
 
-        # Create a file handler
-        handle = logging.FileHandler(logFile)
-        handle.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        log.addHandler(handle)
-
-        #add stdout to output so we don't need both log and print statements(>= warning only)
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.WARNING)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-        sh.setFormatter(formatter)
-        log.addHandler(sh)
-        
         #init message and return
-        log.info(f'logger created for {name} at {logFile}')
-        print(f'Logging to {logFile}')
-        return log
+        logger.info(f'logger created for {name} at {logFile}')
+        return True 
 
 
     def get_level(self):

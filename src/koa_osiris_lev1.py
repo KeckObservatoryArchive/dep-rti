@@ -3,6 +3,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import units as u
 import datetime as dt
+from common import create_logger
 import db_conn
 from getpass import getuser
 import matplotlib.pyplot as plt
@@ -40,7 +41,9 @@ class KoaOsirisDrp(FileSystemEventHandler):
         self.datadir         = datadir
         self.outputdir       = outputdir
 
-        self.log = self.create_logger()
+        name = f'koa.osiris.lev1'
+        logFile =  f'/log/{name}.log'
+        self.logger = create_logger(name, logFile)
         self.log.info(f'Monitoring {self.datadir}')
         self.log.info(f'RTI outputdir is {self.outputdir}')
         self.log.info(f'RTI API is {self.rti}')
@@ -51,36 +54,6 @@ class KoaOsirisDrp(FileSystemEventHandler):
         self.fileList      = []
 
         self.add_current_file_list()
-
-
-    def create_logger(self):
-        """Creates a logger"""
-
-        # Create logger object
-        name = f'koa_osiris_lev1'
-        log = logging.getLogger(name)
-        log.setLevel(logging.DEBUG)
-
-        # paths
-        logFile =  f'/log/{name}.log'
-
-        # Create a file handler
-        handle = logging.FileHandler(logFile)
-        handle.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        log.addHandler(handle)
-
-        # add stdout to output so we don't need both log and print statements(>= warning only)
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-        sh.setFormatter(formatter)
-        log.addHandler(sh)
-
-        # init message and return
-        log.info(f'logger created at {logFile}')
-        return log
 
 
     def on_any_event(self, event):

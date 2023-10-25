@@ -25,6 +25,7 @@ import yaml
 from pathlib import Path
 import threading
 import multiprocessing
+from common import create_logger
 import ktl
 import logging
 import re
@@ -104,6 +105,7 @@ class Monitor:
             except:
                 self.service_uniquename = self.service_name
             self.instr = self.keys['instr']
+            self.logger_name = f'koa_monitor.{self.instr}.{self.service_name}'
         except KeyError:
             err = f"Instrument name: {inst_mode_name}, " \
                   f"{inst_mode_name}.ktl_service, and " \
@@ -115,19 +117,21 @@ class Monitor:
 
         # create logger first
         self.utd = dt.datetime.utcnow().strftime('%Y%m%d')
-        self.log = self.create_logger(self.config[self.instr]['ROOTDIR'],
+
+        self.log = self.create_monitor_logger(self.config[self.instr]['ROOTDIR'],
                                       self.instr, self.service_name)
         self.log.info(f"Starting KOA Monitor for {self.instr} "
                       f"{self.service_name}")
 
         # Establish database connection
+
         self._connect_db()
 
         self.monitor_start()
 
     def _connect_db(self):
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-                                  persist=True, log_obj=self.log)
+                                  persist=True, logger_name=self.logger_name)
 
     def __del__(self):
 
@@ -320,7 +324,7 @@ class Monitor:
                     self.log.removeHandler(handler)
 
                 self.utd = current_date
-                self.log = self.create_logger(
+                self.log = self.create_monitor_logger(
                     self.config[self.instr]['ROOTDIR'],
                     self.instr,  self.service_name
                 )
@@ -348,7 +352,7 @@ class Monitor:
         """Call archiving for a single file by DB ID."""
         obj = Archive(self.instr, dbid=dbid, transfer=self.transfer)
 
-    def create_logger(self, rootdir, instr, service):
+    def create_monitor_logger(self, rootdir, instr, service):
         """Creates a logger based on rootdir, instr, service name and date"""
         log_level_map = {
             'DEBUG': logging.DEBUG,
@@ -357,16 +361,10 @@ class Monitor:
             'ERROR': logging.ERROR,
             'CRITICAL': logging.CRITICAL
         }
-        log_level = log_level_map[self.config['MISC']['LOG_LEVEL']]
-
-        # Create logger object
-        name = f'koa_monitor_{instr}_{service}'
-        log = logging.getLogger(name)
-
-        log.setLevel(log_level)
 
         # paths
         processDir = f'{rootdir}/{instr.upper()}/log/'
+        name = f'koa.monitor.{instr}.{service}'
         logFile = f'{processDir}/{name}_{self.utd}.log'
 
         # create directory if it does not exist
@@ -381,25 +379,11 @@ class Monitor:
             print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
             return False
 
-        # Create a file handler
-        handle = logging.FileHandler(logFile)
-        handle.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s: %(message)s')
-        handle.setFormatter(formatter)
-        log.addHandler(handle)
-
-        # add stdout to output so we don't need both log and print statements
-        # (>= warning only)
-        log_level = log_level_map[self.config['MISC']['STD_OUT_LOG_LEVEL']]
-
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(log_level)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s - %(message)s')
-        sh.setFormatter(formatter)
-        log.addHandler(sh)
-        
+        log_level = log_level_map[self.config['MISC']['LOG_LEVEL']]
+        stdout_log_level = log_level_map[self.config['MISC']['STD_OUT_LOG_LEVEL']]
+        logger = create_logger(name, logFile, logLevel=log_level, stoutLogLevel=stdout_log_level)
         # init message and return
-        log.info(f'logger created for {instr} {service} at {logFile}')
+        logger.info(f'logger created for {instr} {service} at {logFile}')
 
         # add to the std out log the location of the log
         print(f'logger created for {instr} {service} at {logFile}')

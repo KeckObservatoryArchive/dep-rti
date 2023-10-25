@@ -31,6 +31,7 @@ import multiprocessing
 import logging
 import re
 import hashlib
+from common import create_logger
 
 import db_conn
 from archive import Archive
@@ -94,8 +95,8 @@ class Monitor():
             self.config = yaml.safe_load(f)
 
         #create logger first
-        self.log = self.create_logger(self.config[self.instr]['ROOTDIR'], self.instr)
-        self.log.info(f"Starting KOA DRP Monitor for {self.instr}")
+        self.logger = self.create_drp_logger(self.config[self.instr]['ROOTDIR'], self.instr)
+        self.logger.info(f"Starting KOA DRP Monitor for {self.instr}")
 
         # Establish database connection 
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
@@ -126,7 +127,7 @@ class Monitor():
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
             if p.exitcode is not None:
-                self.log.debug(f'---Removing completed process PID={p.pid}, exitcode={p.exitcode}')
+                self.logger.debug(f'---Removing completed process PID={p.pid}, exitcode={p.exitcode}')
                 del self.procs[i]
                 removed += 1
 
@@ -183,7 +184,7 @@ class Monitor():
             return False
 
         #pop from queue and process it
-        self.log.debug(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
+        self.logger.debug(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
         try:
             self.process_file(row['id'], row['level'])
         except Exception as e:
@@ -197,7 +198,7 @@ class Monitor():
         proc = multiprocessing.Process(target=self.spawn_processing, args=(id, level))
         proc.start()
         self.procs.append(proc)
-        self.log.debug(f'DEP started as system process ID: {proc.pid}')
+        self.logger.debug(f'DEP started as system process ID: {proc.pid}')
 
 
     def spawn_processing(self, dbid, level):
@@ -207,14 +208,11 @@ class Monitor():
         pass
 
 
-    def create_logger(self, rootdir, instr):
+    def create_drp_logger(self, rootdir, instr):
         """Creates a logger based on rootdir, instr and date"""
 
         # Create logger object
-        name = f'koa_monitor_drp_{instr}'
-        log = logging.getLogger(name)
-        log.setLevel(logging.DEBUG)
-
+        name = f'koa.monitor.drp.{instr}'
         #paths
         processDir = f'{rootdir}/{instr.upper()}'
         logFile =  f'{processDir}/{name}.log'
@@ -227,29 +225,15 @@ class Monitor():
             return False
 
         # Create a file handler
-        handle = logging.FileHandler(logFile)
-        handle.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        log.addHandler(handle)
-
-        #add stdout to output so we don't need both log and print statements(>= warning only)
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-        sh.setFormatter(formatter)
-        log.addHandler(sh)
-        
-        #init message and return
-        log.info(f'logger created for {instr} at {logFile}')
-        return log
+        logger = create_logger(name, logFile)
+        return logger
 
 
     def handle_error(self, errcode, text='', check_time=True):
         '''Email admins the error but only if we haven't sent one recently.'''
 
         #always log/print
-        self.log.error(f'{errcode}: {text}')
+        self.logger.error(f'{errcode}: {text}')
         handle_error(errcode, text, self.instr, check_time)
 
 
