@@ -138,12 +138,17 @@ def convert_ra_dec_to_degrees(coord, value):
     return newValue
 
 
-def create_logger(name='koa_dep', logFile=None, configLoc='./config.live.ini', **kwargs):
-    """
-    Creates a logger based on rootdir, instr and cur date.
-    NOTE: We create a temp log file first and once we have the KOAID,
-    we will rename the logfile and change the filehandler
-        (see dep.change_logger)
+def create_logger(name='koa.dep', logFile=None, configLoc='./config.live.ini', **kwargs):
+    """creates a logger with the following handlers: 
+    StreamHandler, ZMQHandler and the optional FileHandler.
+
+    Args:
+        name (str, optional): Name of logger. Use dot notation 'koa.dep' Defaults to 'koa.dep'.
+        logFile (str, optional): name of log file for FileHandler. Defaults to None.
+        configLoc (str, optional): Location of config file. Defaults to './config.live.ini'.
+
+    Returns:
+        _type_: _description_
     """
 
     # Create logger object
@@ -176,7 +181,11 @@ def create_logger(name='koa_dep', logFile=None, configLoc='./config.live.ini', *
 
     # add additonal log keys that we want to include in the log schema
     kwargs = { **kwargs, 'subsystem': name} 
-    zmq_log_handler = dl.ZMQHandler( configLoc, **kwargs )
+
+    # load config file
+    with open(configLoc) as f: 
+        config = yaml.safe_load(f)
+    zmq_log_handler = dl.ZMQHandler(url=config['LOGGER']['URL'], config=config, **kwargs )
     logger.addHandler(zmq_log_handler)
     
     #init message and return
