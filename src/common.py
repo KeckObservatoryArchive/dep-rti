@@ -1,10 +1,8 @@
 import datetime as dt
 import logging
-from pathlib import Path
 import os
 from sys import stdout
 import hashlib
-import json
 import glob
 import re
 import yaml
@@ -169,6 +167,7 @@ def create_logger(name='koa.dep', logFile=None, configLoc='./config.live.ini', *
         formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
         handle.setFormatter(formatter)
         logger.addHandler(handle)
+        print(f'Logging to {logFile}')
 
     #add stdout to output so we don't need both log and print statements(>= warning only)
     sh = logging.StreamHandler(stdout)
@@ -180,7 +179,7 @@ def create_logger(name='koa.dep', logFile=None, configLoc='./config.live.ini', *
     logger.addHandler(sh)
 
     # add additonal log keys that we want to include in the log schema
-    kwargs = { **kwargs, 'subsystem': name} 
+    kwargs = { **kwargs, 'subsystem': name, 'author': __file__} 
 
     # load config file
     with open(configLoc) as f: 
@@ -190,5 +189,4 @@ def create_logger(name='koa.dep', logFile=None, configLoc='./config.live.ini', *
     
     #init message and return
     logger.info(f'logger created for {name} at {logFile}')
-    print(f'Logging to {logFile}')
     return logger 

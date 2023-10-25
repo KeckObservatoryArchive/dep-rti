@@ -16,7 +16,7 @@ import traceback
 import glob
 from pathlib import Path
 import logging
-log = logging.getLogger('koa_dep')
+koa_dep_logger = logging.getLogger('koa.dep')
 
 
 class Kcwi(instrument.Instrument):
@@ -140,7 +140,7 @@ class Kcwi(instrument.Instrument):
         
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
@@ -178,13 +178,13 @@ class Kcwi(instrument.Instrument):
             elaptime = self.get_keyword('ELAPTIME')
         elif self.get_keyword('EXPTIME') is not None:
             elaptime = self.get_keyword('EXPTIME')
-            log.info('set_elaptime: Setting ELAPTIME from EXPTIME')
+            koa_dep_logger.info('set_elaptime: Setting ELAPTIME from EXPTIME')
         elif self.get_keyword('XPOSURE') is not None:
             elaptime = self.get_keyword('XPOSURE')
-            log.info('set_elaptime: Setting ELAPTIME from XPOSURE')
+            koa_dep_logger.info('set_elaptime: Setting ELAPTIME from XPOSURE')
         elif itime != None and coadds != None:
             elaptime = round(itime*coadds,4)
-            log.info('set_elaptime: Setting ELAPTIME from ITIME*COADDS')
+            koa_dep_logger.info('set_elaptime: Setting ELAPTIME from ITIME*COADDS')
         else:
             self.log_warn('SET_ELAPTIME_ERROR')
             return False
@@ -288,7 +288,7 @@ class Kcwi(instrument.Instrument):
         camera = self.get_keyword('CAMERA')
         #wcs values should only be set for fpc
         if camera != 'fpc':
-            log.info(f'set_wcs: WCS keywords not set for camera type: {camera}')
+            koa_dep_logger.info(f'set_wcs: WCS keywords not set for camera type: {camera}')
             return True
         #get ra and dec values
         rakey = (self.get_keyword('RA')).split(':')

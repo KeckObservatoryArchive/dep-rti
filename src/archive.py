@@ -3,7 +3,6 @@ Handle the various archiveing command line parameters and call DEP appropriately
 '''
 import sys
 import argparse
-import configparser
 import datetime as dt
 import traceback
 import os
@@ -13,9 +12,6 @@ import yaml
 import db_conn
 import importlib
 import glob
-import pdb
-import dep
-import instrument
 
 
 #module globals
@@ -77,7 +73,7 @@ class Archive():
         #handle any uncaught errors and email admin
         try:
             self.start()
-        except Exception as error:
+        except Exception as err:
             email_error('ARCHIVE_ERROR', traceback.format_exc(), instr)
 
 

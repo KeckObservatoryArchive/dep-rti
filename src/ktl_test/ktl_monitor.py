@@ -8,7 +8,7 @@ import datetime as dt
 import ktl
 import time
 import traceback
-import logging as log
+import logging
 import argparse
 import threading
 import re
@@ -32,9 +32,10 @@ def main():
     service = args.service
 
     #log init
-    log.basicConfig(filename=f'/usr/local/home/koarti/log/test_ktl_monitor_{service}.log', 
-                    level=log.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
-    log.debug(f'START monitoring {service}')
+    logging.basicConfig(filename=f'/usr/local/home/koarti/log/test_ktl_monitor_{service}.log', 
+                    level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
+    koa_dep_logger = logging.getLogger('koa.dep')
+    koa_dep_logger.debug(f'START monitoring {service}')
 
     #start monitor
     keys = monitor_config.instr_keymap[service]
@@ -47,7 +48,7 @@ def main():
             time.sleep(300)
         except:
             break
-    log.info(f'Exiting {__file__}')
+    koa_dep_logger.info(f'Exiting {__file__}')
 
 
 class KtlMonitor():
@@ -68,7 +69,7 @@ class KtlMonitor():
         self.restart_count = 0
         self.resuscitations = None
         self.instr = keys['instr']
-        log.info(f"KtlMonitor: instr: {self.instr}, service: {servicename}, trigger: {keys['trigger']}")
+        koa_dep_logger.info(f"KtlMonitor: instr: {self.instr}, service: {servicename}, trigger: {keys['trigger']}")
 
 
     def start(self):
@@ -77,11 +78,11 @@ class KtlMonitor():
         #Get service instance.  Keep retrying if it fails.
         try:
             self.service = ktl.Service(self.servicename)
-        except Exception as e:
-            log.error(traceback.format_exc())
+        except :
+            koa_dep_logger.error(traceback.format_exc())
             msg = (f"Could not start KTL monitoring for {self.instr} '{self.service}'. "
                    f"Retry in {KTL_START_RETRY_SEC} seconds.")
-            log.error('KTL_START_ERROR: ' + msg)
+            koa_dep_logger.error('KTL_START_ERROR: ' + msg)
             threading.Timer(KTL_START_RETRY_SEC, self.start).start()
             return
 
@@ -118,15 +119,15 @@ class KtlMonitor():
             kw = self.service[hb]
             kw.read(timeout=1)
             if self.service.resuscitations != self.resuscitations:
-                log.debug(f"KTL service {self.servicename} resuscitations changed.")
+                koa_dep_logger.debug(f"KTL service {self.servicename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
-        except Exception as e:
+        except :
             self.check_failed = True
-            log.debug(f"{self.instr} KTL service '{self.servicename}' heartbeat read failed.")
-            log.error('KTL_SERVICE_CHECK_FAIL: ' + self.servicename)
+            koa_dep_logger.debug(f"{self.instr} KTL service '{self.servicename}' heartbeat read failed.")
+            koa_dep_logger.error('KTL_SERVICE_CHECK_FAIL: ' + self.servicename)
         else:
             if self.check_failed:
-                log.debug(f"KTL service {self.servicename} read successful afer prior failure.")
+                koa_dep_logger.debug(f"KTL service {self.servicename} read successful afer prior failure.")
             self.check_failed = False
         finally:
             threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
@@ -135,7 +136,7 @@ class KtlMonitor():
     def on_new_file(self, kw):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
         try:
-            log.debug(f'on_new_file: '
+            koa_dep_logger.debug(f'on_new_file: '
                 f'\tservice={kw.service}'
                 f'\tname={kw.name}'
                 f'\tascii={kw.ascii}'
@@ -154,8 +155,8 @@ class KtlMonitor():
                 f'\tservice.dispatcher={self.service.dispatcher}'
                 f'\tservice.ktlc={self.service.ktlc}'
                 )
-        except Exception as e:
-            log.error('KTL_READ_ERROR: ', traceback.format_exc())
+        except :
+            koa_dep_logger.error('KTL_READ_ERROR: ', traceback.format_exc())
             return
         #self.queue_mgr.add_to_queue(keyword.ascii)
 

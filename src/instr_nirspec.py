@@ -8,7 +8,7 @@ from common import *
 from math import ceil
 
 import logging
-log = logging.getLogger('koa_dep')
+koa_dep_logger logging.getLogger('koa.dep')
 
 
 class Nirspec(instrument.Instrument):
@@ -207,7 +207,7 @@ class Nirspec(instrument.Instrument):
 
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            log.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value')
+            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
@@ -374,7 +374,7 @@ class Nirspec(instrument.Instrument):
         highresmap['0.0538'] = 0.570
         highresmap['0.0717'] = 0.760
         if self.prefix == 'NS':
-            log.info('set_slit_values: setting SLITLEN and SLITWIDT keyword values from SLITNAME')
+            koa_dep_logger.info('set_slit_values: setting SLITLEN and SLITWIDT keyword values from SLITNAME')
             slitname = self.get_keyword('SLITNAME')
             if 'x' in slitname:
                 #SLITNAME = 42x0.380 (low resolution)

@@ -56,7 +56,7 @@ def main():
     #run monitors and catch any unhandled error for email to admin
     try:
         monitor = Monitor(args.instr)
-    except Exception as error:
+    except Exception as err:
         handle_error('MONITOR_ERROR', traceback.format_exc())
         sys.exit(1)
 
@@ -187,7 +187,7 @@ class Monitor():
         self.logger.debug(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
         try:
             self.process_file(row['id'], row['level'])
-        except Exception as e:
+        except Exception as err:
             self.handle_error('PROCESS_ERROR', f"ID={row['id']}, filepath={row['ofname']}\n, {traceback.format_exc()}")
 
 
@@ -220,8 +220,8 @@ class Monitor():
         #create directory if it does not exist
         try:
             Path(processDir).mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
+        except Exception as err:
+            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(err)}")
             return False
 
         # Create a file handler

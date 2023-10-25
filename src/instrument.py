@@ -23,7 +23,7 @@ from astropy.visualization import ZScaleInterval, AsinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 
 import logging
-log = logging.getLogger('koa_dep')
+koa_dep_logger = logging.getLogger('koa.dep')
 
 
 
@@ -127,12 +127,12 @@ class Instrument(dep.DEP):
 
         # handle infinite value
         if value == math.inf or str(value).lower() in ('nan', '-nan'):
-            log.error(f'set_keyword: ERROR: keyword {keyword} value '
+            koa_dep_logger.error(f'set_keyword: ERROR: keyword {keyword} value '
                       f'is {value}.  Setting to null.')
             value = 'null'
 
         # if value == math.inf:
-        #     log.warning(f'set_keyword: keyword {keyword} value is infinite.  Setting to null.')
+        #     koa_dep_logger.warning(f'set_keyword: keyword {keyword} value is infinite.  Setting to null.')
         #     value = 'null'
 
         #ok now we can update
@@ -294,7 +294,7 @@ class Instrument(dep.DEP):
             #if fixed, then update 'INSTRUME' in header
             if ok:
                 self.set_keyword('INSTRUME', self.instr, 'KOA: Fixing INSTRUME keyword')
-                log.info('set_instr: fixing INSTRUME value')
+                koa_dep_logger.info('set_instr: fixing INSTRUME value')
 
         #log err
         if not ok:
@@ -327,7 +327,7 @@ class Instrument(dep.DEP):
                 else:            year = '19' + year
                 dateObs = year + '-' + month + '-' + day
                 self.set_keyword('DATE-OBS', dateObs, 'KOA: Value corrected (' + orig + ')')
-                log.warning('set_dateObs: fixed DATE-OBS format (orig: ' + orig + ')')
+                koa_dep_logger.warning('set_dateObs: fixed DATE-OBS format (orig: ' + orig + ')')
                 valid = True
 
         #if we couldn't match valid pattern, then build from file last mod time
@@ -337,14 +337,14 @@ class Instrument(dep.DEP):
             dateObs = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             dateObs = dateObs.strftime('%Y-%m-%d')
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Observing date')
-            log.warning('SET_DATEOBS_WARN: Set DATE-OBS value from FITS file time')
+            koa_dep_logger.warning('SET_DATEOBS_WARN: Set DATE-OBS value from FITS file time')
 
         # If good match, just take first 10 chars (some dates have 'T' format and extra time)
         if len(dateObs) > 10:
             orig = dateObs
             dateObs = dateObs[0:10]
             self.set_keyword('DATE-OBS', dateObs, 'KOA: Value corrected (' + orig + ')')
-            log.warning('set_dateObs: fixed DATE-OBS format (orig: ' + orig + ')')
+            koa_dep_logger.warning('set_dateObs: fixed DATE-OBS format (orig: ' + orig + ')')
 
         return True
        
@@ -376,7 +376,7 @@ class Instrument(dep.DEP):
             utc = dt.datetime.fromtimestamp(lastMod) + dt.timedelta(hours=10)
             utc = utc.strftime('%H:%M:%S.00')
             update = True
-            log.warning('SET_UTC_WARN: Set UTC value from FITS file time')
+            koa_dep_logger.warning('SET_UTC_WARN: Set UTC value from FITS file time')
         #update/add if need be
         if update:
             self.set_keyword('UTC', utc, 'KOA: UTC keyword corrected')
@@ -419,7 +419,7 @@ class Instrument(dep.DEP):
             if '_' in progname and self.is_progid_valid(progname):
                 semester, progid = progname.split('_')
                 self.set_keyword('SEMESTER', semester, 'Calculated SEMESTER from PROGNAME')
-                log.info(f"set_semester: Set SEMESTER to '{semester}' from ASSIGN_PROGNAME '{progname}'")
+                koa_dep_logger.info(f"set_semester: Set SEMESTER to '{semester}' from ASSIGN_PROGNAME '{progname}'")
                 return True
 
         #special override assign using PROGNAME
@@ -427,7 +427,7 @@ class Instrument(dep.DEP):
         if '_' in progname and self.is_progid_valid(progname):
             semester, progid = progname.split('_')
             self.set_keyword('SEMESTER', semester, 'Calculated SEMESTER from PROGNAME')
-            log.info(f"set_semester: Set SEMESTER to '{semester}' from PROGNAME '{progname}'")
+            koa_dep_logger.info(f"set_semester: Set SEMESTER to '{semester}' from PROGNAME '{progname}'")
             return True
 
         #normal assign using DATE-OBS and UTC
@@ -482,19 +482,19 @@ class Instrument(dep.DEP):
         #get schedule information
         api = self.config['API']['TELAPI']
         url = f"{api}cmd=getSchedule&date={self.hstdate}&telnr={self.telnr}&instr={self.instr}"
-        log.info(f'checking schedule for PROGID: {url}')
+        koa_dep_logger.info(f'checking schedule for PROGID: {url}')
         data = self.get_api_data(url)
         if data:
             if isinstance(data, dict):
                 data = [data]
             if len(data) == 1:
-                log.warning(f"Assigning PROGID by only scheduled entry: {data[0]['ProjCode']}")
+                koa_dep_logger.warning(f"Assigning PROGID by only scheduled entry: {data[0]['ProjCode']}")
                 return data[0]['ProjCode']
             for num, entry in enumerate(data):
                 #if there was an OUTDIR match above, use it
                 if splitNight > -1:
                     if splitNight == num+1:
-                        log.warning(f"Assigning PROGID by OUTDIR index match: {entry['ProjCode']}")
+                        koa_dep_logger.warning(f"Assigning PROGID by OUTDIR index match: {entry['ProjCode']}")
                         return entry['ProjCode']
                     else:
                         continue
@@ -504,13 +504,13 @@ class Instrument(dep.DEP):
                 end = entry['EndTime'].split(':')
                 end = int(end[0]) + (int(end[1])/60.0)
                 if ut >= start and ut <= end:
-                    log.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
+                    koa_dep_logger.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
                     return entry['ProjCode']
                 if num == 0 and ut < start:
-                    log.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
+                    koa_dep_logger.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
                     return entry['ProjCode']
                 if num == len(data)-1 and ut > end:
-                    log.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
+                    koa_dep_logger.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
                     return entry['ProjCode']
         return 'NONE'
 
@@ -618,10 +618,10 @@ class Instrument(dep.DEP):
         # NEW POLICY per DKOA-82: Propint=0 for PROGID=ENG and KOAIMTYP=calib
         try:
             if self.check_zero_propint():
-                log.info(f"Changing PROPINT from {self.extra_meta['PROPINT']} to 0")
+                koa_dep_logger.info(f"Changing PROPINT from {self.extra_meta['PROPINT']} to 0")
                 self.extra_meta['PROPINT'] = 0
-        except Exception as e:
-            self.log_warn('CHECK_ZERO_PROPINT_FAIL', str(e))
+        except Exception as err:
+            self.log_warn('CHECK_ZERO_PROPINT_FAIL', str(err))
 
         return True
 
@@ -726,7 +726,7 @@ class Instrument(dep.DEP):
         """Gets OA value from API for given date and telnr."""
 
         url = f"{self.config['API']['TELAPI']}cmd=getNightStaff&date={hstdate}&telnr={telnr}"
-        log.info(f'retrieving night staff info: {url}')
+        koa_dep_logger.info(f'retrieving night staff info: {url}')
         data = self.get_api_data(url)
         oa = 'None'
         if data:
@@ -787,7 +787,7 @@ class Instrument(dep.DEP):
         if len(errors) > 0:
             self.log_warn('EPICS_ARCHIVER_ERROR', str(errors))
         if len(warns) > 0:
-            log.info(f"EPICS archiver warn {dateobs} {utc}: {str(warns)}")
+            koa_dep_logger.info(f"EPICS archiver warn {dateobs} {utc}: {str(warns)}")
 
         #set keywords
         self.set_keyword('WXDOMHUM' , data['wx_domhum'],    'KOA: Weather dome humidity')
@@ -826,13 +826,13 @@ class Instrument(dep.DEP):
         #write out new fits file with altered header
         try:
             self.fits_hdu.writeto(self.outfile)
-            log.info('write_lev0_fits_file: output file is ' + self.outfile)
+            koa_dep_logger.info('write_lev0_fits_file: output file is ' + self.outfile)
         except:
             try:
                 self.fits_hdu.writeto(self.outfile, output_verify='ignore')
-                log.info('write_lev0_fits_file: Forced to write FITS using output_verify="ignore". May want to inspect:' + self.outfile)                
-            except Exception as e:
-                self.log_error('WRITE_FITS_ERROR', str(e))
+                koa_dep_logger.info('write_lev0_fits_file: Forced to write FITS using output_verify="ignore". May want to inspect:' + self.outfile)                
+            except Exception as err:
+                self.log_error('WRITE_FITS_ERROR', str(err))
                 if os.path.isfile(self.outfile):
                     os.remove(self.outfile)
                 return False
@@ -859,9 +859,9 @@ class Instrument(dep.DEP):
 
         #call instrument specific create_jpg function
         try:
-            log.info(f'make_jpg: Creating jpg from: {fits_filepath}')
+            koa_dep_logger.info(f'make_jpg: Creating jpg from: {fits_filepath}')
             self.create_jpg_from_fits(fits_filepath, outdir)
-        except Exception as e:
+        except :
             self.log_warn('MAKE_JPG_ERROR', traceback.format_exc())
             return False
 
@@ -953,7 +953,7 @@ class Instrument(dep.DEP):
         For those instruments without a DRP, just note that in the log.
         """
 
-        log.info('run_drp: no DRP defined for {}'.format(self.instr))
+        koa_dep_logger.info('run_drp: no DRP defined for {}'.format(self.instr))
         return True
 
     def run_psfr(self):
@@ -962,7 +962,7 @@ class Instrument(dep.DEP):
         For those instruments without PSFR, just note that in the log.
         """
 
-        log.info('run_psfr: no PSFR defined for {}'.format(self.instr))
+        koa_dep_logger.info('run_psfr: no PSFR defined for {}'.format(self.instr))
         return True
 
     def set_numccds(self):
@@ -1021,14 +1021,14 @@ class Instrument(dep.DEP):
 
         if delete == 0:
             if not os.path.isfile(dqaLoc):
-                log.info(f'dqa_loc: creating {dqaLoc}')
+                koa_dep_logger.info(f'dqa_loc: creating {dqaLoc}')
                 open(dqaLoc, 'w').close()
         elif delete == 1:
             if os.path.isfile(dqaLoc):
-                log.info(f'dqa_loc: removing {dqaLoc}')
+                koa_dep_logger.info(f'dqa_loc: removing {dqaLoc}')
                 os.remove(dqaLoc)
         else:
-            log.info('dqa_loc: invalid input parameter')
+            koa_dep_logger.info('dqa_loc: invalid input parameter')
 
         return True
 

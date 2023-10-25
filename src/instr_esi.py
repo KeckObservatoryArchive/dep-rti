@@ -8,7 +8,7 @@ from common import *
 import numpy as np
 
 import logging
-log = logging.getLogger('koa_dep')
+koa_dep_logger = logging.getLogger('koa.dep')
 
 
 class Esi(instrument.Instrument):
@@ -89,7 +89,7 @@ class Esi(instrument.Instrument):
         """
         koaimtyp = self.get_koaimtyp()
         if koaimtyp == 'undefined':
-            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         return True

@@ -73,9 +73,9 @@ class db_conn(object):
                 connect_timeout=10, read_timeout=10, write_timeout=10,
                 autocommit=True, conv=conv
             )
-        except Exception as e:
+        except Exception as err:
             conn = None
-            self.logger.error(f"Could not connect to database. {e}")
+            self.logger.error(f"Could not connect to database. {err}")
 
         #save connection
         if self.persist:
@@ -120,9 +120,9 @@ class db_conn(object):
             cursor = conn.cursor(pymysql.cursors.DictCursor)
             self.logger.debug('got cursor', level=2)
 
-        except Exception as e:
+        except Exception as err:
             self.clean_up(conn, cursor)
-            self.logger.debug(f'ERROR getting cursor: {e}')
+            self.logger.error(f'ERROR getting cursor: {err}')
             return False
 
         self.logger.debug('connection completed.')
@@ -136,9 +136,9 @@ class db_conn(object):
                     cursor.execute(query, values)
             else:
                 self.logger.error(f'cursor is not defined.')
-        except Exception as e:
+        except Exception as err:
             self.clean_up(conn, cursor)
-            self.logger.error(f'ERROR executing query: {query} {values}, {e}')
+            self.logger.error(f'ERROR executing query: {query} {values}, {err}')
             return False
 
         self.logger.debug('query executed.')

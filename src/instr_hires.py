@@ -16,7 +16,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 import scipy
 
 import logging
-log = logging.getLogger('koa_dep')
+koa_dep_logger = logging.getLogger('koa.dep')
 
 
 class Hires(instrument.Instrument):
@@ -105,7 +105,7 @@ class Hires(instrument.Instrument):
 
         koaimtyp = self.get_koaimtyp()
         if (koaimtyp == 'undefined'):
-            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
@@ -193,7 +193,7 @@ class Hires(instrument.Instrument):
 #        
 #        if self.get_keyword('Blank', False) != None: return True
 #
-#        log.info('set_blank: Creating BLANK keyword with value -32768')
+#        koa_dep_logger.info('set_blank: Creating BLANK keyword with value -32768')
 #
 #        #add keyword
 #        self.set_keyword('BLANK', -32768, 'KOA: ')
@@ -537,7 +537,7 @@ class Hires(instrument.Instrument):
             slitwidt = round(slitwidt, 3)
             specres = int(specres)
         else:
-            log.info('set_slit_values: Unable to set slit scale keywords')
+            koa_dep_logger.info('set_slit_values: Unable to set slit scale keywords')
 
         self.set_keyword('SLITLEN', slitlen, 'KOA: Slit length projected on sky (arcsec)')
         self.set_keyword('SLITWIDT', slitwidt, 'KOA: Slit width projected on sky (arcsec)')
@@ -601,7 +601,7 @@ class Hires(instrument.Instrument):
 
         # Skip if one or more values not found
         if irot2ang == None or parang == None or el == None:
-            log.info('set_skypa: Could not set skypa')
+            koa_dep_logger.info('set_skypa: Could not set skypa')
             return True
 
         skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)

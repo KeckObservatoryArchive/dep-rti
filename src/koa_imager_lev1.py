@@ -147,7 +147,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         try:
             header = fits.getheader(filename)
         except:
-            self.logger.info(f'Error reading file ({filename})')
+            self.logger.error(f'Error reading file ({filename})')
             return
 
         koaimtyp = header['KOAIMTYP']

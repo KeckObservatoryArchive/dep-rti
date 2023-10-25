@@ -18,7 +18,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from mpl_toolkits.axes_grid1 import ImageGrid
 
 import logging
-log = logging.getLogger('koa_dep')
+koa_dep_log = logging.getLogger('koa.dep')
 
 
 class Deimos(instrument.Instrument):
@@ -148,7 +148,7 @@ class Deimos(instrument.Instrument):
         dateobs, utc = dateVal.split('T')
         utc = f'{utc}.00'
         
-        log.info('set_fcs_date_time: Setting DATE-OBS and UTC from DATE')
+        koa_dep_log.info('set_fcs_date_time: Setting DATE-OBS and UTC from DATE')
         self.set_keyword('DATE-OBS', dateobs, 'KOA: Created from DATE keyword value')
         self.set_keyword('UTC', utc, 'KOA: Created from DATE keyword value')
         
@@ -185,7 +185,7 @@ class Deimos(instrument.Instrument):
 
         # Warn if undefined
         if koaimtyp == 'undefined':
-            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            koa_dep_log.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         # Create the keyword
@@ -253,7 +253,7 @@ class Deimos(instrument.Instrument):
         
         camera = self.get_keyword('CAMERA', False)
         if camera == None:
-            log.info('set_camera: Adding CAMERA keyword')
+            koa_dep_log.info('set_camera: Adding CAMERA keyword')
             self.set_keyword('CAMERA', 'DEIMOS', 'KOA: Camera name')
 
         return True
@@ -267,7 +267,7 @@ class Deimos(instrument.Instrument):
 
         filter = self.get_keyword('DWFILNAM', False)
         if filter == None:
-            log.info('set_filter: Could not set filter, no DWFILNAM value')
+            koa_dep_log.info('set_filter: Could not set filter, no DWFILNAM value')
         else:
             self.set_keyword('FILTER', filter, 'KOA: Filter name')
         return True
@@ -281,7 +281,7 @@ class Deimos(instrument.Instrument):
 
         mjd = self.get_keyword('MJD-OBS', False)
         if mjd == None:
-            log.info('set_mjd: Could not set MJD, no MJD-OBS value')
+            koa_dep_log.info('set_mjd: Could not set MJD, no MJD-OBS value')
         else:
             self.set_keyword('MJD', float(mjd), 'KOA: Modified julian day')
         return True
@@ -773,7 +773,7 @@ class Deimos(instrument.Instrument):
                     f"status='QUEUED',"
                     f"stage_file='{stage_file}',"
                     f"creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
-            log.info(query)
+            koa_dep_log.info(query)
             result = self.db.query('koa', query)
             if result is False:
                 self.log_warn('LEV1_INSERT_ERROR', query)

@@ -8,7 +8,7 @@ from common import *
 import numpy as np
 
 import logging
-log = logging.getLogger('koa_dep')
+koa_dep_logger = logging.getLogger('koa.dep')
 
 
 class Mosfire(instrument.Instrument):
@@ -172,7 +172,7 @@ class Mosfire(instrument.Instrument):
 
         # Warn if undefined
         if koaimtyp == 'undefined':
-            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         # Update keyword

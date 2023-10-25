@@ -66,8 +66,8 @@ def create_extra_data():
     return extraData
 
 def create_tables_and_checksum_files():
-    log = logging.getLogger(logFile)
-    log.info(startMsg)
+    logger = logging.getLogger(logFile)
+    logger.info(startMsg)
     for inst in INST_MAPPING.keys():
         keywordsDefFile = glob(os.path.join(keywordTablePath, f'KOA_{inst}_Keyword_Table.txt'))[0]
         metaOutFile = os.path.join(os.getcwd(), outDir, f'dep_{inst}.metadata.table') # must end in metadata.table

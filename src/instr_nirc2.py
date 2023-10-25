@@ -5,13 +5,12 @@ This is the class to handle all the NIRC2 specific attributes
 import instrument
 import datetime as dt
 import numpy as np
-import scipy.stats
 import os
 import subprocess
 from socket import gethostname
 from common import *
 import logging
-log = logging.getLogger('koa_dep')
+koa_dep_logger = logging.getLogger('koa.dep')
 
 
 class Nirc2(instrument.Instrument):
@@ -152,7 +151,7 @@ class Nirc2(instrument.Instrument):
             koaimtyp = self.get_koaimtyp()
 
         if (koaimtyp == 'undefined'):
-            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
@@ -521,10 +520,10 @@ class Nirc2(instrument.Instrument):
             for word in drp.split(' '):
                 cmd.append(word)
 
-            log.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
+            koa_dep_logger.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
             p = subprocess.Popen(cmd)
             p.wait()
-            log.info('run_drp: DRP finished')
+            koa_dep_logger.info('run_drp: DRP finished')
 
         return True
 
@@ -551,7 +550,7 @@ class Nirc2(instrument.Instrument):
         host = gethostname()
         cmd.append(f"/net/{host}{self.dirs['lev0']}")
 
-        log.info(f'run_psfr: Starting PSFR command: {" ".join(cmd)}')
+        koa_dep_logger.info(f'run_psfr: Starting PSFR command: {" ".join(cmd)}')
         p = subprocess.Popen(cmd)
 
         return True

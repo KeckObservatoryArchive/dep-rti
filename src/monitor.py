@@ -172,7 +172,7 @@ class Monitor:
         try:
             if self.is_duplicate_file(filepath):
                 return
-        except Exception as e:
+        except Exception as err:
             self.log.error(traceback.format_exc())
             self.handle_error('DUPLICATE_FILE_CHECK_FAIL')
 
@@ -299,9 +299,9 @@ class Monitor:
                       f"filepath={row['ofname']}")
         try:
             self.process_file(self.instr, row['id'])
-        except Exception as e:
+        except Exception as err:
             self.handle_error('PROCESS_ERROR',
-                              f"ID={row['id']}, filepath={row['ofname']}\n, {e}"
+                              f"ID={row['id']}, filepath={row['ofname']}\n, {err}"
                               f"{traceback.format_exc()}")
 
     def queue_monitor(self):
@@ -375,8 +375,8 @@ class Monitor:
             if not Path(logFile).is_file():
                 with open(logFile, 'w') as file:
                     file.write('Log file created.')
-        except Exception as e:
-            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
+        except Exception as err:
+            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(err)}")
             return False
 
         log_level = log_level_map[self.config['MISC']['LOG_LEVEL']]
@@ -384,11 +384,7 @@ class Monitor:
         logger = create_logger(name, logFile, logLevel=log_level, stoutLogLevel=stdout_log_level)
         # init message and return
         logger.info(f'logger created for {instr} {service} at {logFile}')
-
-        # add to the std out log the location of the log
-        print(f'logger created for {instr} {service} at {logFile}')
-
-        return log
+        return logger
 
     def handle_error(self, errcode, text='', check_time=True):
         """Email admins the error but only if we haven't sent one recently."""
@@ -450,7 +446,7 @@ class KtlMonitor:
         # get service instance
         try:
             self.service = ktl.Service(self.service_name)
-        except Exception as e:
+        except :
             self.log.error(traceback.format_exc())
             msg = (f"Could not start KTL monitoring for {self.instr} '{self.service}'. "
                    f"Retry in {KTL_START_RETRY_SEC} seconds.")
@@ -490,7 +486,7 @@ class KtlMonitor:
             if self.service.resuscitations != self.resuscitations:
                 self.log.info(f"KTL service {self.service_uniquename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
-        except Exception as e:
+        except :
             self.log.info(f'check_service() - heartbeat check failed')
             self.log.debug(e)
             self.check_failed = True
@@ -579,7 +575,7 @@ class KtlMonitor:
 
             self.last_mtime = mtime
 
-        except Exception as e:
+        except :
             self.queue_mgr.handle_error('KTL_READ_ERROR', traceback.format_exc())
             return
 
@@ -600,7 +596,7 @@ class KtlMonitor:
             try:
                 mtime = os.stat(filepath).st_mtime
                 return mtime
-            except Exception as e:
+            except :
                 self.log.info(f'delaying {self.delay}s, {filepath} not found')
                 pass
 
@@ -638,7 +634,7 @@ class KtlMonitor:
         for key in matches:
             key = key[1:-1]
             val = self.service[key].read()
-            print(val)
+            self.logger.debug(val)
             pad = zfill.get(key, None) if zfill else None
             if pad is not None:
                 val = val.zfill(pad)
