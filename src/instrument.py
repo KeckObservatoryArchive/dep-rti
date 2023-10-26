@@ -743,7 +743,6 @@ class Instrument(dep.DEP):
         Adds observing assistant name to header
         """
         oa = self.get_oa(self.hstdate, self.telnr)
-        log.info(f'get_oa() returned {oa}')
         self.set_keyword('OA', oa, 'KOA: Observing Assistant name')
         return True
 
