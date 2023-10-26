@@ -40,7 +40,7 @@ class KoaOsirisDrp(FileSystemEventHandler):
         self.outputdir       = outputdir
 
         name = f'koa.osiris.lev1'
-        logFile =  f'/log/{name.replace('.','_').log'
+        logFile =  f'/log/{name.replace(".","_")}.log'
         self.logger = create_logger(name, logFile)
         self.log.info(f'Monitoring {self.datadir}')
         self.log.info(f'RTI outputdir is {self.outputdir}')

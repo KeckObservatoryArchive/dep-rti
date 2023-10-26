@@ -207,7 +207,7 @@ class Monitor():
         name = f'koa.monitor.drp.{instr}'
         #paths
         processDir = f'{rootdir}/{instr.upper()}'
-        logFile =  f'{processDir}/{name.replace('.','_').log'
+        logFile =  f'{processDir}/{name.replace(".","_")}.log'
 
         #create directory if it does not exist
         try:
