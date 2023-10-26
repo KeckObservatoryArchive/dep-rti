@@ -743,10 +743,7 @@ class Instrument(dep.DEP):
         Adds observing assistant name to header
         """
         oa = self.get_oa(self.hstdate, self.telnr)
-        if oa == 'None':
-            self.log_warn("SET_OA_ERROR", url)
-        else:
-            self.set_keyword('OA', oa, 'KOA: Observing Assistant name')
+        self.set_keyword('OA', oa, 'KOA: Observing Assistant name')
         return True
 
 

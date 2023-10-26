@@ -18,6 +18,7 @@ from watchdog.observers.polling import PollingObserver
 from astropy.io import fits
 
 class KoaGuiderWatchdog(PatternMatchingEventHandler):
+#class KoaGuiderWatchdog(RegexMatchingEventHandler):
     '''
     Handles the directory monitoring and processing
     '''
@@ -53,7 +54,7 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
         has_camname = False
         instr_name = 'UNDEFINED'
         result = 'UNDEFINED'
-        hdul = NULL
+        hdul = None
 
         # consider breaking fits.open() into a separate try block
         # to deal with when  fits.open() hangs
