@@ -8,8 +8,8 @@ import traceback
 import os
 import smtplib
 from email.mime.text import MIMEText
-import yaml
-import db_conn
+from common import get_config
+from db_conn import db_conn
 import importlib
 import glob
 
@@ -85,11 +85,10 @@ class Archive():
         os.chdir(sys.path[0])
 
         #load config file
-        with open('config.live.ini') as f: 
-            self.config = yaml.safe_load(f)
+        self.config = get_config()
 
         # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+        self.db = db_conn(persist=True)
 
         #routing
         if self.filepath:
@@ -199,7 +198,7 @@ def email_error(errcode, text, instr='', check_time=True):
         last_email_times[errcode] = now
 
     #get admin email.  Return if none.
-    with open('config.live.ini') as f: config = yaml.safe_load(f)
+    config = get_config()
     adminEmail = config['REPORT']['ADMIN_EMAIL']
     if not adminEmail: return
     

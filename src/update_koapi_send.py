@@ -1,5 +1,5 @@
 import datetime as dt
-import db_conn
+from db_conn import db_conn
 
 
 def update_koapi_send(utdate, semid, instr=None):
@@ -13,7 +13,7 @@ def update_koapi_send(utdate, semid, instr=None):
     #print(f"updateKoapiSend: {utdate}, {semid}, {instr}")
 
     # db connect
-    db = db_conn.db_conn('config.live.ini', configKey='DATABASE')
+    db = db_conn()
 
     #Get latest entry (by utdate_beg) matching semid and instr
     query = f"select * from koapi_send where semid='{semid}' "

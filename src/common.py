@@ -9,9 +9,21 @@ import re
 import yaml
 from DDOILoggerClient import DDOILogger as dl
 
-with open('./config.live.ini') as f: 
-    config = yaml.safe_load(f)
-    DEFAULT_LOGGER_NAME = config['LOGGER']['MAIN_LOGGER']
+CONFIG_FILE = 'config.live.ini'
+
+def get_config(filePath=None):
+    if not filePath:
+        configPath = os.path.realpath(os.path.dirname(__file__) )
+        configPath = os.path.join(configPath, CONFIG_FILE)
+    else:
+        configPath = filePath
+    assert os.path.isfile(configPath), f"ERROR: config path'{configPath}' does not exist.  Exiting."
+    with open(configPath) as f:
+        config = yaml.safe_load(f)
+    return config
+
+config = get_config() 
+DEFAULT_LOGGER_NAME = config['LOGGER']['MAIN_LOGGER']
 
 
 def make_file_md5(infile, outfile):
@@ -140,7 +152,7 @@ def convert_ra_dec_to_degrees(coord, value):
 
     return newValue
 
-def create_logger(name=None, logFile=None, configLoc='./config.live.ini', **kwargs):
+def create_logger(name=None, logFile=None, configLoc=None, **kwargs):
     """creates a logger with the following handlers: 
     StreamHandler, ZMQHandler and the optional FileHandler.
 
@@ -155,8 +167,7 @@ def create_logger(name=None, logFile=None, configLoc='./config.live.ini', **kwar
 
 
     # load config file
-    with open(configLoc) as f: 
-        config = yaml.safe_load(f)
+    config = get_config(configLoc)
 
     # Create logger object
     if not name:
@@ -190,9 +201,9 @@ def create_logger(name=None, logFile=None, configLoc='./config.live.ini', **kwar
     logger.addHandler(sh)
 
     # add additonal log keys that we want to include in the log schema
-    kwargs = { **kwargs, 'subsystem': name, 'author': __file__} 
+    zmqkwargs = { 'subsystem': name, 'author': __file__, **kwargs } 
 
-    zmq_log_handler = dl.ZMQHandler(url=config['LOGGER']['URL'], config=config, **kwargs )
+    zmq_log_handler = dl.ZMQHandler(url=config['LOGGER']['URL'], config=config, **zmqkwargs )
     logger.addHandler(zmq_log_handler)
     
     #init message and return

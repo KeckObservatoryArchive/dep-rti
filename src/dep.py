@@ -7,8 +7,7 @@ import ssl
 import json
 import numpy as np
 import re
-import db_conn
-import yaml
+from db_conn import db_conn
 from astropy.io import fits
 import datetime as dt
 import shutil
@@ -60,7 +59,6 @@ class DEP:
         self.db = None
         self.filesize_mb = 0.0
         self.rtui = True
-        self.configLoc = './config.live.ini'
 
     def __del__(self):
 
@@ -188,8 +186,7 @@ class DEP:
         os.chdir(scriptpath)
 
         # load config file
-        with open(self.configLoc) as f: 
-            self.config = yaml.safe_load(f)
+        self.config = get_config()
 
         # helpful vars from config
         try:
@@ -204,8 +201,7 @@ class DEP:
         if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
 
         # Establish database connection 
-        self.db = db_conn.db_conn(self.configLoc, configKey='DATABASE',
-                                  persist=True, logger_name=DEFAULT_LOGGER_NAME)
+        self.db = db_conn(persist=True, logger_name=DEFAULT_LOGGER_NAME)
 
         return True
 

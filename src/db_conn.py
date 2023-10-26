@@ -1,7 +1,6 @@
 import os
-import yaml
 import pymysql.cursors
-from common import DEFAULT_LOGGER_NAME 
+from common import DEFAULT_LOGGER_NAME, get_config 
 import logging
 
 
@@ -23,19 +22,18 @@ class db_conn(object):
         },
     }
     Inputs:
-    - configFile: Filepath to yaml config file
+    - configPath: Filepath to yaml config file
     - configKey: Optionally define a config dict key if config is within a larger yaml file.
     '''
 
-    def __init__(self, configFile, configKey=None, persist=False, logger_name=DEFAULT_LOGGER_NAME):
+    def __init__(self, configPath=None, configKey='DATABASE', persist=False, logger_name=DEFAULT_LOGGER_NAME):
 
         self.persist = persist
         self.readOnly = 0
         self.logger = logging.getLogger(logger_name)
 
         #parse config file
-        assert os.path.isfile(configFile), f"ERROR: config file '{configFile}' does not exist.  Exiting."
-        with open(configFile) as f: self.config = yaml.safe_load(f)
+        self.config = get_config(configPath)
         if configKey:
             assert configKey in self.config, f"ERROR: config key '{configKey}' does not exist in config file. Exiting." 
             self.config = self.config[configKey]

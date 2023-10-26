@@ -21,11 +21,10 @@ import traceback
 import os
 import smtplib
 from email.mime.text import MIMEText
-import yaml
 from pathlib import Path
 import threading
 import multiprocessing
-from common import create_logger
+from common import create_logger, get_config
 import ktl
 import logging
 import re
@@ -34,7 +33,7 @@ import glob
 
 from archive import Archive
 import monitor_config
-import db_conn
+from db_conn import db_conn
 
 # module globals
 last_email_times = None
@@ -92,9 +91,7 @@ class Monitor:
         # cd to script dir so relative paths work
         os.chdir(sys.path[0])
 
-        # load config file
-        with open('config.live.ini') as f: 
-            self.config = yaml.safe_load(f)
+        self.config = get_config()
 
         # get ktl-service-name and instrument from the name of instrument + mode
         try:
@@ -123,15 +120,9 @@ class Monitor:
         self.log.info(f"Starting KOA Monitor for {self.instr} "
                       f"{self.service_name}")
 
-        # Establish database connection
-
-        self._connect_db()
+        self.db = db_conn(persist=True, logger_name=self.logger_name)
 
         self.monitor_start()
-
-    def _connect_db(self):
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-                                  persist=True, logger_name=self.logger_name)
 
     def __del__(self):
 
@@ -659,7 +650,7 @@ def handle_error(errcode, text=None, instr=None, service=None, check_time=True):
         last_email_times[errcode] = now
 
     #get admin email.  Return if none.
-    with open('config.live.ini') as f: config = yaml.safe_load(f)
+    config = get_config()
     adminEmail = config['REPORT']['ADMIN_EMAIL']
     if not adminEmail:
         return

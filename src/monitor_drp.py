@@ -22,7 +22,6 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 import logging
-import yaml
 import importlib
 from pathlib import Path
 import subprocess
@@ -31,9 +30,9 @@ import multiprocessing
 import logging
 import re
 import hashlib
-from common import create_logger
+from common import create_logger, get_config
 
-import db_conn
+from db_conn import db_conn
 from archive import Archive
 
 
@@ -91,15 +90,14 @@ class Monitor():
         os.chdir(sys.path[0])
 
         #load config file
-        with open('config.live.ini') as f: 
-            self.config = yaml.safe_load(f)
+        self.config = get_config()
 
         #create logger first
         self.logger = self.create_drp_logger(self.config[self.instr]['ROOTDIR'], self.instr)
         self.logger.info(f"Starting KOA DRP Monitor for {self.instr}")
 
         # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+        self.db = db_conn(persist=True)
 
         self.start()
 
@@ -255,7 +253,7 @@ def handle_error(errcode, text='', instr='', check_time=True):
         last_email_times[errcode] = now
 
     #get admin email.  Return if none.
-    with open('config.live.ini') as f: config = yaml.safe_load(f)
+    config = get_config()
     adminEmail = config['REPORT']['ADMIN_EMAIL']
     if not adminEmail: return
     

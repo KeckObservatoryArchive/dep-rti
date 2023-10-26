@@ -5,17 +5,7 @@ This is the class to handle all the GUIDER specific attributes
 from common import DEFAULT_LOGGER_NAME
 import instrument
 import datetime as dt
-import numpy as np
-from astropy.io import fits
 import os
-import re
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import math
-from skimage import exposure
-import traceback
-import glob
-from pathlib import Path
 import shutil
 
 import logging

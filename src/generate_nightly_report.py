@@ -1,28 +1,13 @@
 import os
 import argparse
 from glob import glob
+from common import get_config
     
-import db_conn
+from db_conn import db_conn
 from datetime import datetime, timedelta
 from collections import Counter
-import pdb
-
-
-from getpass import getuser
-from os.path import dirname, isfile
-import requests
-from socket import gethostname
 from astropy.io import fits as fits
-import yaml
 
-def get_config():
-    configPath = os.path.realpath(os.path.dirname(__file__) )
-    configPath = os.path.join(configPath, 'config.live.ini')
-    url = None
-    if isfile(configPath):
-        with open(configPath) as f:
-            config = yaml.safe_load(f)
-    return config
 
 def send_to_slack(body, instrument, debug=False):
 
@@ -39,9 +24,7 @@ def send_to_slack(body, instrument, debug=False):
         print(body)
 
 def get_database():
-    configPath = os.path.realpath(os.path.dirname(__file__) )
-    configPath = os.path.join(configPath, 'config.live.ini')
-    return db_conn.db_conn(configPath, configKey='DATABASE', persist=True)
+    return 
     
 
 def del_db(db):
@@ -299,7 +282,7 @@ def get_associated_fcs_files(filesDict, rows, missingFiles):
 
 def generate_report(instrument, date, debug=False):
     scheduled = is_instrument_scheduled(date, instrument)
-    db = get_database()
+    db = db_conn(persist=True)
     lev0Rows = get_daily_table( db, date, endDate, instrument, level=0 )
     numLev0DBFiles = len( lev0Rows )
     lev1Rows = get_daily_table( db, date, endDate, instrument, level=1 )

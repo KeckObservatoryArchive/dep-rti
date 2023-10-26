@@ -3,8 +3,8 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import units as u
 import datetime as dt
-from common import create_logger
-import db_conn
+from common import create_logger, get_config
+from db_conn import db_conn
 from getpass import getuser
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -18,11 +18,9 @@ import sys
 from time import sleep
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler
-import yaml
 import json
 import gzip
 import shutil
-import logging
 
 
 class KoaOsirisDrp(FileSystemEventHandler):
@@ -109,7 +107,7 @@ class KoaOsirisDrp(FileSystemEventHandler):
 
         while len(self.queue) > 0:
             filename = self.queue[0]
-            self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+            self.db = db_conn(persist=True)
             self.process_file(filename)
             self.db.close()
             self.fileList.append(filename)
@@ -313,12 +311,7 @@ def main():
     chdir(sys.path[0])
 
     # Get config
-    if isfile('config.live.ini'):
-        with open('config.live.ini') as f:
-            config = yaml.safe_load(f)
-    else:
-        print('config.live.ini file not found')
-        exit()
+    config = get_config()
 
     # Is OSIRIS scheduled for the night?  Get account being used.
     try:

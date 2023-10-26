@@ -12,10 +12,9 @@ import requests
 from socket import gethostname
 import sys
 from time import sleep
-from common import create_logger
+from common import create_logger, get_config
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import yaml
 import gzip
 import shutil
 import logging
@@ -33,14 +32,12 @@ class KoaImagerDrp(FileSystemEventHandler):
         self.hostname = gethostname()
         self.rti      = rti
         self.rtiUrl   = None
-        if isfile('config.live.ini'):
-            with open('config.live.ini') as f:
-                config = yaml.safe_load(f)
-            if 'RTI' in config.keys():
-                if 'API' in config['RTI'].keys():
-                   self.rtiUrl  = config['RTI']['API']
-                   self.rtiUser = config['RTI']['USER']
-                   self.rtiPwd  = config['RTI']['PWD']
+        config = get_config()
+
+        if 'RTI' in config.keys() and 'API' in config['RTI'].keys():
+            self.rtiUrl  = config['RTI']['API']
+            self.rtiUser = config['RTI']['USER']
+            self.rtiPwd  = config['RTI']['PWD']
 
         self.instrument      = instrument
         self.datadir         = datadir
@@ -48,7 +45,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         self.calibrationsdir = f'./{self.instrument.lower()}_calibrations'
 
         name = f'koa.imager.{self.instrument.lower()}.lev1'
-        logFile =  f'/log/{name.replace('.','_').log'
+        logFile =  f'/log/{name.replace(".","_")}.log'
         self.logger = create_logger(name, logFile)
 
         self.dpi = 100
