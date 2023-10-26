@@ -21,15 +21,11 @@ import update_koapi_send
 from common import *
 from envlog import *
 import check_dep_status_errors
-
 import logging
-
-main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
-
 
 class DEP:
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
 
         #class inputs
         self.instr     = instr.upper()
@@ -38,6 +34,7 @@ class DEP:
         self.transfer  = transfer
         self.progid    = progid
         self.dbid      = dbid
+        self.logger = logging.getLogger(logger_name)
 
         #init other vars
         self.koaid = ''

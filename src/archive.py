@@ -116,8 +116,9 @@ class Archive():
         '''Creates instrument object by name and starts processing.'''
         module = importlib.import_module('instr_' + self.instr.lower())
         instr_class = getattr(module, self.instr.capitalize())
+        logger_name = f'koa.{self.instr.lower()}' 
         instr_obj = instr_class(self.instr, filepath, self.reprocess,
-                                self.transfer, self.progid, dbid=dbid)
+                                self.transfer, self.progid, dbid=dbid, logger_name=logger_name)
 
         ok = instr_obj.process()
         if not ok:

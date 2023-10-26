@@ -8,15 +8,12 @@ import datetime as dt
 import os
 import shutil
 
-import logging
-main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
-
 
 class Guider(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
 
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
         #self.keymap['UTC'] = 'UT'
@@ -76,7 +73,7 @@ class Guider(instrument.Instrument):
         # Check to see if one exists in the original directory.  If not, create it.
         jpg = self.status['ofname'].replace('.fits', '.jpg')
         if os.path.isfile(jpg):
-            main_logger.info(f'Copying {jpg}')
+            self.logger.info(f'Copying {jpg}')
             outfile = f"{self.dirs['lev0']}/{self.koaid}.jpg"
             shutil.copy(jpg, outfile)
         else:
@@ -104,7 +101,7 @@ class Guider(instrument.Instrument):
         of_name = os.path.basename(self.status['ofname'])
         ofname_keyword = self.get_keyword('OFNAME')
         if not ofname_keyword:
-            main_logger.info('Add keyword OFNAME')
+            self.logger.info('Add keyword OFNAME')
             self.set_keyword('OFNAME', of_name, 'KOA: Original file name')
         return True
 
@@ -195,7 +192,7 @@ class Guider(instrument.Instrument):
             if isinstance(data, dict):
                 data = [data]
             if len(data) == 1:
-                main_logger.warning(f"Assigning PROGID by only scheduled entry: {data[0]['ProjCode']}")
+                self.logger.warning(f"Assigning PROGID by only scheduled entry: {data[0]['ProjCode']}")
                 return data[0]['ProjCode']
             for num, entry in enumerate(data):
                 start = entry['StartTime'].split(':')
@@ -203,14 +200,14 @@ class Guider(instrument.Instrument):
                 end = entry['EndTime'].split(':')
                 end = int(end[0]) + (int(end[1])/60.0)
                 if ut >= start and ut <= end:
-                    main_logger.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
+                    self.logger.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
                     return entry['ProjCode']
                 if entry['Type'] == 'Classical':
                     if num == 0 and ut < start:
-                        main_logger.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
+                        self.logger.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
                         return entry['ProjCode']
                     if num == len(data)-1 and ut > end:
-                        main_logger.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
+                        self.logger.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
                         return entry['ProjCode']
         return 'NONE'
 
@@ -293,11 +290,11 @@ class Guider(instrument.Instrument):
         #get necessary keywords
         ttime  = self.get_keyword('TTIME')
         if ttime != None:
-            main_logger.info('set_elaptime: determining ELAPTIME from TTIME')
+            self.logger.info('set_elaptime: determining ELAPTIME from TTIME')
             elaptime = round(ttime,2)
 
         if elaptime == 'null':
-            main_logger.warn('set_elaptime: Could not set ELAPTIME')
+            self.logger.warn('set_elaptime: Could not set ELAPTIME')
 
         #update val
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')

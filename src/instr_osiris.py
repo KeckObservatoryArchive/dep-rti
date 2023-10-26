@@ -12,8 +12,9 @@ main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 class Osiris(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
+
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'

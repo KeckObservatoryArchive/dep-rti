@@ -6,15 +6,11 @@ import instrument
 from common import *
 import numpy as np
 
-import logging
-main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
-
-
 class Esi(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
 
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
         self.keymap['UTC']      = 'UT'        
@@ -88,7 +84,7 @@ class Esi(instrument.Instrument):
         """
         koaimtyp = self.get_koaimtyp()
         if koaimtyp == 'undefined':
-            main_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         return True

@@ -13,15 +13,11 @@ from PIL import Image
 from astropy.visualization import ZScaleInterval, AsinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 
-import logging
-main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
-
-
 class Hires(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
 
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']   = 'OUTFILE'

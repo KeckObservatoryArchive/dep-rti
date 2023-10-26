@@ -14,15 +14,12 @@ import matplotlib.pyplot as plt
 from astropy.visualization import ZScaleInterval, AsinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 
-import logging
-main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
-
 
 class Deimos(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
 
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']   = 'OUTFILE'
@@ -145,7 +142,7 @@ class Deimos(instrument.Instrument):
         dateobs, utc = dateVal.split('T')
         utc = f'{utc}.00'
         
-        main_logger.info('set_fcs_date_time: Setting DATE-OBS and UTC from DATE')
+        self.logger.info('set_fcs_date_time: Setting DATE-OBS and UTC from DATE')
         self.set_keyword('DATE-OBS', dateobs, 'KOA: Created from DATE keyword value')
         self.set_keyword('UTC', utc, 'KOA: Created from DATE keyword value')
         
@@ -182,7 +179,7 @@ class Deimos(instrument.Instrument):
 
         # Warn if undefined
         if koaimtyp == 'undefined':
-            main_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         # Create the keyword
@@ -250,7 +247,7 @@ class Deimos(instrument.Instrument):
         
         camera = self.get_keyword('CAMERA', False)
         if camera == None:
-            main_logger.info('set_camera: Adding CAMERA keyword')
+            self.logger.info('set_camera: Adding CAMERA keyword')
             self.set_keyword('CAMERA', 'DEIMOS', 'KOA: Camera name')
 
         return True
@@ -264,7 +261,7 @@ class Deimos(instrument.Instrument):
 
         filter = self.get_keyword('DWFILNAM', False)
         if filter == None:
-            main_logger.info('set_filter: Could not set filter, no DWFILNAM value')
+            self.logger.info('set_filter: Could not set filter, no DWFILNAM value')
         else:
             self.set_keyword('FILTER', filter, 'KOA: Filter name')
         return True
@@ -278,7 +275,7 @@ class Deimos(instrument.Instrument):
 
         mjd = self.get_keyword('MJD-OBS', False)
         if mjd == None:
-            main_logger.info('set_mjd: Could not set MJD, no MJD-OBS value')
+            self.logger.info('set_mjd: Could not set MJD, no MJD-OBS value')
         else:
             self.set_keyword('MJD', float(mjd), 'KOA: Modified julian day')
         return True
@@ -770,7 +767,7 @@ class Deimos(instrument.Instrument):
                     f"status='QUEUED',"
                     f"stage_file='{stage_file}',"
                     f"creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
-            main_logger.info(query)
+            self.logger.info(query)
             result = self.db.query('koa', query)
             if result is False:
                 self.log_warn('LEV1_INSERT_ERROR', query)
