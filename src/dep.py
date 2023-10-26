@@ -5,7 +5,6 @@ Data Evaluation and Processing
 import os
 import ssl
 import json
-import numpy as np
 import re
 from db_conn import db_conn
 from astropy.io import fits

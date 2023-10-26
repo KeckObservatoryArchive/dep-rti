@@ -1,3 +1,6 @@
+import smtplib
+from email.mime.text import MIMEText
+
 def send_email(toEmail, fromEmail, subject, message):
     '''
     Sends email using the input parameters
@@ -12,8 +15,6 @@ def send_email(toEmail, fromEmail, subject, message):
     @param message: body of email
     '''
 
-    import smtplib
-    from email.mime.text import MIMEText
 
     # Construct email message
 

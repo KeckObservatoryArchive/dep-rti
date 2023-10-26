@@ -7,13 +7,7 @@ import ktl
 import logging
 import sys
 import time
-import watchdog.events
-from getpass import getuser
-from os import walk, makedirs, chdir, remove, system
-from os.path import isdir, isfile, islink, basename, dirname
-from socket import gethostname
 from watchdog.events import PatternMatchingEventHandler
-#from watchdog.events import RegexMatchingEventHandler
 from watchdog.observers.polling import PollingObserver
 from astropy.io import fits
 

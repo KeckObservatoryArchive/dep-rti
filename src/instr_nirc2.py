@@ -3,7 +3,6 @@ This is the class to handle all the NIRC2 specific attributes
 '''
 
 import instrument
-import datetime as dt
 import numpy as np
 import os
 import subprocess

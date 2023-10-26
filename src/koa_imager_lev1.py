@@ -17,7 +17,6 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import gzip
 import shutil
-import logging
 
 
 class KoaImagerDrp(FileSystemEventHandler):

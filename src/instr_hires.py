@@ -3,9 +3,8 @@ This is the class to handle all the HIRES specific attributes
 '''
 
 import instrument
-import datetime as dt
 from common import *
-from math import ceil, floor
+from math import floor
 import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
@@ -13,7 +12,6 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from astropy.visualization import ZScaleInterval, AsinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
-import scipy
 
 import logging
 main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)

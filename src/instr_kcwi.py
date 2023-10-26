@@ -9,11 +9,9 @@ import numpy as np
 from astropy.io import fits
 import os
 import re
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import math
 from skimage import exposure
-import traceback
 import glob
 from pathlib import Path
 import logging

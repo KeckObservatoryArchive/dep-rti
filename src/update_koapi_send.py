@@ -12,7 +12,6 @@ def update_koapi_send(utdate, semid, instr=None):
 
     #print(f"updateKoapiSend: {utdate}, {semid}, {instr}")
 
-    # db connect
     db = db_conn()
 
     #Get latest entry (by utdate_beg) matching semid and instr

@@ -3,7 +3,6 @@ This is the class to handle all the NIRES specific attributes.
 '''
 
 import instrument
-import datetime as dt
 from common import *
 
 import logging

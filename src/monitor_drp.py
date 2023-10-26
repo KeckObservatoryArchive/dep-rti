@@ -21,15 +21,9 @@ import traceback
 import os
 import smtplib
 from email.mime.text import MIMEText
-import logging
-import importlib
 from pathlib import Path
-import subprocess
 import threading
 import multiprocessing
-import logging
-import re
-import hashlib
 from common import create_logger, get_config
 
 from db_conn import db_conn

@@ -1,4 +1,3 @@
-import os
 import pymysql.cursors
 from common import DEFAULT_LOGGER_NAME, get_config 
 import logging

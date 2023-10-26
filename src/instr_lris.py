@@ -8,8 +8,6 @@ from common import DEFAULT_LOGGER_NAME
 import instrument
 import datetime as dt
 import numpy as np
-import math
-from astropy.convolution import convolve,Box1DKernel
 from astropy.io import fits
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -19,8 +17,7 @@ import re
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-from PIL import Image
-from astropy.visualization import ZScaleInterval, AsinhStretch, SinhStretch
+from astropy.visualization import ZScaleInterval, AsinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 from mpl_toolkits.axes_grid1 import ImageGrid
 

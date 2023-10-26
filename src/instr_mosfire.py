@@ -3,7 +3,6 @@ This is the class to handle all the MOSFIRE specific attributes
 '''
 
 import instrument
-import datetime as dt
 from common import *
 import numpy as np
 

@@ -2,9 +2,7 @@
 This is the class to handle all the OSIRIS specific attributes
 '''
 import instrument
-import datetime as dt
 from common import *
-from math import ceil
 import numpy as np
 import subprocess
 
