@@ -12,14 +12,9 @@ from scipy import ndimage
 
 import matplotlib as mpl
 mpl.use('Agg')
-import matplotlib.pyplot as plt
-from PIL import Image
-from astropy.visualization import ZScaleInterval, AsinhStretch, SinhStretch
-from astropy.visualization.mpl_normalize import ImageNormalize
-from mpl_toolkits.axes_grid2 import ImageGrid
 
 import logging
-koa_dep_logger logging.getLogger('koa.dep')
+main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class KPF(instrument.Instrument):

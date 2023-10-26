@@ -7,7 +7,7 @@ import datetime as dt
 from common import *
 
 import logging
-koa_dep_logger logging.getLogger('koa.dep')
+main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class Nires(instrument.Instrument):
@@ -217,7 +217,7 @@ class Nires(instrument.Instrument):
 
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value of "' + str(obstype) + '"')
+            main_logger.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value of "' + str(obstype) + '"')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword

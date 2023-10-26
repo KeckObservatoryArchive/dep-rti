@@ -25,7 +25,8 @@ from envlog import *
 import check_dep_status_errors
 
 import logging
-koa_dep_log = logging.getLogger('koa.dep')
+
+main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class DEP:
@@ -170,7 +171,7 @@ class DEP:
             name = f.get('name')
             crit = f.get('crit')
             args = f.get('args', {})
-            koa_dep_log.info(f'Running process function: {name}')
+            main_logger.info(f'Running process function: {name}')
             try: 
                 ok = getattr(self, name)(**args)
             except : 
@@ -204,7 +205,7 @@ class DEP:
 
         # Establish database connection 
         self.db = db_conn.db_conn(self.configLoc, configKey='DATABASE',
-                                  persist=True, logger_name='koa_dep')
+                                  persist=True, logger_name=DEFAULT_LOGGER_NAME)
 
         return True
 
@@ -217,12 +218,11 @@ class DEP:
             (see dep.change_logger)
         """
 
-        name = 'koa.dep'
 
         #paths 
         processDir = f'{self.rootdir}/{self.instr.upper()}'
         ymd = dt.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-        logFile =  f'{processDir}/logtmp/{name}_{self.instr.upper()}_{ymd}.log'
+        logFile =  f'{processDir}/logtmp/{DEFAULT_LOGGER_NAME.replace(".", "_")}_{self.instr.upper()}_{ymd}.log'
 
         #create directory if it does not exist
         try:
@@ -234,11 +234,10 @@ class DEP:
             self.log_error('WRITE_ERROR')
             return False
 
-        logger = create_logger(name, logFile)
-        logger = logging.getLogger(name)
+        logger = create_logger(DEFAULT_LOGGER_NAME, logFile)
 
         #init message and return
-        logger.info(f'logger created for {name} at {logFile}')
+        logger.info(f'logger created for {DEFAULT_LOGGER_NAME} at {logFile}')
         return True 
 
 
@@ -264,7 +263,7 @@ class DEP:
             query = (f"select * from koa_status where level=0 and"
                      f" instrument='{self.instr}' and ofname='{self.filepath}' "
                       " order by id desc")
-            koa_dep_log.info(query)
+            main_logger.info(query)
             row = self.db.query('koa', query, getOne=True)
             if row:
                 self.dbid = row['id']
@@ -277,7 +276,7 @@ class DEP:
                     f" , ofname='{self.filepath}' "
                     f" , status='PROCESSING' "
                     f" , creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
-            koa_dep_log.info(query)
+            main_logger.info(query)
             result = self.db.query('koa', query, getInsertId=True)
             if result is False: 
                 self.log_error('QUERY_ERROR', query)
@@ -305,8 +304,8 @@ class DEP:
         Perform initialization tasks for DEP processing.
         '''
 
-        if self.reprocess: koa_dep_log.info(f"Reprocessing ID# {self.dbid}")
-        else:              koa_dep_log.info(f"Processing ID# {self.dbid}")
+        if self.reprocess: main_logger.info(f"Reprocessing ID# {self.dbid}")
+        else:              main_logger.info(f"Processing ID# {self.dbid}")
 
         #if reprocessing, copy record to history and clear status columns
         if self.reprocess:
@@ -336,7 +335,7 @@ class DEP:
             #NOTE: We are not loading a fits file and updating certain koa_status cols for DRP
             self.filepath = None 
             pass
-        koa_dep_log.info(f"Using fits filepath: {self.filepath}")
+        main_logger.info(f"Using fits filepath: {self.filepath}")
         return True
 
 
@@ -405,7 +404,7 @@ class DEP:
         # Create the output directories, if they don't already exist.
         for key, dir in self.dirs.items():
             if not os.path.isdir(dir):
-                koa_dep_log.info(f'Creating output directory: {dir}')
+                main_logger.info(f'Creating output directory: {dir}')
                 try:
                     pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
                 except:
@@ -439,15 +438,12 @@ class DEP:
         #Find logger and FileHandler 
         #NOTE: monitor.py has its own logger which will be in loggerDict
         fileHandler = None
-        logger = None
-        for k, l in  logging.Logger.manager.loggerDict.items():
-            if isinstance(l, logging.PlaceHolder): continue
-            for h in l.handlers:
-                if 'FileHandler' not in str(h.__class__): continue
-                if 'koa_dep' not in h.baseFilename: continue
-                fileHandler = h
-                logger = l
-                break
+        logger = logging.Logger.manager.loggerDict.get(DEFAULT_LOGGER_NAME)
+        for handler in logger.handlers:
+            if 'FileHandler' not in str(handler.__class__): continue
+            if handler.baseFilename not in DEFAULT_LOGGER_NAME.replace('.', '_'): continue
+            fileHandler = handler 
+            break
 
         if not fileHandler:
             self.log_error('CHANGE_LOGGER_ERROR')
@@ -455,22 +451,11 @@ class DEP:
 
         #rename
         lev = f'lev{self.level}'
-#        if self.level in (0,1):
         newfile = f"{self.dirs[lev]}/{self.koaid}.log"
-#        else:
-#            newfile = f"{self.dirs[lev]}/dep_{lev}_{self.utdatedir}.log"
-        print(f"Logger renamed to {newfile}")
-        koa_dep_log.info(f"Renaming log file from {fileHandler.baseFilename} to {newfile}")
+        main_logger.info(f"Renaming log file from {fileHandler.baseFilename} to {newfile}")
         shutil.move(fileHandler.baseFilename, newfile)
 
-        #remove old fileHandler and add new
-        logger.removeHandler(fileHandler)
-
-        handle = logging.FileHandler(newfile, mode='a')
-        handle.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        logger.addHandler(handle)
+        logger = create_logger(DEFAULT_LOGGER_NAME, logFile=newfile)
 
         return True
 
@@ -498,7 +483,7 @@ class DEP:
         except Exception as err:
             self.log_error('FITS_FILE_TYPE_ERROR', str(err))
             if os.path.isfile(self.filepath):
-                koa_dep_log.error('Got a FITS_FILE_TYPE_ERROR, but os.path.isfile is OK.')
+                main_logger.error('Got a FITS_FILE_TYPE_ERROR, but os.path.isfile is OK.')
             else:
                 self.log_error('FITS_NOT_FOUND', self.filepath)
             return False
@@ -527,7 +512,7 @@ class DEP:
         query = (f"INSERT INTO koa_status_history "
                 f" SELECT ds.* FROM koa_status as ds " 
                 f" WHERE id = {id}")
-        koa_dep_log.info(query)
+        main_logger.info(query)
         result = self.db.query('koa', query)
         if result is False: 
             self.log_error('QUERY_ERROR', query)
@@ -555,7 +540,7 @@ class DEP:
                  f" koaimtyp           = NULL, "
                  f" semid              = NULL "
                  f" where id = {id} ")
-        koa_dep_log.info(query)
+        main_logger.info(query)
         result = self.db.query('koa', query)
         if result is False: 
             self.log_error('QUERY_ERROR', query)
@@ -574,11 +559,11 @@ class DEP:
 
         #if record already has stage_file defined and it exists, no copy needed
         if self.stage_file and os.path.isfile(self.stage_file):
-            koa_dep_log.info('Stage file defined and exists.  No copy needed.')
+            main_logger.info('Stage file defined and exists.  No copy needed.')
             return True        
 
         if invalid and not self.ofname:
-            koa_dep_log.info('No raw fits file to copy.')
+            main_logger.info('No raw fits file to copy.')
             return True
 
         #form filepath and copy
@@ -595,7 +580,7 @@ class DEP:
         #if outfile exists, we append version to filename
         #(This is for rare case where observer deletes file and recreates it)
         if os.path.isfile(outfile):
-            koa_dep_log.warning(f'Stage file already exists.  Renaming with version.')
+            main_logger.warning(f'Stage file already exists.  Renaming with version.')
             outdir = os.path.dirname(outfile)
             base = os.path.basename(outfile)
             for i in range(2,20):
@@ -607,7 +592,7 @@ class DEP:
                     break
 
         #copy file
-        koa_dep_log.info(f'Copying raw fits to {outfile}')
+        main_logger.info(f'Copying raw fits to {outfile}')
         try:
             outdir = os.path.dirname(outfile)
             pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
@@ -645,10 +630,10 @@ class DEP:
 
         #delete files matching KOAID*
         try:
-            koa_dep_log.info(f'Deleting local files in {self.levdir}')
+            main_logger.info(f'Deleting local files in {self.levdir}')
             for path in Path(self.levdir).rglob(f'*{self.koaid}.*'):
                 path = str(path)
-                koa_dep_log.info(f"removing file: {path}")
+                main_logger.info(f"removing file: {path}")
                 os.remove(path)
         except :
             self.log_error('FILE_DELETE_ERROR', self.levdir)
@@ -661,7 +646,7 @@ class DEP:
 
         if value is None: query = f"update koa_status set {column}=NULL where id='{self.dbid}'"
         else:             query = f"update koa_status set {column}='{value}' where id='{self.dbid}'"
-        koa_dep_log.info(query)
+        main_logger.info(query)
         result = self.db.query('koa', query)
         if result is False:
             self.log_error('QUERY_ERROR', query)
@@ -798,13 +783,13 @@ class DEP:
                 outDir = os.path.dirname(self.outfile)
                 outFile = filename.replace('.fits', '.ext' + str(i) + '.' + hdu.name.replace(' ', '_') + '.tbl')
                 outFilepath = f"{outDir}/{outFile}"
-                koa_dep_log.info('Creating {}'.format(outFilepath))
+                main_logger.info('Creating {}'.format(outFilepath))
                 with open(outFilepath, 'w') as f:
                     f.write(dataStr)
 
             except :
                 self.log_warn('EXT_HEADER_FILE_ERROR', str(e))
-                koa_dep_log.error(str(e))
+                main_logger.error(str(e))
                 return False
 
         return True
@@ -843,7 +828,7 @@ class DEP:
                         if split[-2] in ['plots','redux','logs']:
                             outdir = f'{outdir}/{split[-2]}'
                         destfile = f"{outdir}/{os.path.basename(srcfile)}"
-                    koa_dep_log.info(f"Copying {srcfile} to {destfile}")
+                    main_logger.info(f"Copying {srcfile} to {destfile}")
                     os.makedirs(os.path.dirname(destfile), exist_ok=True)
                     # Don't recopy files that haven't been updated
                     skip = False
@@ -892,7 +877,7 @@ class DEP:
             outdir = self.dirs[f'lev{self.level}']
             if self.level == 0:
                 md5Outfile = f'{outdir}/{self.koaid}.md5sum.table'
-                koa_dep_log.info(f'Creating {md5Outfile}')
+                main_logger.info(f'Creating {md5Outfile}')
                 # Now that KOAID can have _[value], need the ending .
                 kid = f'{self.koaid}\.'
                 make_dir_md5_table(outdir, None, md5Outfile, regex=kid)
@@ -900,7 +885,7 @@ class DEP:
             elif self.level in (1, 2):
                 for koaid, files in self.drp_files.items():
                     md5Outfile = f'{outdir}/{koaid}.md5sum.table'
-                    koa_dep_log.info(f'Creating {md5Outfile}')
+                    main_logger.info(f'Creating {md5Outfile}')
                     make_dir_md5_table(outdir, None, md5Outfile, fileList=files)
                     self.xfr_files.append(md5Outfile)                
             return True
@@ -940,7 +925,7 @@ class DEP:
             return True
 
         #process it
-        koa_dep_log.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
+        main_logger.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
         try:
             update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
         except Exception as err:
@@ -962,7 +947,7 @@ class DEP:
 
         #if not errors or warnings, return
         if not self.invalids and not self.errors and not self.warnings:
-            koa_dep_log.info("No DEP errors or warnings")
+            main_logger.info("No DEP errors or warnings")
             return
 
         #If errors, those will trump any warnings
@@ -971,7 +956,7 @@ class DEP:
         elif self.warnings: data = self.warnings[-1]
         status  = data['status']
         errcode = data['errcode']
-        koa_dep_log.warning(f"Found {len(self.errors)} errors and {len(self.warnings)} warnings.")
+        main_logger.warning(f"Found {len(self.errors)} errors and {len(self.warnings)} warnings.")
 
         #update by dbid
         #NOTE: WARN only status does not change koa_status.status
@@ -979,10 +964,10 @@ class DEP:
             query =  f"update koa_status set status_code='{errcode}' "
             if status != 'WARN': query += f", status='{status}' "
             query += f" where id={self.dbid}"
-            koa_dep_log.info(query)
+            main_logger.info(query)
             result = self.db.query('koa', query)
             if result is False: 
-                koa_dep_log.error(f'STATUS QUERY FAILED: {query}')
+                main_logger.error(f'STATUS QUERY FAILED: {query}')
                 return False
 
         #Copy to anc if INVALID
@@ -1153,7 +1138,7 @@ class DEP:
         """
 
         if not self.transfer:
-            koa_dep_log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'
+            main_logger.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'
                         'transfer to monitor_config.py if using monitor.py.')
             return True
 
@@ -1199,7 +1184,7 @@ class DEP:
         if not self.update_koa_status('status', 'TRANSFERRING'): return False
 
         toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}/lev{self.level}/'
-        koa_dep_log.info(f'transferring directory {fromDir} to {toLocation}')
+        main_logger.info(f'transferring directory {fromDir} to {toLocation}')
 
         if self.level == 2 and self.instr == 'KCWI':
             xfrOutfile = f'{self.levdir}/{self.utdatedir}.xfr.table'
@@ -1211,11 +1196,11 @@ class DEP:
                 fp.write(f'{file}\n')
         stageDir = f'{toDir}/{self.instr}/{self.utdatedir}/lev{self.level}/'
         cmd = f'ssh {account}@{server} mkdir -p {stageDir}'
-        koa_dep_log.info(cmd)
+        main_logger.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
         cmd = f'rsync -avzR --no-t --compress-level=1 --files-from={xfrOutfile} {fromDir} {toLocation}'
-        koa_dep_log.info(cmd)
+        main_logger.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
         if error:
@@ -1244,10 +1229,10 @@ class DEP:
                     notDone = [i for i in result if i['status'] != 'TRANSFERRED']
                     if len(notDone) == 0:
                         print(f"All data processed, triggering ingestion")
-                        koa_dep_log.info(f"All data processed, triggering ingestion")
+                        main_logger.info(f"All data processed, triggering ingestion")
                     else:
                         print(f"{len(notDone)} of {len(result)} still to process")
-                        koa_dep_log.info(f"{len(notDone)} of {len(result)} still to process")
+                        main_logger.info(f"{len(notDone)} of {len(result)} still to process")
                         return True
 
             apiUrl = f'{api}instrument={self.instr}&ingesttype=lev{self.level}'
@@ -1265,11 +1250,11 @@ class DEP:
                 apiUrl = f'{apiUrl}&rtui=false'
 
 
-            koa_dep_log.info(f'sending ingest API call {apiUrl}')
+            main_logger.info(f'sending ingest API call {apiUrl}')
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_koa_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
-            koa_dep_log.info(f"IPAC API response: {apiData}")
+            main_logger.info(f"IPAC API response: {apiData}")
             if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
                 self.log_error('IPAC_NOTIFY_ERROR', apiUrl)
                 return False
@@ -1314,20 +1299,20 @@ class DEP:
         status = 'WARN'
         caller = inspect.stack()[1][3]
         data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        koa_dep_log.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        main_logger.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
         self.warnings.append(data)
 
     def log_error(self, errcode, text=''):
         status = 'ERROR'
         caller = inspect.stack()[1][3]
         data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        koa_dep_log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        main_logger.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
         self.errors.append(data)
 
     def log_invalid(self, errcode, text=''):
         status = 'INVALID'
         caller = inspect.stack()[1][3]
         data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        koa_dep_log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        main_logger.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
         self.invalids.append(data)
 

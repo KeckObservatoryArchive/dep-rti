@@ -4,6 +4,7 @@ This is the class to handle all the LRIS specific attributes
 https://www2.keck.hawaii.edu/inst/lris/instrument_key_list.html
 '''
 
+from common import DEFAULT_LOGGER_NAME
 import instrument
 import datetime as dt
 import numpy as np
@@ -28,7 +29,7 @@ from skimage import exposure
 
 import logging
 
-koa_dep_logger = logging.getLogger('koa.dep')
+main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class Lris(instrument.Instrument):
@@ -151,7 +152,7 @@ class Lris(instrument.Instrument):
         '''
         koaimtyp = self.get_koaimtyp()
         if (koaimtyp == 'undefined'):
-            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            main_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         return True
@@ -551,7 +552,7 @@ class Lris(instrument.Instrument):
         ra      = self.get_keyword('RA')
         dec     = self.get_keyword('DEC')
         if ra == None or dec == None:
-            koa_dep_logger.warn('set_wcs: Could not set WCS')
+            main_logger.warn('set_wcs: Could not set WCS')
             return True
 
         pixcorrect = lambda x: (x/pixelscale) + 1024
@@ -627,7 +628,7 @@ class Lris(instrument.Instrument):
 
         # Skip if one or more values not found
         if irot2ang == None or parang == None or el == None:
-            koa_dep_logger.info('set_skypa: Could not set skypa')
+            main_logger.info('set_skypa: Could not set skypa')
             return True
         skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)
         self.set_keyword('SKYPA', round(skypa, 4), 'KOA: Position angle on sky (deg)')
@@ -1089,16 +1090,16 @@ class Lris(instrument.Instrument):
         #get necessary keywords
         xposure  = self.get_keyword('XPOSURE')
         if xposure != None:
-            koa_dep_logger.info('set_elaptime: determining ELAPTIME from XPOSURE')
+            main_logger.info('set_elaptime: determining ELAPTIME from XPOSURE')
             elaptime = round(xposure)
         else:
             ttime  = self.get_keyword('TTIME')
             if ttime != None:
-                koa_dep_logger.info('set_elaptime: determining ELAPTIME from TTIME')
+                main_logger.info('set_elaptime: determining ELAPTIME from TTIME')
                 elaptime = round(ttime)
 
         if elaptime == 'null':
-            koa_dep_logger.warn('set_elaptime: Could not set ELAPTIME')
+            main_logger.warn('set_elaptime: Could not set ELAPTIME')
 
         #update val
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')

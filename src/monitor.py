@@ -365,7 +365,7 @@ class Monitor:
         # paths
         processDir = f'{rootdir}/{instr.upper()}/log/'
         name = f'koa.monitor.{instr}.{service}'
-        logFile = f'{processDir}/{name}_{self.utd}.log'
+        logFile = f'{processDir}/{name.replace('.','_')_{self.utd}.log'
 
         # create directory if it does not exist
         try:

@@ -20,7 +20,9 @@ import logging
 from pathlib import Path
 import traceback
 
-koa_dep_logger = logging.getLogger("koa_dep")
+from common import DEFAULT_LOGGER_NAME
+
+main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class Metadata():
@@ -57,7 +59,7 @@ class Metadata():
         '''
 
         #open keywords format file and read data
-        koa_dep_logger.info('metadata.py reading keywords definition file: {}'.format(self.keyDefFile))
+        main_logger.info('metadata.py reading keywords definition file: {}'.format(self.keyDefFile))
         keyDefs = pd.read_csv(self.keyDefFile, sep='\t')
         try:
             keyDefs = self.format_keyDefs(keyDefs)
@@ -74,7 +76,7 @@ class Metadata():
         self.warns = []
 
         #get all fits files
-        koa_dep_logger.info('metadata.py searching fits files in dir: {}'.format(self.searchdir))
+        main_logger.info('metadata.py searching fits files in dir: {}'.format(self.searchdir))
         fitsFiles = []
         if self.searchdir:
             for path in Path(self.searchdir).rglob('*.fits'):
@@ -82,7 +84,7 @@ class Metadata():
         if self.fitsfile:
             fitsFiles.append(self.fitsfile)
         if len(fitsFiles) == 0:
-            koa_dep_logger.info(f'No fits file(s) found')
+            main_logger.info(f'No fits file(s) found')
 
         #loop fits files and add a meta row for each
         for fitsFile in sorted(fitsFiles):
@@ -152,7 +154,7 @@ class Metadata():
         """
         Adds a line to metadata file for one FITS file.
         """
-        koa_dep_logger.info("Creating metadata record for: " + fitsFile)
+        main_logger.info("Creating metadata record for: " + fitsFile)
 
         #get header object using astropy
         header = fits.getheader(fitsFile)
@@ -351,7 +353,7 @@ class Metadata():
                 elif (val == False): val = 'F'
 #            elif isinstance(val, int) and val == 0:
 #                val = ''
-#                koa_dep_logger.info(f'metadata check: {keyword}: found integer 0, expected {metaDataType}. KNOWN ISSUE. SETTING TO BLANK!')
+#                main_logger.info(f'metadata check: {keyword}: found integer 0, expected {metaDataType}. KNOWN ISSUE. SETTING TO BLANK!')
         return val
 
 

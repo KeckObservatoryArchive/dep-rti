@@ -9,7 +9,7 @@ import numpy as np
 import subprocess
 
 import logging
-koa_dep_logger logging.getLogger('koa.dep')
+main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class Osiris(instrument.Instrument):
@@ -130,7 +130,7 @@ class Osiris(instrument.Instrument):
 
         # warn if undefined
         if koaimtyp == 'undefined':
-            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            main_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         # update keyword
@@ -214,7 +214,7 @@ class Osiris(instrument.Instrument):
         pi = np.pi
 
         if instr.lower() == 'imag' and 'position angle' in rotmode:
-            koa_dep_logger.info('set_wcs_keywords: setting WCS keyword values')
+            main_logger.info('set_wcs_keywords: setting WCS keyword values')
             ctype1 = 'RA---TAN'
             ctype2 = 'DEC--TAN'
             wat0_001 = 'system=image'
@@ -410,7 +410,7 @@ class Osiris(instrument.Instrument):
             return True
 
         if koaimtyp == 'calib' and (float(ra) < -720 or float(ra) > 720):
-            koa_dep_logger.info('check_ra: changing RA to null')
+            main_logger.info('check_ra: changing RA to null')
             self.set_keyword('RA', None)
 
         return True
@@ -423,7 +423,7 @@ class Osiris(instrument.Instrument):
 
         drp = self.config.get(self.instr, {}).get('DRP')
         if not drp:
-            koa_dep_logger.info("No DRP defined.")
+            main_logger.info("No DRP defined.")
             return True
 
         cmd = []
@@ -431,10 +431,10 @@ class Osiris(instrument.Instrument):
             cmd.append(word)
         cmd.append(self.utdate)
 
-        koa_dep_logger.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
+        main_logger.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
         p = subprocess.Popen(cmd)
         p.wait()
-        koa_dep_logger.info('run_drp: DRP finished')
+        main_logger.info('run_drp: DRP finished')
 
         return True
 

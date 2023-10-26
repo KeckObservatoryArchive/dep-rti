@@ -1,4 +1,5 @@
 import datetime as dt
+import pdb
 import logging
 import os
 from sys import stdout
@@ -7,6 +8,10 @@ import glob
 import re
 import yaml
 from DDOILoggerClient import DDOILogger as dl
+
+with open('./config.live.ini') as f: 
+    config = yaml.safe_load(f)
+    DEFAULT_LOGGER_NAME = config['LOGGER']['MAIN_LOGGER']
 
 
 def make_file_md5(infile, outfile):
@@ -135,13 +140,12 @@ def convert_ra_dec_to_degrees(coord, value):
 
     return newValue
 
-
-def create_logger(name='koa.dep', logFile=None, configLoc='./config.live.ini', **kwargs):
+def create_logger(name=None, logFile=None, configLoc='./config.live.ini', **kwargs):
     """creates a logger with the following handlers: 
     StreamHandler, ZMQHandler and the optional FileHandler.
 
     Args:
-        name (str, optional): Name of logger. Use dot notation 'koa.dep' Defaults to 'koa.dep'.
+        name (str, optional): Name of logger. Use dot notation 'koa.dep'.
         logFile (str, optional): name of log file for FileHandler. Defaults to None.
         configLoc (str, optional): Location of config file. Defaults to './config.live.ini'.
 
@@ -149,7 +153,14 @@ def create_logger(name='koa.dep', logFile=None, configLoc='./config.live.ini', *
         _type_: _description_
     """
 
+
+    # load config file
+    with open(configLoc) as f: 
+        config = yaml.safe_load(f)
+
     # Create logger object
+    if not name:
+        name = DEFAULT_LOGGER_NAME 
     logger = logging.getLogger(name)
     lvl = kwargs.get('logLevel', logging.INFO)
     logger.setLevel(lvl)
@@ -181,9 +192,6 @@ def create_logger(name='koa.dep', logFile=None, configLoc='./config.live.ini', *
     # add additonal log keys that we want to include in the log schema
     kwargs = { **kwargs, 'subsystem': name, 'author': __file__} 
 
-    # load config file
-    with open(configLoc) as f: 
-        config = yaml.safe_load(f)
     zmq_log_handler = dl.ZMQHandler(url=config['LOGGER']['URL'], config=config, **kwargs )
     logger.addHandler(zmq_log_handler)
     

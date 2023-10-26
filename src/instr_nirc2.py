@@ -10,7 +10,7 @@ import subprocess
 from socket import gethostname
 from common import *
 import logging
-koa_dep_logger = logging.getLogger('koa.dep')
+main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class Nirc2(instrument.Instrument):
@@ -151,7 +151,7 @@ class Nirc2(instrument.Instrument):
             koaimtyp = self.get_koaimtyp()
 
         if (koaimtyp == 'undefined'):
-            koa_dep_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            main_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
@@ -520,10 +520,10 @@ class Nirc2(instrument.Instrument):
             for word in drp.split(' '):
                 cmd.append(word)
 
-            koa_dep_logger.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
+            main_logger.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
             p = subprocess.Popen(cmd)
             p.wait()
-            koa_dep_logger.info('run_drp: DRP finished')
+            main_logger.info('run_drp: DRP finished')
 
         return True
 
@@ -550,7 +550,7 @@ class Nirc2(instrument.Instrument):
         host = gethostname()
         cmd.append(f"/net/{host}{self.dirs['lev0']}")
 
-        koa_dep_logger.info(f'run_psfr: Starting PSFR command: {" ".join(cmd)}')
+        main_logger.info(f'run_psfr: Starting PSFR command: {" ".join(cmd)}')
         p = subprocess.Popen(cmd)
 
         return True

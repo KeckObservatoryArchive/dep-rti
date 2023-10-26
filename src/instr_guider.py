@@ -2,6 +2,7 @@
 This is the class to handle all the GUIDER specific attributes
 '''
 
+from common import DEFAULT_LOGGER_NAME
 import instrument
 import datetime as dt
 import numpy as np
@@ -18,7 +19,7 @@ from pathlib import Path
 import shutil
 
 import logging
-koa_dep_logger = logging.getLogger('koa.dep')
+main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class Guider(instrument.Instrument):
@@ -85,7 +86,7 @@ class Guider(instrument.Instrument):
         # Check to see if one exists in the original directory.  If not, create it.
         jpg = self.status['ofname'].replace('.fits', '.jpg')
         if os.path.isfile(jpg):
-            koa_dep_logger.info(f'Copying {jpg}')
+            main_logger.info(f'Copying {jpg}')
             outfile = f"{self.dirs['lev0']}/{self.koaid}.jpg"
             shutil.copy(jpg, outfile)
         else:
@@ -113,7 +114,7 @@ class Guider(instrument.Instrument):
         of_name = os.path.basename(self.status['ofname'])
         ofname_keyword = self.get_keyword('OFNAME')
         if not ofname_keyword:
-            koa_dep_logger.info('Add keyword OFNAME')
+            main_logger.info('Add keyword OFNAME')
             self.set_keyword('OFNAME', of_name, 'KOA: Original file name')
         return True
 
@@ -204,7 +205,7 @@ class Guider(instrument.Instrument):
             if isinstance(data, dict):
                 data = [data]
             if len(data) == 1:
-                koa_dep_logger.warning(f"Assigning PROGID by only scheduled entry: {data[0]['ProjCode']}")
+                main_logger.warning(f"Assigning PROGID by only scheduled entry: {data[0]['ProjCode']}")
                 return data[0]['ProjCode']
             for num, entry in enumerate(data):
                 start = entry['StartTime'].split(':')
@@ -212,14 +213,14 @@ class Guider(instrument.Instrument):
                 end = entry['EndTime'].split(':')
                 end = int(end[0]) + (int(end[1])/60.0)
                 if ut >= start and ut <= end:
-                    koa_dep_logger.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
+                    main_logger.warning(f"Assigning PROGID by schedule UTC: {entry['ProjCode']}")
                     return entry['ProjCode']
                 if entry['Type'] == 'Classical':
                     if num == 0 and ut < start:
-                        koa_dep_logger.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
+                        main_logger.warning(f"Assigning PROGID by first scheduled entry: {entry['ProjCode']}")
                         return entry['ProjCode']
                     if num == len(data)-1 and ut > end:
-                        koa_dep_logger.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
+                        main_logger.warning(f"Assigning PROGID by last scheduled entry: {entry['ProjCode']}")
                         return entry['ProjCode']
         return 'NONE'
 
@@ -302,11 +303,11 @@ class Guider(instrument.Instrument):
         #get necessary keywords
         ttime  = self.get_keyword('TTIME')
         if ttime != None:
-            koa_dep_logger.info('set_elaptime: determining ELAPTIME from TTIME')
+            main_logger.info('set_elaptime: determining ELAPTIME from TTIME')
             elaptime = round(ttime,2)
 
         if elaptime == 'null':
-            koa_dep_logger.warn('set_elaptime: Could not set ELAPTIME')
+            main_logger.warn('set_elaptime: Could not set ELAPTIME')
 
         #update val
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')

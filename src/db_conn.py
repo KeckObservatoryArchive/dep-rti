@@ -1,6 +1,7 @@
 import os
 import yaml
 import pymysql.cursors
+from common import DEFAULT_LOGGER_NAME 
 import logging
 
 
@@ -26,7 +27,7 @@ class db_conn(object):
     - configKey: Optionally define a config dict key if config is within a larger yaml file.
     '''
 
-    def __init__(self, configFile, configKey=None, persist=False, logger_name='koa_dep'):
+    def __init__(self, configFile, configKey=None, persist=False, logger_name=DEFAULT_LOGGER_NAME):
 
         self.persist = persist
         self.readOnly = 0

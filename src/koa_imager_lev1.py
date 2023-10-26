@@ -48,7 +48,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         self.calibrationsdir = f'./{self.instrument.lower()}_calibrations'
 
         name = f'koa.imager.{self.instrument.lower()}.lev1'
-        logFile =  f'/log/{name}.log'
+        logFile =  f'/log/{name.replace('.','_').log'
         self.logger = create_logger(name, logFile)
 
         self.dpi = 100
