@@ -14,7 +14,6 @@ Usage:
 '''
 import sys
 import argparse
-import configparser
 import datetime as dt
 import time
 import traceback
@@ -32,9 +31,6 @@ from archive import Archive
 
 #module globals
 last_email_times = None
-PROC_CHECK_SEC = 1.0
-QUEUE_CHECK_SEC = 30.0
-MAX_PROCESSES = 1
 
 
 
@@ -128,7 +124,7 @@ class Monitor():
 
         #call this function every N seconds
         #NOTE: we could do this faster
-        threading.Timer(PROC_CHECK_SEC, self.process_monitor).start()
+        threading.Timer(self.config['MONITOR_DRP']['PROC_CHECK_SEC'], self.process_monitor).start()
 
 
     def queue_monitor(self, init=False):
@@ -140,11 +136,11 @@ class Monitor():
         '''
         now = time.time()
         diff = int(now - self.last_queue_check)
-        if diff >= QUEUE_CHECK_SEC or init:
+        if diff >= self.config['MONITOR_DRP']['QUEUE_CHECK_SEC'] or init:
             self.check_queue()
 
         #call this function every N seconds
-        threading.Timer(QUEUE_CHECK_SEC, self.queue_monitor).start()
+        threading.Timer(self.config['MONITOR_DRP']['QUEUE_CHECK_SEC'], self.queue_monitor).start()
 
 
     def check_queue(self):
@@ -164,7 +160,7 @@ class Monitor():
             return 
 
         #check that we have not exceeded max num procs
-        if len(self.procs) >= MAX_PROCESSES:
+        if len(self.procs) >= self.config['MONTIOR_DRP']['MAX_PROCESSES']:
 #            self.handle_error('MAX_PROCESSES', MAX_PROCESSES)
             return
 

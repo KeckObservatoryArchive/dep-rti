@@ -37,11 +37,6 @@ from db_conn import db_conn
 
 # module globals
 last_email_times = None
-PROC_CHECK_SEC = 1.0
-KTL_START_RETRY_SEC = 60.0
-SERVICE_CHECK_SEC = 60.0
-QUEUE_CHECK_SEC = 30.0
-EMAIL_INTERVAL_MINUTES = 60
 
 
 def main():
@@ -56,7 +51,9 @@ def main():
     try:
         monitor = Monitor(args.mode)
     except Exception as err:
-        handle_error('MONITOR_ERROR: {err}', traceback.format_exc(), 
+        handle_error('MONITOR_ERROR: {err}', 
+                     config['MONITOR']['EMAIL_INTERVAL_MINUTES'], 
+                     traceback.format_exc(), 
                      service=args.mode)
         sys.exit(1)
 
@@ -154,7 +151,7 @@ class Monitor:
 
         # call this function every N seconds
         # NOTE: we could do this faster
-        threading.Timer(PROC_CHECK_SEC, self.process_monitor).start()
+        threading.Timer(self.config['MONITOR']['PROC_CHECK_SEC'], self.process_monitor).start()
 
     def add_to_queue(self, filepath, retry=True):
         """Add a file to queue for processing"""
@@ -289,7 +286,7 @@ class Monitor:
         self.log.info(f"Processing DB record ID={row['id']}, "
                       f"filepath={row['ofname']}")
         try:
-            self.process_file(self.instr, row['id'])
+            self.process_file(row['id'])
         except Exception as err:
             self.handle_error('PROCESS_ERROR',
                               f"ID={row['id']}, filepath={row['ofname']}\n, {err}"
@@ -305,7 +302,7 @@ class Monitor:
         now = time.time()
         diff = int(now - self.last_queue_check) if self.last_queue_check else 0
 
-        if diff >= QUEUE_CHECK_SEC or not self.last_queue_check:
+        if diff >= self.config['MONITOR']['QUEUE_CHECK_SEC'] or not self.last_queue_check:
 
             # check if the ut date changed
             current_date = dt.datetime.utcnow().strftime('%Y%m%d')
@@ -323,9 +320,9 @@ class Monitor:
             self.check_queue()
 
         # call this function every N seconds
-        threading.Timer(QUEUE_CHECK_SEC, self.queue_monitor).start()
+        threading.Timer(self.config['MONITOR']['QUEUE_CHECK_SEC'], self.queue_monitor).start()
 
-    def process_file(self, instr, id):
+    def process_file(self, id):
         """
         Spawn archiving for a single file by database ID.
 
@@ -334,12 +331,12 @@ class Monitor:
         """
 
         proc = multiprocessing.Process(target=self.spawn_processing,
-                                       args=(self.instr, id))
+                                       args=(id))
         proc.start()
         self.procs.append(proc)
         self.log.info(f'DEP started as system process ID: {proc.pid}')
 
-    def spawn_processing(self, instr, dbid):
+    def spawn_processing(self, dbid):
         """Call archiving for a single file by DB ID."""
         obj = Archive(self.instr, dbid=dbid, transfer=self.transfer)
 
@@ -440,9 +437,9 @@ class KtlMonitor:
         except :
             self.log.error(traceback.format_exc())
             msg = (f"Could not start KTL monitoring for {self.instr} '{self.service}'. "
-                   f"Retry in {KTL_START_RETRY_SEC} seconds.")
+                   f"Retry in {self.config['MONITOR']['KTL_START_RETRY_SEC']} seconds.")
             self.queue_mgr.handle_error('KTL_START_ERROR', msg)
-            threading.Timer(KTL_START_RETRY_SEC, self.start).start()
+            threading.Timer(self.config['MONITOR']['KTL_START_RETRY_SEC'], self.start).start()
             return
 
         # monitor keyword that indicates new file
@@ -463,7 +460,7 @@ class KtlMonitor:
             period = hb[1] + 2
             self.service.heartbeat(hb[0], period)
 
-            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
+            threading.Timer(self.config['MONITOR']['SERVICE_CHECK_SEC'], self.check_service).start()
             self.check_failed = False
             self.resuscitations = self.service.resuscitations
 
@@ -477,9 +474,9 @@ class KtlMonitor:
             if self.service.resuscitations != self.resuscitations:
                 self.log.info(f"KTL service {self.service_uniquename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
-        except :
+        except Exception as err:
             self.log.info(f'check_service() - heartbeat check failed')
-            self.log.debug(e)
+            self.log.debug(err)
             self.check_failed = True
             self.log.info(f"{self.instr} KTL service '{self.service_uniquename}' heartbeat read failed.")
             self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.service_uniquename)
@@ -488,7 +485,7 @@ class KtlMonitor:
                 self.log.info(f"KTL service {self.service_uniquename} read successful after prior failure.")
             self.check_failed = False
         finally:
-            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
+            threading.Timer(self.config['MONITOR']['SERVICE_CHECK_SEC'], self.check_service).start()
 
     def on_new_file(self, keyword):
         """Callback for KTL monitoring.  Gets full filepath and takes action."""
@@ -633,7 +630,7 @@ class KtlMonitor:
         return filepath
 
 
-def handle_error(errcode, text=None, instr=None, service=None, check_time=True):
+def handle_error(errcode, email_interval, text=None, instr=None, service=None, check_time=True):
     """Email admins the error but only if we haven't sent one recently."""
 
     # always log/print
@@ -645,7 +642,7 @@ def handle_error(errcode, text=None, instr=None, service=None, check_time=True):
         if not last_email_times: last_email_times = {}
         last_time = last_email_times.get(errcode)
         now = dt.datetime.now()
-        if last_time and last_time + dt.timedelta(minutes=EMAIL_INTERVAL_MINUTES) > now:
+        if last_time and last_time + dt.timedelta(minutes=email_interval) > now:
             return
         last_email_times[errcode] = now
 
@@ -670,4 +667,5 @@ def handle_error(errcode, text=None, instr=None, service=None, check_time=True):
 # main command line entry
 #--------------------------------------------------------------------------------
 if __name__ == "__main__":
+    config = get_config()
     main()

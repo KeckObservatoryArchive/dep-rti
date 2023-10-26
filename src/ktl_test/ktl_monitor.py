@@ -2,7 +2,6 @@
 '''
 The most basic KOA KTL monitoring test with heartbeat restart and logging.
 '''
-import datetime as dt
 from common import DEFAULT_LOGGER_NAME
 import ktl
 import time
@@ -10,7 +9,6 @@ import traceback
 import logging
 import argparse
 import threading
-import re
 
 import monitor_config
 
