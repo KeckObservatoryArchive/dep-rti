@@ -66,7 +66,7 @@ class Archive():
         self.confirm = confirm
         self.transfer = transfer
         self.level = level
-        self.logger = create_logger(f'koa.archive.{instr.lower()}')
+        self.logger = create_logger(f'koa.archive.{instr.lower()}', instrument=self.instr)
 
         #other class vars
         self.db = None

@@ -41,7 +41,11 @@ class KoaOsirisDrp(FileSystemEventHandler):
 
         name = f'koa.osiris.lev1'
         logFile =  f'/log/{name.replace(".","_")}.log'
-        self.logger = create_logger(name, logFile)
+        self.logger = create_logger(name, logFile, 
+                                    instrument=instrument, 
+                                    user=self.whoami, 
+                                    hostname=self.hostname
+                                    )
         self.log.info(f'Monitoring {self.datadir}')
         self.log.info(f'RTI outputdir is {self.outputdir}')
         self.log.info(f'RTI API is {self.rti}')

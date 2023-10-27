@@ -227,7 +227,8 @@ class DEP:
             self.log_error('WRITE_ERROR')
             return False
 
-        logger = create_logger(self.logger_name, logFile)
+        logger = create_logger(self.logger_name, logFile,
+                               instrument=self.instr.lower())
 
         #init message and return
         logger.info(f'logger created for {self.logger_name} at {logFile}')
@@ -454,12 +455,11 @@ class DEP:
         self.logger.removeHandler(fileHandler)
 
         self.logger.removeHandler(zmqHandler)
-        self.logger = add_zmq_handler(self.instr,
+        self.logger = add_zmq_handler(self.logger_name,
                                       self.logger, 
                                       koaid=self.koaid, 
                                       db_id=self.db_id, 
-                                      instrument=self.instr,
-                                      subsystem=self.logger_name)
+                                      instrument=self.instr.lower())
 
 
         return True

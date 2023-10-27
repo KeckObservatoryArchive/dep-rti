@@ -45,7 +45,11 @@ class KoaImagerDrp(FileSystemEventHandler):
 
         name = f'koa.imager.{self.instrument.lower()}.lev1'
         logFile =  f'/log/{name.replace(".","_")}.log'
-        self.logger = create_logger(name, logFile)
+        self.logger = create_logger(name, logFile, 
+                                    instrument=instrument, 
+                                    user=self.whoami, 
+                                    hostname=self.hostname
+                                    )
 
         self.dpi = 100
 

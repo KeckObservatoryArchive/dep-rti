@@ -176,28 +176,29 @@ def create_logger(name=None, logFile=None, **kwargs):
 
     # Create a file handler
     if logFile:
-        logger = add_file_handler(logger, logFile, **kwargs)
+        flvl = kwargs.get('fileLogLevel', logging.INFO)
+        logger = add_file_handler(logger, logFile, flvl)
 
     #add stdout to output so we don't need both log and print statements(>= warning only)
     sh = logging.StreamHandler(stdout)
 
-    lvl = kwargs.get('stdoutLogLevel', logging.WARNING)
-    sh.setLevel(lvl)
+    shlvl = kwargs.get('stdoutLogLevel', logging.WARNING)
+    sh.setLevel(shlvl)
     formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
     sh.setFormatter(formatter)
     logger.addHandler(sh)
 
     # add additonal log keys that we want to include in the log schema
-    logger = add_zmq_handler(name, logger, **kwargs)
+    subsystem = kwargs.get('subsystem', name)
+    logger = add_zmq_handler(subsystem, logger, **kwargs)
     
     #init message and return
     logger.info(f'logger created for {name} at {logFile}')
     return logger 
 
-def add_file_handler(logger, logFile, **kwargs):
+def add_file_handler(logger, logFile, lvl=logging.INFO):
     # Create a file handler
     handle = logging.FileHandler(logFile)
-    lvl = kwargs.get('fileLogLevel', logging.INFO)
     handle.setLevel(lvl)
     formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
     handle.setFormatter(formatter)
@@ -207,7 +208,7 @@ def add_file_handler(logger, logFile, **kwargs):
 
 def add_zmq_handler(subsystem, logger, **kwargs):
     # add additonal log keys that we want to include in the log schema
-    zmqkwargs = { 'subsystem': subsystem, **kwargs } 
+    zmqkwargs = { **kwargs, 'subsystem': subsystem, } 
     zmq_log_handler = dl.ZMQHandler(url=config['LOGGER']['URL'], config=config, **zmqkwargs )
     logger.addHandler(zmq_log_handler)
     return logger

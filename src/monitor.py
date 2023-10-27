@@ -369,7 +369,11 @@ class Monitor:
 
         log_level = log_level_map[self.config['MISC']['LOG_LEVEL']]
         stdout_log_level = log_level_map[self.config['MISC']['STD_OUT_LOG_LEVEL']]
-        logger = create_logger(name, logFile, logLevel=log_level, stoutLogLevel=stdout_log_level)
+        logger = create_logger(name, logFile,
+                               logLevel=log_level, 
+                               stoutLogLevel=stdout_log_level,
+                               instrument=instr,
+                               service=service)
         # init message and return
         logger.info(f'logger created for {instr} {service} at {logFile}')
         return logger

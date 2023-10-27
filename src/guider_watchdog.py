@@ -27,7 +27,10 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
         name += '1' if self.telnr == 1 else '2'
         # paths                   
         logFile =  f'/log/{name.replace(".","_")}.log'
-        self.logger = create_logger(name, logFile)
+        self.logger = create_logger(name, logFile, 
+                                    telnr=self.telnr, 
+                                    datadir=self.datadir, 
+                                    destdir=self.destdir)
         self.logger.info(f'Monitoring {self.datadir}')
 
         PatternMatchingEventHandler.__init__(self,

@@ -213,7 +213,7 @@ class Monitor():
             return False
 
         # Create a file handler
-        logger = create_logger(name, logFile)
+        logger = create_logger(name, logFile, instrument=self.instr.lower())
         return logger
 
 
