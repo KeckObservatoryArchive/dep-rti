@@ -167,7 +167,7 @@ class Mosfire(instrument.Instrument):
 
         # Warn if undefined
         if koaimtyp == 'undefined':
-            main_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         # Update keyword

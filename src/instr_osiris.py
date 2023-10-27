@@ -6,14 +6,9 @@ from common import *
 import numpy as np
 import subprocess
 
-import logging
-main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
-
-
 class Osiris(instrument.Instrument):
 
     def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
-
         super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
@@ -129,7 +124,7 @@ class Osiris(instrument.Instrument):
 
         # warn if undefined
         if koaimtyp == 'undefined':
-            main_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         # update keyword
@@ -213,7 +208,7 @@ class Osiris(instrument.Instrument):
         pi = np.pi
 
         if instr.lower() == 'imag' and 'position angle' in rotmode:
-            main_logger.info('set_wcs_keywords: setting WCS keyword values')
+            self.logger.info('set_wcs_keywords: setting WCS keyword values')
             ctype1 = 'RA---TAN'
             ctype2 = 'DEC--TAN'
             wat0_001 = 'system=image'
@@ -409,7 +404,7 @@ class Osiris(instrument.Instrument):
             return True
 
         if koaimtyp == 'calib' and (float(ra) < -720 or float(ra) > 720):
-            main_logger.info('check_ra: changing RA to null')
+            self.logger.info('check_ra: changing RA to null')
             self.set_keyword('RA', None)
 
         return True
@@ -422,7 +417,7 @@ class Osiris(instrument.Instrument):
 
         drp = self.config.get(self.instr, {}).get('DRP')
         if not drp:
-            main_logger.info("No DRP defined.")
+            self.logger.info("No DRP defined.")
             return True
 
         cmd = []
@@ -430,10 +425,10 @@ class Osiris(instrument.Instrument):
             cmd.append(word)
         cmd.append(self.utdate)
 
-        main_logger.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
+        self.logger.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
         p = subprocess.Popen(cmd)
         p.wait()
-        main_logger.info('run_drp: DRP finished')
+        self.logger.info('run_drp: DRP finished')
 
         return True
 

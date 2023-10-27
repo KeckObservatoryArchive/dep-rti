@@ -99,7 +99,7 @@ class Hires(instrument.Instrument):
 
         koaimtyp = self.get_koaimtyp()
         if (koaimtyp == 'undefined'):
-            main_logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
@@ -187,7 +187,7 @@ class Hires(instrument.Instrument):
 #        
 #        if self.get_keyword('Blank', False) != None: return True
 #
-#        main_logger.info('set_blank: Creating BLANK keyword with value -32768')
+#        self.logger.info('set_blank: Creating BLANK keyword with value -32768')
 #
 #        #add keyword
 #        self.set_keyword('BLANK', -32768, 'KOA: ')
@@ -531,7 +531,7 @@ class Hires(instrument.Instrument):
             slitwidt = round(slitwidt, 3)
             specres = int(specres)
         else:
-            main_logger.info('set_slit_values: Unable to set slit scale keywords')
+            self.logger.info('set_slit_values: Unable to set slit scale keywords')
 
         self.set_keyword('SLITLEN', slitlen, 'KOA: Slit length projected on sky (arcsec)')
         self.set_keyword('SLITWIDT', slitwidt, 'KOA: Slit width projected on sky (arcsec)')
@@ -595,7 +595,7 @@ class Hires(instrument.Instrument):
 
         # Skip if one or more values not found
         if irot2ang == None or parang == None or el == None:
-            main_logger.info('set_skypa: Could not set skypa')
+            self.logger.info('set_skypa: Could not set skypa')
             return True
 
         skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)

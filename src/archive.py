@@ -8,7 +8,7 @@ import traceback
 import os
 import smtplib
 from email.mime.text import MIMEText
-from common import get_config
+from common import create_logger, get_config
 from db_conn import db_conn
 import importlib
 import glob
@@ -66,6 +66,7 @@ class Archive():
         self.confirm = confirm
         self.transfer = transfer
         self.level = level
+        self.logger = create_logger(f'koa.archive.{instr.lower()}')
 
         #other class vars
         self.db = None
@@ -79,7 +80,7 @@ class Archive():
 
     def start(self):
 
-        print("STARTING PROCESSING")
+        self.logger.info("STARTING PROCESSING")
 
         #cd to script dir so relative paths work
         os.chdir(sys.path[0])
@@ -100,9 +101,9 @@ class Archive():
         elif self.starttime or self.endtime or self.status or self.statuscode or self.ofname:
             self.reprocess_by_query()
         else:
-            print("ERROR: Unknown inputs.")
+            self.logger.error("ERROR: Unknown inputs.")
 
-        print("ALL PROCESSING COMPLETE")
+        self.logger.info("ALL PROCESSING COMPLETE")
 
 
     def __del__(self):
@@ -123,9 +124,9 @@ class Archive():
         ok = instr_obj.process()
         if not ok:
             #NOTE: DEP has its own error reporting system so no need to do anything here.
-            print("DEP finished with ERRORS!  See log file for details.")
+            self.logger.warning("DEP finished with ERRORS!  See log file for details.")
         else:
-            print("DEP finished successfully.")
+            self.logger.info("DEP finished successfully.")
 
 
     def process_files(self, pattern):
@@ -141,7 +142,7 @@ class Archive():
             print("--------------------")
             for f in files: print(f)
             print("--------------------")
-            print(f"{len(files)} files found.  Use --confirm option to process these files.\n")
+            self.logger.info(f"{len(files)} files found.  Use --confirm option to process these files.\n")
         else:
             for f in files:
                 self.process_file(filepath=f)
@@ -174,7 +175,7 @@ class Archive():
             for row in rows:
                 print(f"{row['id']}\t{row['status']}\t{row['status_code']}\t{row['utdatetime']}\t{row['koaid']}\t{row['ofname']}")
             print("--------------------")
-            print(f"{len(rows)} records found.  Use --confirm option to process these records.\n")
+            self.logger.info(f"{len(rows)} records found.  Use --confirm option to process these records.\n")
         else:
             for row in rows:
                 self.process_file(dbid=row['id'])

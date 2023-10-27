@@ -200,7 +200,7 @@ class Monitor():
         """Creates a logger based on rootdir, instr and date"""
 
         # Create logger object
-        name = f'koa.monitor.drp.{instr}'
+        name = f'koa.monitor.drp.{instr}'.lower()
         #paths
         processDir = f'{rootdir}/{instr.upper()}'
         logFile =  f'{processDir}/{name.replace(".","_")}.log'

@@ -112,9 +112,9 @@ class Monitor:
         # create logger first
         self.utd = dt.datetime.utcnow().strftime('%Y%m%d')
 
-        self.log = self.create_monitor_logger(self.config[self.instr]['ROOTDIR'],
+        self.logger = self.create_monitor_logger(self.config[self.instr]['ROOTDIR'],
                                       self.instr, self.service_name)
-        self.log.info(f"Starting KOA Monitor for {self.instr} "
+        self.logger.info(f"Starting KOA Monitor for {self.instr} "
                       f"{self.service_name}")
 
         self.db = db_conn(persist=True, logger_name=self.logger_name)
@@ -130,7 +130,7 @@ class Monitor:
     def monitor_start(self):
         # run KTL monitor for service
         self.monitor = KtlMonitor(self.service_name, self.service_uniquename,
-                                  self.keys, self, self.log)
+                                  self.keys, self, self.logger_name)
         self.monitor.start()
 
         # start interval to monitor DEP processes for completion
@@ -146,7 +146,7 @@ class Monitor:
         self.procs = [p for p in self.procs if p.is_alive()]
 
         for p in removed_procs:
-            self.log.info(f'Removed completed process ID={p.pid}, '
+            self.logger.info(f'Removed completed process ID={p.pid}, '
                           f'exitcode={p.exitcode}')
 
         # call this function every N seconds
@@ -161,7 +161,7 @@ class Monitor:
             if self.is_duplicate_file(filepath):
                 return
         except Exception as err:
-            self.log.error(traceback.format_exc())
+            self.logger.error(traceback.format_exc())
             self.handle_error('DUPLICATE_FILE_CHECK_FAIL')
 
         # Do insert record
@@ -173,12 +173,12 @@ class Monitor:
                 f" , ofname='{filepath}' "
                 f" , status='QUEUED' "
                 f" , creation_time='{now}' ")
-        self.log.info(query)
+        self.logger.info(query)
 
         result = self._get_db_result('koa', query, filepath=filepath)
         if result is False:
             if retry:
-                self.log.warning(f'DATABASE_ERROR,  retrying query: {query}')
+                self.logger.warning(f'DATABASE_ERROR,  retrying query: {query}')
                 return self.add_to_queue(filepath, retry=False)
             if not retry:
                 self.handle_error('DATABASE_ERROR', query)
@@ -201,7 +201,7 @@ class Monitor:
         row = self._get_db_result('koa', query, get_one=True)
         if row is False:
             if retry:
-                self.log.warning(f'DATABASE_ERROR,  retrying query: {query}')
+                self.logger.warning(f'DATABASE_ERROR,  retrying query: {query}')
                 return self.is_duplicate_file(filepath, retry=False)
             if not retry:
                 self.handle_error('DATABASE_ERROR', query)
@@ -216,7 +216,7 @@ class Monitor:
         # check for back to back duplicate broadcast (catch race condition)
         if not stage_file:
             if status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED'):
-                self.log.warning(f"Filepath '{filepath}' duplicate "
+                self.logger.warning(f"Filepath '{filepath}' duplicate "
                                  f"broadcast same as {row['id']}. Skipping.")
                 return True            
             else:
@@ -232,7 +232,7 @@ class Monitor:
         md5_stage = self.get_file_md5(stage_file)
         md5_new   = self.get_file_md5(filepath)
         if md5_stage == md5_new: 
-            self.log.warning(f"Filepath '{filepath}' is same hash as "
+            self.logger.warning(f"Filepath '{filepath}' is same hash as "
                              f"staged_file for DB ID {row['id']}. Skipping.")
             return True
         else:
@@ -258,11 +258,11 @@ class Monitor:
         row = self._get_db_result('koa', query, get_one=True)
 
         if row is False:
-            self.log.debug(f'row is False, query: {query}, row: {row}')
+            self.logger.debug(f'row is False, query: {query}, row: {row}')
             return False
 
         if len(row) == 0:
-            self.log.debug(f'row == 0, query: {query}, row: {row}')
+            self.logger.debug(f'row == 0, query: {query}, row: {row}')
             return False 
 
         # check that we have not exceeded max num procs
@@ -276,14 +276,14 @@ class Monitor:
         result = self._get_db_result('koa', query)
         if result is False:
             if retry:
-                self.log.warning(f'DATABASE_ERROR,  retrying query: {query}')
+                self.logger.warning(f'DATABASE_ERROR,  retrying query: {query}')
                 return self.check_queue(retry=False)
             if not retry:
                 self.handle_error('DATABASE_ERROR', query)
                 return False
 
         # pop from queue and process it
-        self.log.info(f"Processing DB record ID={row['id']}, "
+        self.logger.info(f"Processing DB record ID={row['id']}, "
                       f"filepath={row['ofname']}")
         try:
             self.process_file(row['id'])
@@ -308,11 +308,11 @@ class Monitor:
             current_date = dt.datetime.utcnow().strftime('%Y%m%d')
             if self.utd != current_date:
                 # clear logs
-                for handler in self.log.handlers[:]:
-                    self.log.removeHandler(handler)
+                for handler in self.logger.handlers[:]:
+                    self.logger.removeHandler(handler)
 
                 self.utd = current_date
-                self.log = self.create_monitor_logger(
+                self.logger = self.create_monitor_logger(
                     self.config[self.instr]['ROOTDIR'],
                     self.instr,  self.service_name
                 )
@@ -334,7 +334,7 @@ class Monitor:
                                        args=(id))
         proc.start()
         self.procs.append(proc)
-        self.log.info(f'DEP started as system process ID: {proc.pid}')
+        self.logger.info(f'DEP started as system process ID: {proc.pid}')
 
     def spawn_processing(self, dbid):
         """Call archiving for a single file by DB ID."""
@@ -352,7 +352,7 @@ class Monitor:
 
         # paths
         processDir = f'{rootdir}/{instr.upper()}/log/'
-        name = f'koa.monitor.{instr}.{service}'
+        name = f'koa.monitor.{instr}.{service}'.lower()
         logFile = f'{processDir}/{name.replace(".","_")}_{self.utd}.log'
 
         # create directory if it does not exist
@@ -378,17 +378,17 @@ class Monitor:
         """Email admins the error but only if we haven't sent one recently."""
 
         # always log/print
-        self.log.error(f'{errcode}: {text}')
+        self.logger.error(f'{errcode}: {text}')
         handle_error(errcode, text, self.instr, self.service_uniquename, check_time)
 
     def _get_db_result(self, db_name, query, get_one=False, retry=True, filepath=None):
-        self.log.debug(f'db params: {self.db}, {db_name}, {query}, '
+        self.logger.debug(f'db params: {self.db}, {db_name}, {query}, '
                        f'{get_one}, {retry}, {filepath}')
         result = self.db.query(db_name, query, getOne=get_one)
         if result is False and retry:
             if filepath != None:
                 if self.is_duplicate_file(filepath):
-                    self.log.info(f'Database entry for {filepath} exists')
+                    self.logger.info(f'Database entry for {filepath} exists')
                     return True
 
             result = self._get_db_result(db_name, query, get_one=get_one,
@@ -409,8 +409,8 @@ class KtlMonitor:
         queue_mgr (obj): Class object that contains callback 'add_to_queue' function.
         log (obj): logger object
     """
-    def __init__(self, service_name, service_uniquename, keys, queue_mgr, log):
-        self.log = log
+    def __init__(self, service_name, service_uniquename, keys, queue_mgr, logger_name):
+        self.logger = logging.getLogger(logger_name)
         self.service_name = service_name
         self.service_uniquename = service_uniquename
         self.keys = keys
@@ -420,7 +420,7 @@ class KtlMonitor:
         self.restart_count = 0
         self.resuscitations = None
         self.instr = keys['instr']
-        self.log.info(f"KtlMonitor: instr: {self.instr}, service: "
+        self.logger.info(f"KtlMonitor: instr: {self.instr}, service: "
                       f"{service_name}, name: {service_uniquename}, "
                       f"trigger: {keys['trigger']}")
         self.delay = 0.25
@@ -435,7 +435,7 @@ class KtlMonitor:
         try:
             self.service = ktl.Service(self.service_name)
         except :
-            self.log.error(traceback.format_exc())
+            self.logger.error(traceback.format_exc())
             msg = (f"Could not start KTL monitoring for {self.instr} '{self.service}'. "
                    f"Retry in {self.config['MONITOR']['KTL_START_RETRY_SEC']} seconds.")
             self.queue_mgr.handle_error('KTL_START_ERROR', msg)
@@ -472,17 +472,17 @@ class KtlMonitor:
         """
         try:
             if self.service.resuscitations != self.resuscitations:
-                self.log.info(f"KTL service {self.service_uniquename} resuscitations changed.")
+                self.logger.info(f"KTL service {self.service_uniquename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
         except Exception as err:
-            self.log.info(f'check_service() - heartbeat check failed')
-            self.log.debug(err)
+            self.logger.info(f'check_service() - heartbeat check failed')
+            self.logger.debug(err)
             self.check_failed = True
-            self.log.info(f"{self.instr} KTL service '{self.service_uniquename}' heartbeat read failed.")
+            self.logger.info(f"{self.instr} KTL service '{self.service_uniquename}' heartbeat read failed.")
             self.queue_mgr.handle_error('KTL_SERVICE_CHECK_FAIL', self.service_uniquename)
         else:
             if self.check_failed:
-                self.log.info(f"KTL service {self.service_uniquename} read successful after prior failure.")
+                self.logger.info(f"KTL service {self.service_uniquename} read successful after prior failure.")
             self.check_failed = False
         finally:
             threading.Timer(self.config['MONITOR']['SERVICE_CHECK_SEC'], self.check_service).start()
@@ -492,27 +492,27 @@ class KtlMonitor:
         try:
             # Assume first read after a full restart is old
             if self.last_mtime is None:
-                self.log.info(f'Skipping (assuming first broadcast is old)')
+                self.logger.info(f'Skipping (assuming first broadcast is old)')
                 self.last_mtime = -1
                 return
 
-            self.log.debug(f'last_mtime: {self.last_mtime}')
+            self.logger.debug(f'last_mtime: {self.last_mtime}')
 
             # make sure keyword is populated
             if keyword['populated'] == False:
-                self.log.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
+                self.logger.warning(f"KEYWORD_UNPOPULATED\t{self.instr}\t{keyword.service}")
                 return
 
-            self.log.info(f'on_new_file: {keyword.name}={keyword.ascii}')
+            self.logger.info(f'on_new_file: {keyword.name}={keyword.ascii}')
 
             # Get trigger val and if 'reqval' is defined make sure trigger equals reqval
             keys = self.keys
             reqval = keys['val']
             if reqval is not None and reqval != keyword.ascii:
-                self.log.info(f'Trigger val of {keyword.ascii} != {reqval}')
+                self.logger.info(f'Trigger val of {keyword.ascii} != {reqval}')
                 return
 
-            self.log.debug(f'keys, reqval: {keys} {reqval}')
+            self.logger.debug(f'keys, reqval: {keys} {reqval}')
 
             # get full file path
             format = self.keys.get('format', None)
@@ -522,11 +522,11 @@ class KtlMonitor:
             else:
                 filepath = keyword.ascii
 
-            self.log.debug(f'filepath: {filepath}')
+            self.logger.debug(f'filepath: {filepath}')
 
             # check for blank filepath
             if not filepath or not filepath.strip():
-                self.log.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
+                self.logger.warning(f"BLANK_FILE\t{self.instr}\t{keyword.service}")
                 return
 
             # Some filepaths do not add the /s/ to the path which we need
@@ -535,16 +535,16 @@ class KtlMonitor:
 
             # check for invalid filepath
             if '/sdata' not in filepath and '/operations' not in filepath:
-                self.log.error(f"INVALID FILEPATH (no 'sdata' or 'operations')\t{self.instr}\t{keyword.service}\t{filepath}")
+                self.logger.error(f"INVALID FILEPATH (no 'sdata' or 'operations')\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
             if '/osiris/test/' in filepath:
-                self.log.error(f"INVALID FILEPATH\t{self.instr}\t{keyword.service}\t{filepath}")
+                self.logger.error(f"INVALID FILEPATH\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
             if '/mira/' in filepath:
-                self.log.error(f"INVALID FILE (mira)\t{self.instr}\t{keyword.service}\t{filepath}")
+                self.logger.error(f"INVALID FILE (mira)\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
             if '/hireseng/xdchange/' in filepath:
-                self.log.error(f"INVALID FILE (hireseng/xdchange)\t{self.instr}\t{keyword.service}\t{filepath}")
+                self.logger.error(f"INVALID FILE (hireseng/xdchange)\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
 
             # Check file mod time and ensure it is not the same as last file (re-broadcasts)
@@ -557,7 +557,7 @@ class KtlMonitor:
                 self.queue_mgr.handle_error(err, traceback.format_exc())
 
             if self.last_mtime == mtime:
-                self.log.info(f'Skipping (last mtime = {self.last_mtime})')
+                self.logger.info(f'Skipping (last mtime = {self.last_mtime})')
                 self.last_mtime = mtime
                 return
 
@@ -585,7 +585,7 @@ class KtlMonitor:
                 mtime = os.stat(filepath).st_mtime
                 return mtime
             except :
-                self.log.info(f'delaying {self.delay}s, {filepath} not found')
+                self.logger.info(f'delaying {self.delay}s, {filepath} not found')
                 pass
 
         msg = f'FILE_READ_ERROR at {dt.datetime.now().strftime("%H:%M:%S")}'

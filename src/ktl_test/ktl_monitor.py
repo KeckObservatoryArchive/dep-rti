@@ -2,23 +2,17 @@
 '''
 The most basic KOA KTL monitoring test with heartbeat restart and logging.
 '''
-from common import DEFAULT_LOGGER_NAME
+import logging
+from common import create_logger, get_config
 import ktl
 import time
 import traceback
-import logging
 import argparse
 import threading
 
 import monitor_config
 
-
-
 #module globals
-KTL_START_RETRY_SEC = 60.0
-SERVICE_CHECK_SEC = 60.0
-QUEUE_CHECK_SEC = 60.0
-
 
 def main():
 
@@ -28,15 +22,16 @@ def main():
     args = parser.parse_args()
     service = args.service
 
+    config = get_config()
+
     #log init
-    logging.basicConfig(filename=f'/usr/local/home/koarti/log/test_ktl_monitor_{service}.log', 
-                    level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
-    main_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
-    main_logger.debug(f'START monitoring {service}')
+    filePath = f'/usr/local/home/koarti/log/test_ktl_monitor_{service}.log'
+    logger = create_logger(config['KTL_MONITOR']['LOGGER_NAME'], filePath)
+    logger.debug(f'START monitoring {service}')
 
     #start monitor
     keys = monitor_config.instr_keymap[service]
-    mon = KtlMonitor(service, keys)
+    mon = KtlMonitor(service, keys, config)
     mon.start()
 
     #stay alive until control-C to exit
@@ -45,7 +40,7 @@ def main():
             time.sleep(300)
         except:
             break
-    main_logger.info(f'Exiting {__file__}')
+    logger.info(f'Exiting {__file__}')
 
 
 class KtlMonitor():
@@ -57,16 +52,18 @@ class KtlMonitor():
         servicename (str): KTL service to monitor.
         keys (dict): Defines service and keyword to monitor 
                      as well as special formatting to construct filepath.
-        log (obj): logger object
     '''
-    def __init__(self, servicename, keys):
+    def __init__(self, servicename, keys, config):
         self.servicename = servicename
         self.keys = keys
         self.service = None
         self.restart_count = 0
         self.resuscitations = None
         self.instr = keys['instr']
-        main_logger.info(f"KtlMonitor: instr: {self.instr}, service: {servicename}, trigger: {keys['trigger']}")
+        self.config = config
+        self.logger = logging.getLogger(self.config['KTL_MONITOR']['LOGGER_NAME'])
+
+        self.logger.info(f"KtlMonitor: instr: {self.instr}, service: {servicename}, trigger: {keys['trigger']}")
 
 
     def start(self):
@@ -76,11 +73,11 @@ class KtlMonitor():
         try:
             self.service = ktl.Service(self.servicename)
         except :
-            main_logger.error(traceback.format_exc())
+            self.logger.error(traceback.format_exc())
             msg = (f"Could not start KTL monitoring for {self.instr} '{self.service}'. "
-                   f"Retry in {KTL_START_RETRY_SEC} seconds.")
-            main_logger.error('KTL_START_ERROR: ' + msg)
-            threading.Timer(KTL_START_RETRY_SEC, self.start).start()
+                   f"Retry in {self.config['KTL_MONITOR']['KTL_START_RETRY_SEC']} seconds.")
+            self.logger.error('KTL_START_ERROR: ' + msg)
+            threading.Timer(self.config['KTL_MONITOR']['KTL_START_RETRY_SEC'], self.start).start()
             return
 
         #get keyword that indicates new file and define callback
@@ -100,7 +97,7 @@ class KtlMonitor():
             if period < 30: period = 30 #not too small
             self.service.heartbeat(hb[0], period)
 
-            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start() 
+            threading.Timer(self.config['KTL_MONITOR']['SERVICE_CHECK_SEC'], self.check_service).start() 
             self.check_failed = False           
             self.resuscitations = self.service.resuscitations
 
@@ -116,24 +113,24 @@ class KtlMonitor():
             kw = self.service[hb]
             kw.read(timeout=1)
             if self.service.resuscitations != self.resuscitations:
-                main_logger.debug(f"KTL service {self.servicename} resuscitations changed.")
+                self.logger.debug(f"KTL service {self.servicename} resuscitations changed.")
             self.resuscitations = self.service.resuscitations
         except :
             self.check_failed = True
-            main_logger.debug(f"{self.instr} KTL service '{self.servicename}' heartbeat read failed.")
-            main_logger.error('KTL_SERVICE_CHECK_FAIL: ' + self.servicename)
+            self.logger.debug(f"{self.instr} KTL service '{self.servicename}' heartbeat read failed.")
+            self.logger.error('KTL_SERVICE_CHECK_FAIL: ' + self.servicename)
         else:
             if self.check_failed:
-                main_logger.debug(f"KTL service {self.servicename} read successful afer prior failure.")
+                self.logger.debug(f"KTL service {self.servicename} read successful afer prior failure.")
             self.check_failed = False
         finally:
-            threading.Timer(SERVICE_CHECK_SEC, self.check_service).start()
+            threading.Timer(self.config['KTL_MONITOR']['SERVICE_CHECK_SEC'], self.check_service).start()
 
 
     def on_new_file(self, kw):
         '''Callback for KTL monitoring.  Gets full filepath and takes action.'''
         try:
-            main_logger.debug(f'on_new_file: '
+            self.logger.debug(f'on_new_file: '
                 f'\tservice={kw.service}'
                 f'\tname={kw.name}'
                 f'\tascii={kw.ascii}'
@@ -153,7 +150,7 @@ class KtlMonitor():
                 f'\tservice.ktlc={self.service.ktlc}'
                 )
         except :
-            main_logger.error('KTL_READ_ERROR: ', traceback.format_exc())
+            self.logger.error('KTL_READ_ERROR: ', traceback.format_exc())
             return
         #self.queue_mgr.add_to_queue(keyword.ascii)
 

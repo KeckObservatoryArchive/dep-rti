@@ -151,22 +151,16 @@ def convert_ra_dec_to_degrees(coord, value):
 
     return newValue
 
-def create_logger(name=None, logFile=None, configLoc=None, **kwargs):
+def create_logger(name=None, logFile=None, **kwargs):
     """creates a logger with the following handlers: 
     StreamHandler, ZMQHandler and the optional FileHandler.
 
     Args:
         name (str, optional): Name of logger. Use dot notation 'koa.dep'.
         logFile (str, optional): name of log file for FileHandler. Defaults to None.
-        configLoc (str, optional): Location of config file. Defaults to './config.live.ini'.
-
     Returns:
         _type_: _description_
     """
-
-
-    # load config file
-    config = get_config(configLoc)
 
     # Create logger object
     if not name:
@@ -182,13 +176,7 @@ def create_logger(name=None, logFile=None, configLoc=None, **kwargs):
 
     # Create a file handler
     if logFile:
-        handle = logging.FileHandler(logFile)
-        lvl = kwargs.get('fileLogLevel', logging.INFO)
-        handle.setLevel(lvl)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        logger.addHandler(handle)
-        print(f'Logging to {logFile}')
+        logger = add_file_handler(logger, logFile, **kwargs)
 
     #add stdout to output so we don't need both log and print statements(>= warning only)
     sh = logging.StreamHandler(stdout)
@@ -200,11 +188,26 @@ def create_logger(name=None, logFile=None, configLoc=None, **kwargs):
     logger.addHandler(sh)
 
     # add additonal log keys that we want to include in the log schema
-    zmqkwargs = { 'subsystem': name, 'author': __file__, **kwargs } 
-
-    zmq_log_handler = dl.ZMQHandler(url=config['LOGGER']['URL'], config=config, **zmqkwargs )
-    logger.addHandler(zmq_log_handler)
+    logger = add_zmq_handler(name, logger, **kwargs)
     
     #init message and return
     logger.info(f'logger created for {name} at {logFile}')
     return logger 
+
+def add_file_handler(logger, logFile, **kwargs):
+    # Create a file handler
+    handle = logging.FileHandler(logFile)
+    lvl = kwargs.get('fileLogLevel', logging.INFO)
+    handle.setLevel(lvl)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+    handle.setFormatter(formatter)
+    logger.addHandler(handle)
+    print(f'Logging to {logFile}')
+    return logger
+
+def add_zmq_handler(subsystem, logger, **kwargs):
+    # add additonal log keys that we want to include in the log schema
+    zmqkwargs = { 'subsystem': subsystem, **kwargs } 
+    zmq_log_handler = dl.ZMQHandler(url=config['LOGGER']['URL'], config=config, **zmqkwargs )
+    logger.addHandler(zmq_log_handler)
+    return logger
