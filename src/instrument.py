@@ -208,7 +208,8 @@ class Instrument(dep.DEP):
         #keyword values that indicate ENG
         keyvals = {
             'PROGNAME': [
-                'eng'
+                'eng',
+                'calibrations'
             ],
             'OUTDIR': [
                 'kpfeng',
