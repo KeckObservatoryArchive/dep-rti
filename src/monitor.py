@@ -581,6 +581,9 @@ class KtlMonitor:
             if '/hireseng/xdchange/' in filepath:
                 self.log.error(f"INVALID FILE (hireseng/xdchange)\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
+            if 'TEMPFITS.fits' in filepath:
+                self.log.error(f"INVALID FILE {self.instr}\t{filepath}")
+                return
 
             # Check file mod time and ensure it is not the same as last file (re-broadcasts)
             # (NOTE: preferred to checking last val read b/c observer can regenerate same filepath)
