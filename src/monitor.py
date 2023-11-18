@@ -584,6 +584,9 @@ class KtlMonitor:
             if 'TEMPFITS.fits' in filepath:
                 self.log.error(f"INVALID FILE {self.instr}\t{filepath}")
                 return
+            if re.search(r'KP.\d{8}.\d{5}.\d{2}-\d.fits', filepath):
+                self.log.error(f"INVALID FILE {self.instr}\t{filepath}")
+                return
 
             # Check file mod time and ensure it is not the same as last file (re-broadcasts)
             # (NOTE: preferred to checking last val read b/c observer can regenerate same filepath)
