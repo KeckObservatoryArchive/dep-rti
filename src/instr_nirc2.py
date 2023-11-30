@@ -390,11 +390,22 @@ class Nirc2(instrument.Instrument):
             return True
 
         #get necessary keywords
-        itime  = self.get_keyword('ITIME')
+        #itime  = self.get_keyword('ITIME')
+        #if (itime == None or coadds == None):
+        #    self.log_warn("SET_ELAPTIME_ERROR")
+        #    return False
+
         coadds = self.get_keyword('COADDS')
-        if (itime == None or coadds == None):
+        if (coadds == None):
             self.log_warn("SET_ELAPTIME_ERROR")
             return False
+
+        itime  = self.get_keyword('TRUITIME')
+        if (itime == None):
+            itime = self.get_keyword('ITIME')
+            if (itime == None):
+                self.log_warn('SET_ELAPTIME_ERROR')
+                return False
 
         #update elaptime val (seconds)
         elaptime = round(itime * coadds, 5)
