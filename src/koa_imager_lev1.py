@@ -12,12 +12,11 @@ import requests
 from socket import gethostname
 import sys
 from time import sleep
+from common import create_logger, get_config
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import yaml
 import gzip
 import shutil
-import logging
 
 
 class KoaImagerDrp(FileSystemEventHandler):
@@ -32,21 +31,25 @@ class KoaImagerDrp(FileSystemEventHandler):
         self.hostname = gethostname()
         self.rti      = rti
         self.rtiUrl   = None
-        if isfile('config.live.ini'):
-            with open('config.live.ini') as f:
-                config = yaml.safe_load(f)
-            if 'RTI' in config.keys():
-                if 'API' in config['RTI'].keys():
-                   self.rtiUrl  = config['RTI']['API']
-                   self.rtiUser = config['RTI']['USER']
-                   self.rtiPwd  = config['RTI']['PWD']
+        config = get_config()
+
+        if 'RTI' in config.keys() and 'API' in config['RTI'].keys():
+            self.rtiUrl  = config['RTI']['API']
+            self.rtiUser = config['RTI']['USER']
+            self.rtiPwd  = config['RTI']['PWD']
 
         self.instrument      = instrument
         self.datadir         = datadir
         self.outputdir       = outputdir
         self.calibrationsdir = f'./{self.instrument.lower()}_calibrations'
 
-        self.log = self.create_logger(self.instrument)
+        name = f'koa.imager.{self.instrument.lower()}.lev1'
+        logFile =  f'/log/{name.replace(".","_")}.log'
+        self.logger = create_logger(name, logFile, 
+                                    instrument=instrument, 
+                                    user=self.whoami, 
+                                    hostname=self.hostname
+                                    )
 
         self.dpi = 100
 
@@ -61,36 +64,6 @@ class KoaImagerDrp(FileSystemEventHandler):
         self.flatoffFrame  = {}
 
         self.add_current_file_list()
-
-
-    def create_logger(self, instr):
-        """Creates a logger based on rootdir, instr, service name and date"""
-
-        # Create logger object
-        name = f'koa_imager_{instr.lower()}_lev1'
-        log = logging.getLogger(name)
-        log.setLevel(logging.DEBUG)
-
-        # paths
-        logFile =  f'/log/{name}.log'
-
-        # Create a file handler
-        handle = logging.FileHandler(logFile)
-        handle.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        log.addHandler(handle)
-
-        # add stdout to output so we don't need both log and print statements(>= warning only)
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-        sh.setFormatter(formatter)
-        log.addHandler(sh)
-
-        # init message and return
-        log.info(f'logger created for {instr} at {logFile}')
-        return log
 
 
     def on_any_event(self, event):
@@ -113,15 +86,15 @@ class KoaImagerDrp(FileSystemEventHandler):
         if self.instrument == 'OSIRIS' and not filename.startswith('OI'):
             return
 
-        self.log.info(f'on_any_event {event.src_path}')
+        self.logger.info(f'on_any_event {event.src_path}')
         filename = event.src_path
 
         if filename in self.queue:
-            self.log.info('Skipping - already in queue')
+            self.logger.info('Skipping - already in queue')
             return
 
         if filename in self.fileList:
-            self.log.info('Skipping - already processed')
+            self.logger.info('Skipping - already processed')
             return
 
         self.queue.append(filename)
@@ -169,12 +142,12 @@ class KoaImagerDrp(FileSystemEventHandler):
         Processes a file depending on its type.
         '''
 
-        self.log.info(f'Input file {filename}')
+        self.logger.info(f'Input file {filename}')
 
         try:
             header = fits.getheader(filename)
         except:
-            self.log.info(f'Error reading file ({filename})')
+            self.logger.error(f'Error reading file ({filename})')
             return
 
         koaimtyp = header['KOAIMTYP']
@@ -216,7 +189,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         Median combines the files located in a list based on file type.
         '''
 
-        self.log.info(f'Processing {filetype} frames for {name}')
+        self.logger.info(f'Processing {filetype} frames for {name}')
 
         if filetype == 'dark':
             fileList = self.darkList[name]
@@ -226,7 +199,7 @@ class KoaImagerDrp(FileSystemEventHandler):
             fileList = self.flatoffList[name]
 
         for file in fileList:
-            self.log.info(f'{file}')
+            self.logger.info(f'{file}')
 
         stack = [fits.getdata(file) for file in fileList]
 
@@ -300,10 +273,10 @@ class KoaImagerDrp(FileSystemEventHandler):
          - write new FITS and JPG
         '''
 
-        self.log.info(f'Processing object ({filename})')
+        self.logger.info(f'Processing object ({filename})')
         name  = self.get_key_list('dark', header)
         name2 = self.get_key_list('flat', header)
-        self.log.info(f'{name} {name2}')
+        self.logger.info(f'{name} {name2}')
 
         # Does a dark or master dark exist?
         dark = True
@@ -317,7 +290,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         # Use flats taken today, if they exist
         flat = False
         if name2 in self.flatFrame.keys() and name2 in self.flatoffFrame.keys():
-            self.log.info(f'Creating normalized flat for {name2}')
+            self.logger.info(f'Creating normalized flat for {name2}')
             flatImg = self.flatFrame[name2] - self.flatoffFrame[name2]
             flatImg = flatImg / np.median(flatImg)
             flat = True
@@ -329,7 +302,7 @@ class KoaImagerDrp(FileSystemEventHandler):
                 flat = True
 
         if flat == False:
-            self.log.info('Skipping - no flat found')
+            self.logger.info('Skipping - no flat found')
             if filename not in self.skipList:
                 self.skipList.append(filename)
             return
@@ -343,29 +316,29 @@ class KoaImagerDrp(FileSystemEventHandler):
         try:
             img  = fits.open(filename, ignore_missing_end=True)
         except:
-            self.log.info(f'Error reading file ({filename})')
+            self.logger.info(f'Error reading file ({filename})')
             return
         hdr  = img[0].header
         data = img[0].data
 
         # Dark subtract and divide by flat
         if dark == True:
-            self.log.info(f'Dark subtracting object ({filename})')
+            self.logger.info(f'Dark subtracting object ({filename})')
             data = data - self.darkFrame[name]
             hdu = fits.PrimaryHDU(header=hdr, data=data.astype('int32'))
             hdu.writeto(f'{self.outputdir}/{darkfile}', overwrite=True)
 
-        self.log.info('Flat dividing image')
+        self.logger.info('Flat dividing image')
         data = data / flatImg
 
         # Create a new FITS file and JPG of the data
-        self.log.info(f'Creating new FITS file ({newfile})')
+        self.logger.info(f'Creating new FITS file ({newfile})')
         hdr['DATLEVEL'] = 1
         hdu = fits.PrimaryHDU(header=hdr, data=data.astype('int32'))
         hdu.writeto(f'{self.outputdir}/{newfile}', overwrite=True)
 
         # gzip the FITS file
-        self.log.info(f'gzipping FITS file ({newfile})')
+        self.logger.info(f'gzipping FITS file ({newfile})')
         gzipFile = f'{self.outputdir}/{newfile}.gz'
         with open(f'{self.outputdir}/{newfile}', 'rb') as fIn:
             with gzip.open(gzipFile, 'wb', compresslevel=1) as fOut:
@@ -373,7 +346,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         remove(f'{self.outputdir}/{newfile}')
 
         newfile = newfile.replace('.fits', '.jpg')
-        self.log.info(f'Creating new JPG file ({newfile})')
+        self.logger.info(f'Creating new JPG file ({newfile})')
 
         interval = ZScaleInterval()
         vmin, vmax = interval.get_limits(data)
@@ -393,10 +366,10 @@ class KoaImagerDrp(FileSystemEventHandler):
                 koaid = hdr['KOAID']
                 url = f'{self.rtiUrl}instrument={self.instrument}&koaid={koaid}'
                 url = f'{url}&ingesttype=lev1&datadir={self.outputdir}'
-                self.log.info(f'Notifying RTI of reduction ({url})')
+                self.logger.info(f'Notifying RTI of reduction ({url})')
                 resp = requests.get(url, auth=(self.rtiUser, self.rtiPwd))
             except:
-                self.log.info(f'Error with {url}')
+                self.logger.info(f'Error with {url}')
 
         img.close()
 
@@ -410,7 +383,7 @@ class KoaImagerDrp(FileSystemEventHandler):
         # Check for master file
         filename = f'./{self.calibrationsdir}/{name}.fits'
         if isfile(filename):
-            self.log.info(f'Found master {filetype} for {name}')
+            self.logger.info(f'Found master {filetype} for {name}')
             return filename
 
         return ''

@@ -3,42 +3,29 @@ Data Evaluation and Processing
 '''
 
 import os
-import sys
-import importlib
-import urllib.request
 import ssl
 import json
-import numpy as np
 import re
-import math
-import db_conn
-import yaml
+from db_conn import db_conn
 from astropy.io import fits
 import datetime as dt
 import shutil
-import glob
 import inspect
-import fnmatch
 import pathlib
 import traceback
 import subprocess
-import pdb
 from pathlib import Path
-from pprint import pprint
 
 import metadata
 import update_koapi_send
 from common import *
 from envlog import *
 import check_dep_status_errors
-
 import logging
-log = logging.getLogger('koa_dep')
-
 
 class DEP:
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
 
         #class inputs
         self.instr     = instr.upper()
@@ -47,6 +34,8 @@ class DEP:
         self.transfer  = transfer
         self.progid    = progid
         self.dbid      = dbid
+        self.logger_name = logger_name
+        self.logger = logging.getLogger(logger_name)
 
         #init other vars
         self.koaid = ''
@@ -83,13 +72,13 @@ class DEP:
         try:
             ok = True
             if ok: ok = self.init()
-            if ok: ok = self.create_logger()
+            if ok: ok = self.create_dep_logger()
             if ok: ok = self.get_level()
             if ok:
                 if   self.level == 0: ok = self.process_lev0()
                 elif self.level == 1: ok = self.process_lev1()
                 elif self.level == 2: ok = self.process_lev2()
-        except Exception as e:
+        except :
             ok = False
             self.log_error('CODE_ERROR', traceback.format_exc())
 
@@ -177,10 +166,10 @@ class DEP:
             name = f.get('name')
             crit = f.get('crit')
             args = f.get('args', {})
-            log.info(f'Running process function: {name}')
+            self.logger.info(f'Running process function: {name}')
             try: 
                 ok = getattr(self, name)(**args)
-            except Exception as e: 
+            except : 
                 self.log_error('CODE_ERROR', traceback.format_exc())
                 ok = False
             if not ok and crit:
@@ -194,8 +183,7 @@ class DEP:
         os.chdir(scriptpath)
 
         # load config file
-        with open('config.live.ini') as f: 
-            self.config = yaml.safe_load(f)
+        self.config = get_config()
 
         # helpful vars from config
         try:
@@ -210,13 +198,12 @@ class DEP:
         if self.rootdir.endswith('/'): self.rootdir = self.rootdir[:-1]
 
         # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
-                                  persist=True, log_obj=log)
+        self.db = db_conn(persist=True, logger_name=self.logger_name)
 
         return True
 
 
-    def create_logger(self):
+    def create_dep_logger(self):
         """
         Creates a logger based on rootdir, instr and cur date.
         NOTE: We create a temp log file first and once we have the KOAID,
@@ -224,52 +211,28 @@ class DEP:
             (see dep.change_logger)
         """
 
-        name = 'koa_dep'
-        rootdir = self.config[self.instr]['ROOTDIR']
-        instr = self.instr
-
-        # Create logger object
-        global log
-        log = logging.getLogger(name)
-        log.setLevel(logging.INFO)
 
         #paths 
-        processDir = f'{rootdir}/{instr.upper()}'
+        processDir = f'{self.rootdir}/{self.instr.upper()}'
         ymd = dt.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-        logFile =  f'{processDir}/logtmp/{name}_{instr.upper()}_{ymd}.log'
+        logFile =  f'{processDir}/logtmp/{self.logger_name.replace(".", "_")}_{self.instr.upper()}_{ymd}.log'
 
         #create directory if it does not exist
         try:
             Path(processDir).mkdir(parents=True, exist_ok=True)
             Path(os.path.dirname(logFile)).mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
+        except Exception as err:
+            msg = f"ERROR: Unable to create logger at {logFile}.  Error: {str(err)}"
+            print(msg)
             self.log_error('WRITE_ERROR')
             return False
 
-        #Remove all handlers
-        #NOTE: This is important if processing multiple files with archive.py since
-        #we reuse global log object and do some renaming of log file (see change_logger())
-        log.handlers = []
+        logger = create_logger(self.logger_name, logFile,
+                               instrument=self.instr.lower())
 
-        # Create a file handler
-        handle = logging.FileHandler(logFile)
-        handle.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        log.addHandler(handle)
-
-        #add stdout to output so we don't need both log and print statements(>= warning only)
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.WARNING)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-        sh.setFormatter(formatter)
-        log.addHandler(sh)
-        
         #init message and return
-        log.info(f'logger created for {name} at {logFile}')
-        print(f'Logging to {logFile}')
-        return log
+        logger.info(f'logger created for {self.logger_name} at {logFile}')
+        return True 
 
 
     def get_level(self):
@@ -294,7 +257,7 @@ class DEP:
             query = (f"select * from koa_status where level=0 and"
                      f" instrument='{self.instr}' and ofname='{self.filepath}' "
                       " order by id desc")
-            log.info(query)
+            self.logger.info(query)
             row = self.db.query('koa', query, getOne=True)
             if row:
                 self.dbid = row['id']
@@ -307,7 +270,7 @@ class DEP:
                     f" , ofname='{self.filepath}' "
                     f" , status='PROCESSING' "
                     f" , creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
-            log.info(query)
+            self.logger.info(query)
             result = self.db.query('koa', query, getInsertId=True)
             if result is False: 
                 self.log_error('QUERY_ERROR', query)
@@ -335,8 +298,8 @@ class DEP:
         Perform initialization tasks for DEP processing.
         '''
 
-        if self.reprocess: log.info(f"Reprocessing ID# {self.dbid}")
-        else:              log.info(f"Processing ID# {self.dbid}")
+        if self.reprocess: self.logger.info(f"Reprocessing ID# {self.dbid}")
+        else:              self.logger.info(f"Processing ID# {self.dbid}")
 
         #if reprocessing, copy record to history and clear status columns
         if self.reprocess:
@@ -366,7 +329,7 @@ class DEP:
             #NOTE: We are not loading a fits file and updating certain koa_status cols for DRP
             self.filepath = None 
             pass
-        log.info(f"Using fits filepath: {self.filepath}")
+        self.logger.info(f"Using fits filepath: {self.filepath}")
         return True
 
 
@@ -435,7 +398,7 @@ class DEP:
         # Create the output directories, if they don't already exist.
         for key, dir in self.dirs.items():
             if not os.path.isdir(dir):
-                log.info(f'Creating output directory: {dir}')
+                self.logger.info(f'Creating output directory: {dir}')
                 try:
                     pathlib.Path(dir).mkdir(parents=True, exist_ok=True)
                 except:
@@ -464,20 +427,18 @@ class DEP:
 
     def change_logger(self):
 
-        '''Now that we have a KOAID, change fileHandler logger.'''
+        '''Now that we have a KOAID, change fileHandler and zmqHandler.'''
 
         #Find logger and FileHandler 
         #NOTE: monitor.py has its own logger which will be in loggerDict
         fileHandler = None
-        logger = None
-        for k, l in  logging.Logger.manager.loggerDict.items():
-            if isinstance(l, logging.PlaceHolder): continue
-            for h in l.handlers:
-                if 'FileHandler' not in str(h.__class__): continue
-                if 'koa_dep' not in h.baseFilename: continue
-                fileHandler = h
-                logger = l
-                break
+        zmqHandler = None
+        for handler in self.logger.handlers:
+            isFileHandler = 'FileHandler' in handler.get_name() and handler.baseFilename in self.logger_name.replace('.', '_')
+            if isFileHandler: 
+                fileHandler = handler 
+            if 'ZMQHandler' in handler.get_name():
+                zmqHandler = handler
 
         if not fileHandler:
             self.log_error('CHANGE_LOGGER_ERROR')
@@ -485,22 +446,21 @@ class DEP:
 
         #rename
         lev = f'lev{self.level}'
-#        if self.level in (0,1):
         newfile = f"{self.dirs[lev]}/{self.koaid}.log"
-#        else:
-#            newfile = f"{self.dirs[lev]}/dep_{lev}_{self.utdatedir}.log"
-        print(f"Logger renamed to {newfile}")
-        log.info(f"Renaming log file from {fileHandler.baseFilename} to {newfile}")
+
+        self.logger.info(f"Renaming log file from {fileHandler.baseFilename} to {newfile}")
         shutil.move(fileHandler.baseFilename, newfile)
 
-        #remove old fileHandler and add new
-        logger.removeHandler(fileHandler)
+        self.logger = add_file_handler(self.logger, newfile)
+        self.logger.removeHandler(fileHandler)
 
-        handle = logging.FileHandler(newfile, mode='a')
-        handle.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        logger.addHandler(handle)
+        self.logger.removeHandler(zmqHandler)
+        self.logger = add_zmq_handler(self.logger_name,
+                                      self.logger, 
+                                      koaid=self.koaid, 
+                                      db_id=self.db_id, 
+                                      instrument=self.instr.lower())
+
 
         return True
 
@@ -525,10 +485,10 @@ class DEP:
         #a check_call to make catch mount issues
         try:
             subprocess.check_call(['test', '-f', self.filepath], timeout=5)
-        except Exception as e:
-            self.log_error('FITS_FILE_TYPE_ERROR', str(e))
+        except Exception as err:
+            self.log_error('FITS_FILE_TYPE_ERROR', str(err))
             if os.path.isfile(self.filepath):
-                log.error('Got a FITS_FILE_TYPE_ERROR, but os.path.isfile is OK.')
+                self.logger.error('Got a FITS_FILE_TYPE_ERROR, but os.path.isfile is OK.')
             else:
                 self.log_error('FITS_NOT_FOUND', self.filepath)
             return False
@@ -557,7 +517,7 @@ class DEP:
         query = (f"INSERT INTO koa_status_history "
                 f" SELECT ds.* FROM koa_status as ds " 
                 f" WHERE id = {id}")
-        log.info(query)
+        self.logger.info(query)
         result = self.db.query('koa', query)
         if result is False: 
             self.log_error('QUERY_ERROR', query)
@@ -585,7 +545,7 @@ class DEP:
                  f" koaimtyp           = NULL, "
                  f" semid              = NULL "
                  f" where id = {id} ")
-        log.info(query)
+        self.logger.info(query)
         result = self.db.query('koa', query)
         if result is False: 
             self.log_error('QUERY_ERROR', query)
@@ -604,11 +564,11 @@ class DEP:
 
         #if record already has stage_file defined and it exists, no copy needed
         if self.stage_file and os.path.isfile(self.stage_file):
-            log.info('Stage file defined and exists.  No copy needed.')
+            self.logger.info('Stage file defined and exists.  No copy needed.')
             return True        
 
         if invalid and not self.ofname:
-            log.info('No raw fits file to copy.')
+            self.logger.info('No raw fits file to copy.')
             return True
 
         #form filepath and copy
@@ -625,7 +585,7 @@ class DEP:
         #if outfile exists, we append version to filename
         #(This is for rare case where observer deletes file and recreates it)
         if os.path.isfile(outfile):
-            log.warning(f'Stage file already exists.  Renaming with version.')
+            self.logger.warning(f'Stage file already exists.  Renaming with version.')
             outdir = os.path.dirname(outfile)
             base = os.path.basename(outfile)
             for i in range(2,20):
@@ -637,12 +597,12 @@ class DEP:
                     break
 
         #copy file
-        log.info(f'Copying raw fits to {outfile}')
+        self.logger.info(f'Copying raw fits to {outfile}')
         try:
             outdir = os.path.dirname(outfile)
             pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
             shutil.copy(self.filepath, outfile)  
-        except Exception as e:
+        except :
             self.log_error('FILE_COPY_ERROR', outfile)
             return False
       
@@ -675,12 +635,12 @@ class DEP:
 
         #delete files matching KOAID*
         try:
-            log.info(f'Deleting local files in {self.levdir}')
+            self.logger.info(f'Deleting local files in {self.levdir}')
             for path in Path(self.levdir).rglob(f'*{self.koaid}.*'):
                 path = str(path)
-                log.info(f"removing file: {path}")
+                self.logger.info(f"removing file: {path}")
                 os.remove(path)
-        except Exception as e:
+        except :
             self.log_error('FILE_DELETE_ERROR', self.levdir)
             return False
         return True
@@ -691,7 +651,7 @@ class DEP:
 
         if value is None: query = f"update koa_status set {column}=NULL where id='{self.dbid}'"
         else:             query = f"update koa_status set {column}='{value}' where id='{self.dbid}'"
-        log.info(query)
+        self.logger.info(query)
         result = self.db.query('koa', query)
         if result is False:
             self.log_error('QUERY_ERROR', query)
@@ -828,13 +788,13 @@ class DEP:
                 outDir = os.path.dirname(self.outfile)
                 outFile = filename.replace('.fits', '.ext' + str(i) + '.' + hdu.name.replace(' ', '_') + '.tbl')
                 outFilepath = f"{outDir}/{outFile}"
-                log.info('Creating {}'.format(outFilepath))
+                self.logger.info('Creating {}'.format(outFilepath))
                 with open(outFilepath, 'w') as f:
                     f.write(dataStr)
 
-            except Exception as e:
+            except :
                 self.log_warn('EXT_HEADER_FILE_ERROR', str(e))
-                log.error(str(e))
+                self.logger.error(str(e))
                 return False
 
         return True
@@ -873,7 +833,7 @@ class DEP:
                         if split[-2] in ['plots','redux','logs']:
                             outdir = f'{outdir}/{split[-2]}'
                         destfile = f"{outdir}/{os.path.basename(srcfile)}"
-                    log.info(f"Copying {srcfile} to {destfile}")
+                    self.logger.info(f"Copying {srcfile} to {destfile}")
                     os.makedirs(os.path.dirname(destfile), exist_ok=True)
                     # Don't recopy files that haven't been updated
                     skip = False
@@ -887,7 +847,7 @@ class DEP:
                     if koaid not in self.drp_files: self.drp_files[koaid] = []
                     self.drp_files[koaid].append(destfile)
                     self.xfr_files.append(destfile)
-                except Exception as e:
+                except :
                     self.log_error('FILE_COPY_ERROR', f"{srcfile} to {destfile}")
                     return False
 
@@ -922,7 +882,7 @@ class DEP:
             outdir = self.dirs[f'lev{self.level}']
             if self.level == 0:
                 md5Outfile = f'{outdir}/{self.koaid}.md5sum.table'
-                log.info(f'Creating {md5Outfile}')
+                self.logger.info(f'Creating {md5Outfile}')
                 # Now that KOAID can have _[value], need the ending .
                 kid = f'{self.koaid}\.'
                 make_dir_md5_table(outdir, None, md5Outfile, regex=kid)
@@ -930,12 +890,12 @@ class DEP:
             elif self.level in (1, 2):
                 for koaid, files in self.drp_files.items():
                     md5Outfile = f'{outdir}/{koaid}.md5sum.table'
-                    log.info(f'Creating {md5Outfile}')
+                    self.logger.info(f'Creating {md5Outfile}')
                     make_dir_md5_table(outdir, None, md5Outfile, fileList=files)
                     self.xfr_files.append(md5Outfile)                
             return True
-        except Exception as e:
-            self.log_error('CREATE_MD5_SUM_ERROR', str(e))
+        except Exception as err:
+            self.log_error('CREATE_MD5_SUM_ERROR', str(err))
             return False
 
 
@@ -970,10 +930,10 @@ class DEP:
             return True
 
         #process it
-        log.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
+        self.logger.info(f'check_koapi_send: {self.utdate}, {semid}, {self.instr}')
         try:
             update_koapi_send.update_koapi_send(self.utdate, semid, self.instr)
-        except Exception as e:
+        except Exception as err:
             self.log_warn('CHECK_KOAPI_SEND_ERROR', f"{self.utdate}, {semid}, {self.instr}")
             return False
 
@@ -992,7 +952,7 @@ class DEP:
 
         #if not errors or warnings, return
         if not self.invalids and not self.errors and not self.warnings:
-            log.info("No DEP errors or warnings")
+            self.logger.info("No DEP errors or warnings")
             return
 
         #If errors, those will trump any warnings
@@ -1001,7 +961,7 @@ class DEP:
         elif self.warnings: data = self.warnings[-1]
         status  = data['status']
         errcode = data['errcode']
-        log.warning(f"Found {len(self.errors)} errors and {len(self.warnings)} warnings.")
+        self.logger.warning(f"Found {len(self.errors)} errors and {len(self.warnings)} warnings.")
 
         #update by dbid
         #NOTE: WARN only status does not change koa_status.status
@@ -1009,10 +969,10 @@ class DEP:
             query =  f"update koa_status set status_code='{errcode}' "
             if status != 'WARN': query += f", status='{status}' "
             query += f" where id={self.dbid}"
-            log.info(query)
+            self.logger.info(query)
             result = self.db.query('koa', query)
             if result is False: 
-                log.error(f'STATUS QUERY FAILED: {query}')
+                self.logger.error(f'STATUS QUERY FAILED: {query}')
                 return False
 
         #Copy to anc if INVALID
@@ -1171,7 +1131,7 @@ class DEP:
             if getOne and len(data) > 0: 
                 data = data[0]
             return data
-        except Exception as e:
+        except :
             return None
 
 
@@ -1183,7 +1143,7 @@ class DEP:
         """
 
         if not self.transfer:
-            log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'
+            self.logger.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'
                         'transfer to monitor_config.py if using monitor.py.')
             return True
 
@@ -1229,7 +1189,7 @@ class DEP:
         if not self.update_koa_status('status', 'TRANSFERRING'): return False
 
         toLocation = f'{account}@{server}:{toDir}/{self.instr}/{self.utdatedir}/lev{self.level}/'
-        log.info(f'transferring directory {fromDir} to {toLocation}')
+        self.logger.info(f'transferring directory {fromDir} to {toLocation}')
 
         if self.level == 2 and self.instr == 'KCWI':
             xfrOutfile = f'{self.levdir}/{self.utdatedir}.xfr.table'
@@ -1241,11 +1201,11 @@ class DEP:
                 fp.write(f'{file}\n')
         stageDir = f'{toDir}/{self.instr}/{self.utdatedir}/lev{self.level}/'
         cmd = f'ssh {account}@{server} mkdir -p {stageDir}'
-        log.info(cmd)
+        self.logger.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
         cmd = f'rsync -avzR --no-t --compress-level=1 --files-from={xfrOutfile} {fromDir} {toLocation}'
-        log.info(cmd)
+        self.logger.info(cmd)
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         output, error = proc.communicate()
         if error:
@@ -1274,10 +1234,10 @@ class DEP:
                     notDone = [i for i in result if i['status'] != 'TRANSFERRED']
                     if len(notDone) == 0:
                         print(f"All data processed, triggering ingestion")
-                        log.info(f"All data processed, triggering ingestion")
+                        self.logger.info(f"All data processed, triggering ingestion")
                     else:
                         print(f"{len(notDone)} of {len(result)} still to process")
-                        log.info(f"{len(notDone)} of {len(result)} still to process")
+                        self.logger.info(f"{len(notDone)} of {len(result)} still to process")
                         return True
 
             apiUrl = f'{api}instrument={self.instr}&ingesttype=lev{self.level}'
@@ -1295,11 +1255,11 @@ class DEP:
                 apiUrl = f'{apiUrl}&rtui=false'
 
 
-            log.info(f'sending ingest API call {apiUrl}')
+            self.logger.info(f'sending ingest API call {apiUrl}')
             utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_koa_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
-            log.info(f"IPAC API response: {apiData}")
+            self.logger.info(f"IPAC API response: {apiData}")
             if not apiData or not apiData.get('APIStatus') or apiData.get('APIStatus') != 'COMPLETE':
                 self.log_error('IPAC_NOTIFY_ERROR', apiUrl)
                 return False
@@ -1344,20 +1304,20 @@ class DEP:
         status = 'WARN'
         caller = inspect.stack()[1][3]
         data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        log.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        self.logger.warning(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
         self.warnings.append(data)
 
     def log_error(self, errcode, text=''):
         status = 'ERROR'
         caller = inspect.stack()[1][3]
         data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        self.logger.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
         self.errors.append(data)
 
     def log_invalid(self, errcode, text=''):
         status = 'INVALID'
         caller = inspect.stack()[1][3]
         data = {'func': caller, 'status': status, 'errcode':errcode, 'text':text}
-        log.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
+        self.logger.error(f"func: {caller}, db id: {self.dbid}, koaid: {self.koaid}, status: {status}, errcode:{errcode}, text:{text}")
         self.invalids.append(data)
 

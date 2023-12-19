@@ -2,28 +2,24 @@
 This is the class to handle all the KCWI specific attributes
 '''
 
+from common import DEFAULT_LOGGER_NAME
 import instrument
 import datetime as dt
 import numpy as np
 from astropy.io import fits
 import os
 import re
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import math
 from skimage import exposure
-import traceback
 import glob
 from pathlib import Path
-import logging
-log = logging.getLogger('koa_dep')
-
 
 class Kcwi(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
 
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
         self.keymap['UTC'] = 'UT'
@@ -140,7 +136,7 @@ class Kcwi(instrument.Instrument):
         
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
@@ -178,13 +174,13 @@ class Kcwi(instrument.Instrument):
             elaptime = self.get_keyword('ELAPTIME')
         elif self.get_keyword('EXPTIME') is not None:
             elaptime = self.get_keyword('EXPTIME')
-            log.info('set_elaptime: Setting ELAPTIME from EXPTIME')
+            self.logger.info('set_elaptime: Setting ELAPTIME from EXPTIME')
         elif self.get_keyword('XPOSURE') is not None:
             elaptime = self.get_keyword('XPOSURE')
-            log.info('set_elaptime: Setting ELAPTIME from XPOSURE')
+            self.logger.info('set_elaptime: Setting ELAPTIME from XPOSURE')
         elif itime != None and coadds != None:
             elaptime = round(itime*coadds,4)
-            log.info('set_elaptime: Setting ELAPTIME from ITIME*COADDS')
+            self.logger.info('set_elaptime: Setting ELAPTIME from ITIME*COADDS')
         else:
             self.log_warn('SET_ELAPTIME_ERROR')
             return False
@@ -288,7 +284,7 @@ class Kcwi(instrument.Instrument):
         camera = self.get_keyword('CAMERA')
         #wcs values should only be set for fpc
         if camera != 'fpc':
-            log.info(f'set_wcs: WCS keywords not set for camera type: {camera}')
+            self.logger.info(f'set_wcs: WCS keywords not set for camera type: {camera}')
             return True
         #get ra and dec values
         rakey = (self.get_keyword('RA')).split(':')

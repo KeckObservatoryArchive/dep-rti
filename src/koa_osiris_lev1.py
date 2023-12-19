@@ -3,7 +3,8 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import units as u
 import datetime as dt
-import db_conn
+from common import create_logger, get_config
+from db_conn import db_conn
 from getpass import getuser
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -17,11 +18,9 @@ import sys
 from time import sleep
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler
-import yaml
 import json
 import gzip
 import shutil
-import logging
 
 
 class KoaOsirisDrp(FileSystemEventHandler):
@@ -40,7 +39,13 @@ class KoaOsirisDrp(FileSystemEventHandler):
         self.datadir         = datadir
         self.outputdir       = outputdir
 
-        self.log = self.create_logger()
+        name = f'koa.osiris.lev1'
+        logFile =  f'/log/{name.replace(".","_")}.log'
+        self.logger = create_logger(name, logFile, 
+                                    instrument=instrument, 
+                                    user=self.whoami, 
+                                    hostname=self.hostname
+                                    )
         self.log.info(f'Monitoring {self.datadir}')
         self.log.info(f'RTI outputdir is {self.outputdir}')
         self.log.info(f'RTI API is {self.rti}')
@@ -51,36 +56,6 @@ class KoaOsirisDrp(FileSystemEventHandler):
         self.fileList      = []
 
         self.add_current_file_list()
-
-
-    def create_logger(self):
-        """Creates a logger"""
-
-        # Create logger object
-        name = f'koa_osiris_lev1'
-        log = logging.getLogger(name)
-        log.setLevel(logging.DEBUG)
-
-        # paths
-        logFile =  f'/log/{name}.log'
-
-        # Create a file handler
-        handle = logging.FileHandler(logFile)
-        handle.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        log.addHandler(handle)
-
-        # add stdout to output so we don't need both log and print statements(>= warning only)
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-        sh.setFormatter(formatter)
-        log.addHandler(sh)
-
-        # init message and return
-        log.info(f'logger created at {logFile}')
-        return log
 
 
     def on_any_event(self, event):
@@ -136,7 +111,7 @@ class KoaOsirisDrp(FileSystemEventHandler):
 
         while len(self.queue) > 0:
             filename = self.queue[0]
-            self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+            self.db = db_conn(persist=True)
             self.process_file(filename)
             self.db.close()
             self.fileList.append(filename)
@@ -340,12 +315,7 @@ def main():
     chdir(sys.path[0])
 
     # Get config
-    if isfile('config.live.ini'):
-        with open('config.live.ini') as f:
-            config = yaml.safe_load(f)
-    else:
-        print('config.live.ini file not found')
-        exit()
+    config = get_config()
 
     # Is OSIRIS scheduled for the night?  Get account being used.
     try:

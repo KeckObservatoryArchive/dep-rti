@@ -2,20 +2,14 @@
 This is the class to handle all the OSIRIS specific attributes
 '''
 import instrument
-import datetime as dt
 from common import *
-from math import ceil
 import numpy as np
 import subprocess
 
-import logging
-log = logging.getLogger('koa_dep')
-
-
 class Osiris(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'
@@ -130,7 +124,7 @@ class Osiris(instrument.Instrument):
 
         # warn if undefined
         if koaimtyp == 'undefined':
-            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         # update keyword
@@ -214,7 +208,7 @@ class Osiris(instrument.Instrument):
         pi = np.pi
 
         if instr.lower() == 'imag' and 'position angle' in rotmode:
-            log.info('set_wcs_keywords: setting WCS keyword values')
+            self.logger.info('set_wcs_keywords: setting WCS keyword values')
             ctype1 = 'RA---TAN'
             ctype2 = 'DEC--TAN'
             wat0_001 = 'system=image'
@@ -410,7 +404,7 @@ class Osiris(instrument.Instrument):
             return True
 
         if koaimtyp == 'calib' and (float(ra) < -720 or float(ra) > 720):
-            log.info('check_ra: changing RA to null')
+            self.logger.info('check_ra: changing RA to null')
             self.set_keyword('RA', None)
 
         return True
@@ -423,7 +417,7 @@ class Osiris(instrument.Instrument):
 
         drp = self.config.get(self.instr, {}).get('DRP')
         if not drp:
-            log.info("No DRP defined.")
+            self.logger.info("No DRP defined.")
             return True
 
         cmd = []
@@ -431,10 +425,10 @@ class Osiris(instrument.Instrument):
             cmd.append(word)
         cmd.append(self.utdate)
 
-        log.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
+        self.logger.info(f'run_drp: Running DRP command: {" ".join(cmd)}')
         p = subprocess.Popen(cmd)
         p.wait()
-        log.info('run_drp: DRP finished')
+        self.logger.info('run_drp: DRP finished')
 
         return True
 

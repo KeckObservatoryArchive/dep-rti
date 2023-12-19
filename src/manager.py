@@ -9,10 +9,8 @@ python manager.py myApp start --interpreter kpython3 --port 55557 --extra "test"
 '''
 import argparse
 import os
-import sys
 import subprocess
 import psutil
-import getpass
 
 
 def is_server_running(server, interpreter=None, port=None, extra=False, report=False):
@@ -20,7 +18,6 @@ def is_server_running(server, interpreter=None, port=None, extra=False, report=F
     Returns PID if server is currently running (on same port), else 0
     '''
     matches = []
-    current_user = getpass.getuser()
     chk_set = {server}
 
     if port:        chk_set.add(port)
@@ -90,8 +87,8 @@ def process_start(pid, server, interpreter=None, port=None, extra=None):
         print(f'Starting "{server}" with  the cmd:' + str(cmd))
         try:
             p = subprocess.Popen(cmd)
-        except Exception as e:
-            print('Error running command: ' + str(e))
+        except Exception as err:
+            print('Error running command: ' + str(err))
         print('Done')
 
 
@@ -123,7 +120,7 @@ os.chdir(dir)
 
 # Check if server file exists
 server = f'{dir}/{server}.py'
-assert os.path.isfile(server), print(f'server module {server} does not exist')
+assert os.path.isfile(server), f'server module {server} does not exist'
 
 # Check if server is running
 pid = is_server_running(server, interpreter=interpreter, port=port, extra=extra)

@@ -14,33 +14,23 @@ Usage:
 '''
 import sys
 import argparse
-import configparser
 import datetime as dt
 import time
 import traceback
 import os
 import smtplib
 from email.mime.text import MIMEText
-import logging
-import yaml
-import importlib
 from pathlib import Path
-import subprocess
 import threading
 import multiprocessing
-import logging
-import re
-import hashlib
+from common import create_logger, get_config
 
-import db_conn
+from db_conn import db_conn
 from archive import Archive
 
 
 #module globals
 last_email_times = None
-PROC_CHECK_SEC = 1.0
-QUEUE_CHECK_SEC = 30.0
-MAX_PROCESSES = 1
 
 
 
@@ -55,7 +45,7 @@ def main():
     #run monitors and catch any unhandled error for email to admin
     try:
         monitor = Monitor(args.instr)
-    except Exception as error:
+    except Exception as err:
         handle_error('MONITOR_ERROR', traceback.format_exc())
         sys.exit(1)
 
@@ -90,15 +80,14 @@ class Monitor():
         os.chdir(sys.path[0])
 
         #load config file
-        with open('config.live.ini') as f: 
-            self.config = yaml.safe_load(f)
+        self.config = get_config()
 
         #create logger first
-        self.log = self.create_logger(self.config[self.instr]['ROOTDIR'], self.instr)
-        self.log.info(f"Starting KOA DRP Monitor for {self.instr}")
+        self.logger = self.create_drp_logger(self.config[self.instr]['ROOTDIR'], self.instr)
+        self.logger.info(f"Starting KOA DRP Monitor for {self.instr}")
 
         # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+        self.db = db_conn(persist=True)
 
         self.start()
 
@@ -126,7 +115,7 @@ class Monitor():
         for i in reversed(range(len(self.procs))):
             p = self.procs[i]
             if p.exitcode is not None:
-                self.log.debug(f'---Removing completed process PID={p.pid}, exitcode={p.exitcode}')
+                self.logger.debug(f'---Removing completed process PID={p.pid}, exitcode={p.exitcode}')
                 del self.procs[i]
                 removed += 1
 
@@ -135,7 +124,7 @@ class Monitor():
 
         #call this function every N seconds
         #NOTE: we could do this faster
-        threading.Timer(PROC_CHECK_SEC, self.process_monitor).start()
+        threading.Timer(self.config['MONITOR_DRP']['PROC_CHECK_SEC'], self.process_monitor).start()
 
 
     def queue_monitor(self, init=False):
@@ -147,11 +136,11 @@ class Monitor():
         '''
         now = time.time()
         diff = int(now - self.last_queue_check)
-        if diff >= QUEUE_CHECK_SEC or init:
+        if diff >= self.config['MONITOR_DRP']['QUEUE_CHECK_SEC'] or init:
             self.check_queue()
 
         #call this function every N seconds
-        threading.Timer(QUEUE_CHECK_SEC, self.queue_monitor).start()
+        threading.Timer(self.config['MONITOR_DRP']['QUEUE_CHECK_SEC'], self.queue_monitor).start()
 
 
     def check_queue(self):
@@ -171,7 +160,7 @@ class Monitor():
             return 
 
         #check that we have not exceeded max num procs
-        if len(self.procs) >= MAX_PROCESSES:
+        if len(self.procs) >= self.config['MONTIOR_DRP']['MAX_PROCESSES']:
 #            self.handle_error('MAX_PROCESSES', MAX_PROCESSES)
             return
 
@@ -183,10 +172,10 @@ class Monitor():
             return False
 
         #pop from queue and process it
-        self.log.debug(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
+        self.logger.debug(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
         try:
             self.process_file(row['id'], row['level'])
-        except Exception as e:
+        except Exception as err:
             self.handle_error('PROCESS_ERROR', f"ID={row['id']}, filepath={row['ofname']}\n, {traceback.format_exc()}")
 
 
@@ -197,7 +186,7 @@ class Monitor():
         proc = multiprocessing.Process(target=self.spawn_processing, args=(id, level))
         proc.start()
         self.procs.append(proc)
-        self.log.debug(f'DEP started as system process ID: {proc.pid}')
+        self.logger.debug(f'DEP started as system process ID: {proc.pid}')
 
 
     def spawn_processing(self, dbid, level):
@@ -207,49 +196,32 @@ class Monitor():
         pass
 
 
-    def create_logger(self, rootdir, instr):
+    def create_drp_logger(self, rootdir, instr):
         """Creates a logger based on rootdir, instr and date"""
 
         # Create logger object
-        name = f'koa_monitor_drp_{instr}'
-        log = logging.getLogger(name)
-        log.setLevel(logging.DEBUG)
-
+        name = f'koa.monitor.drp.{instr}'.lower()
         #paths
         processDir = f'{rootdir}/{instr.upper()}'
-        logFile =  f'{processDir}/{name}.log'
+        logFile =  f'{processDir}/{name.replace(".","_")}.log'
 
         #create directory if it does not exist
         try:
             Path(processDir).mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
+        except Exception as err:
+            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(err)}")
             return False
 
         # Create a file handler
-        handle = logging.FileHandler(logFile)
-        handle.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
-        handle.setFormatter(formatter)
-        log.addHandler(handle)
-
-        #add stdout to output so we don't need both log and print statements(>= warning only)
-        sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
-        sh.setFormatter(formatter)
-        log.addHandler(sh)
-        
-        #init message and return
-        log.info(f'logger created for {instr} at {logFile}')
-        return log
+        logger = create_logger(name, logFile, instrument=self.instr.lower())
+        return logger
 
 
     def handle_error(self, errcode, text='', check_time=True):
         '''Email admins the error but only if we haven't sent one recently.'''
 
         #always log/print
-        self.log.error(f'{errcode}: {text}')
+        self.logger.error(f'{errcode}: {text}')
         handle_error(errcode, text, self.instr, check_time)
 
 
@@ -271,7 +243,7 @@ def handle_error(errcode, text='', instr='', check_time=True):
         last_email_times[errcode] = now
 
     #get admin email.  Return if none.
-    with open('config.live.ini') as f: config = yaml.safe_load(f)
+    config = get_config()
     adminEmail = config['REPORT']['ADMIN_EMAIL']
     if not adminEmail: return
     

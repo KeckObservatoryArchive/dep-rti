@@ -1,6 +1,6 @@
-import os
-import yaml
 import pymysql.cursors
+from common import DEFAULT_LOGGER_NAME, get_config 
+import logging
 
 
 class db_conn(object):
@@ -21,19 +21,18 @@ class db_conn(object):
         },
     }
     Inputs:
-    - configFile: Filepath to yaml config file
+    - configPath: Filepath to yaml config file
     - configKey: Optionally define a config dict key if config is within a larger yaml file.
     '''
 
-    def __init__(self, configFile, configKey=None, persist=False, log_obj=None):
+    def __init__(self, configPath=None, configKey='DATABASE', persist=False, logger_name=DEFAULT_LOGGER_NAME):
 
         self.persist = persist
         self.readOnly = 0
-        self.log = log_obj
+        self.logger = logging.getLogger(logger_name)
 
         #parse config file
-        assert os.path.isfile(configFile), f"ERROR: config file '{configFile}' does not exist.  Exiting."
-        with open(configFile) as f: self.config = yaml.safe_load(f)
+        self.config = get_config(configPath)
         if configKey:
             assert configKey in self.config, f"ERROR: config key '{configKey}' does not exist in config file. Exiting." 
             self.config = self.config[configKey]
@@ -72,10 +71,9 @@ class db_conn(object):
                 connect_timeout=10, read_timeout=10, write_timeout=10,
                 autocommit=True, conv=conv
             )
-        except Exception as e:
+        except Exception as err:
             conn = None
-            self.log_msg(f"ERROR: Could not connect to database. {e}",
-                         level=0)
+            self.logger.error(f"Could not connect to database. {err}")
 
         #save connection
         if self.persist:
@@ -105,28 +103,27 @@ class db_conn(object):
         cursor = None
         conn   = None
 
-        self.log_msg('starting query', level=2)
+        self.logger.debug('starting query')
         try:
             # determine query type and check for read only restriction
             qtype = query.strip().split()[0]
             if self.readOnly and qtype in ('insert', 'update'):
-                self.log_msg('ERROR: Attempting to write to DB in read-only mode.',
-                             level=0)
+                self.logger.error('Attempting to write to DB in read-only mode.')
                 return False
 
             # get cursor
             conn = self.connect(database)
-            self.log_msg('connected', level=2)
+            self.logger.debug('connected')
 
             cursor = conn.cursor(pymysql.cursors.DictCursor)
-            self.log_msg('got cursor', level=2)
+            self.logger.debug('got cursor', level=2)
 
-        except Exception as e:
+        except Exception as err:
             self.clean_up(conn, cursor)
-            self.log_msg(f'ERROR getting cursor: {e}', level=0)
+            self.logger.error(f'ERROR getting cursor: {err}')
             return False
 
-        self.log_msg('connection completed.', level=2)
+        self.logger.debug('connection completed.')
 
         try:
             # execute query and determine return value by qtype
@@ -136,14 +133,13 @@ class db_conn(object):
                 else:
                     cursor.execute(query, values)
             else:
-                self.log_msg(f'ERROR cursor is not defined.', level=0)
-        except Exception as e:
+                self.logger.error(f'cursor is not defined.')
+        except Exception as err:
             self.clean_up(conn, cursor)
-            self.log_msg(f'ERROR executing query: {query} {values}, {e}',
-                         level=0)
+            self.logger.error(f'ERROR executing query: {query} {values}, {err}')
             return False
 
-        self.log_msg('query executed.', level=2)
+        self.logger.debug('query executed.')
 
         try:
             if cursor:
@@ -156,10 +152,10 @@ class db_conn(object):
                 cursor.close()
         except Exception as e:
             self.clean_up(conn, cursor)
-            self.log_msg(f'ERROR getting result: {e}', level=0)
+            self.error(f'ERROR getting result: {e}')
             return False
 
-        self.log_msg('got results.', level=2)
+        self.logger.debug('got results.')
 
         try:
             # requesting one result
@@ -178,43 +174,16 @@ class db_conn(object):
                     result = result[getColumn]
 
         except Exception as e:
-            self.log_msg(f'ERROR parsing result: {e}', level=0)
+            self.logger.error(f'ERROR parsing result: {e}')
             return False
 
 
         finally:
             self.clean_up(conn, cursor)
 
-        self.log_msg('query and cleanup complete.', level=2)
+        self.logger.debug('query and cleanup complete.')
 
         return result
-
-    def log_msg(self, msg, level=None):
-        """
-        0 = error
-        1 = warning
-        2 = debug
-        3 = info
-
-        :param msg: the message to log
-        :type msg: str
-        :param level: the logging level
-        :type level: int
-        """
-
-        msg = f'db_conn - {msg}'
-        if self.log:
-            if not level or level == 3:
-                self.log.info(f'{msg}')
-            elif level == 0:
-                self.log.error(f'{msg}')
-                print
-            elif level == 1:
-                self.log.warning(f'{msg}')
-            elif level == 2:
-                self.log.debug(f'{msg}')
-        else:
-            print(f'stdout: {msg}')
 
     def clean_up(self, conn, cursor):
         if not self.persist:

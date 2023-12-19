@@ -3,9 +3,8 @@ This is the class to handle all the HIRES specific attributes
 '''
 
 import instrument
-import datetime as dt
 from common import *
-from math import ceil, floor
+from math import floor
 import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
@@ -13,17 +12,12 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from astropy.visualization import ZScaleInterval, AsinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
-import scipy
-
-import logging
-log = logging.getLogger('koa_dep')
-
 
 class Hires(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
 
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']   = 'OUTFILE'
@@ -105,7 +99,7 @@ class Hires(instrument.Instrument):
 
         koaimtyp = self.get_koaimtyp()
         if (koaimtyp == 'undefined'):
-            log.info('set_koaimtyp: Could not determine KOAIMTYP value')
+            self.logger.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword
@@ -193,7 +187,7 @@ class Hires(instrument.Instrument):
 #        
 #        if self.get_keyword('Blank', False) != None: return True
 #
-#        log.info('set_blank: Creating BLANK keyword with value -32768')
+#        self.logger.info('set_blank: Creating BLANK keyword with value -32768')
 #
 #        #add keyword
 #        self.set_keyword('BLANK', -32768, 'KOA: ')
@@ -537,7 +531,7 @@ class Hires(instrument.Instrument):
             slitwidt = round(slitwidt, 3)
             specres = int(specres)
         else:
-            log.info('set_slit_values: Unable to set slit scale keywords')
+            self.logger.info('set_slit_values: Unable to set slit scale keywords')
 
         self.set_keyword('SLITLEN', slitlen, 'KOA: Slit length projected on sky (arcsec)')
         self.set_keyword('SLITWIDT', slitwidt, 'KOA: Slit width projected on sky (arcsec)')
@@ -601,7 +595,7 @@ class Hires(instrument.Instrument):
 
         # Skip if one or more values not found
         if irot2ang == None or parang == None or el == None:
-            log.info('set_skypa: Could not set skypa')
+            self.logger.info('set_skypa: Could not set skypa')
             return True
 
         skypa = (2.0 * float(irot2ang) + float(parang) + float(el) + offset) % (360.0)

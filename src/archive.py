@@ -3,19 +3,15 @@ Handle the various archiveing command line parameters and call DEP appropriately
 '''
 import sys
 import argparse
-import configparser
 import datetime as dt
 import traceback
 import os
 import smtplib
 from email.mime.text import MIMEText
-import yaml
-import db_conn
+from common import create_logger, get_config
+from db_conn import db_conn
 import importlib
 import glob
-import pdb
-import dep
-import instrument
 
 
 #module globals
@@ -70,6 +66,7 @@ class Archive():
         self.confirm = confirm
         self.transfer = transfer
         self.level = level
+        self.logger = create_logger(f'koa.archive.{instr.lower()}', instrument=self.instr)
 
         #other class vars
         self.db = None
@@ -77,23 +74,22 @@ class Archive():
         #handle any uncaught errors and email admin
         try:
             self.start()
-        except Exception as error:
+        except Exception as err:
             email_error('ARCHIVE_ERROR', traceback.format_exc(), instr)
 
 
     def start(self):
 
-        print("STARTING PROCESSING")
+        self.logger.info("STARTING PROCESSING")
 
         #cd to script dir so relative paths work
         os.chdir(sys.path[0])
 
         #load config file
-        with open('config.live.ini') as f: 
-            self.config = yaml.safe_load(f)
+        self.config = get_config()
 
         # Establish database connection 
-        self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE', persist=True)
+        self.db = db_conn(persist=True)
 
         #routing
         if self.filepath:
@@ -105,9 +101,9 @@ class Archive():
         elif self.starttime or self.endtime or self.status or self.statuscode or self.ofname:
             self.reprocess_by_query()
         else:
-            print("ERROR: Unknown inputs.")
+            self.logger.error("ERROR: Unknown inputs.")
 
-        print("ALL PROCESSING COMPLETE")
+        self.logger.info("ALL PROCESSING COMPLETE")
 
 
     def __del__(self):
@@ -121,15 +117,16 @@ class Archive():
         '''Creates instrument object by name and starts processing.'''
         module = importlib.import_module('instr_' + self.instr.lower())
         instr_class = getattr(module, self.instr.capitalize())
+        logger_name = f'koa.{self.instr.lower()}' 
         instr_obj = instr_class(self.instr, filepath, self.reprocess,
-                                self.transfer, self.progid, dbid=dbid)
+                                self.transfer, self.progid, dbid=dbid, logger_name=logger_name)
 
         ok = instr_obj.process()
         if not ok:
             #NOTE: DEP has its own error reporting system so no need to do anything here.
-            print("DEP finished with ERRORS!  See log file for details.")
+            self.logger.warning("DEP finished with ERRORS!  See log file for details.")
         else:
-            print("DEP finished successfully.")
+            self.logger.info("DEP finished successfully.")
 
 
     def process_files(self, pattern):
@@ -145,7 +142,7 @@ class Archive():
             print("--------------------")
             for f in files: print(f)
             print("--------------------")
-            print(f"{len(files)} files found.  Use --confirm option to process these files.\n")
+            self.logger.info(f"{len(files)} files found.  Use --confirm option to process these files.\n")
         else:
             for f in files:
                 self.process_file(filepath=f)
@@ -178,7 +175,7 @@ class Archive():
             for row in rows:
                 print(f"{row['id']}\t{row['status']}\t{row['status_code']}\t{row['utdatetime']}\t{row['koaid']}\t{row['ofname']}")
             print("--------------------")
-            print(f"{len(rows)} records found.  Use --confirm option to process these records.\n")
+            self.logger.info(f"{len(rows)} records found.  Use --confirm option to process these records.\n")
         else:
             for row in rows:
                 self.process_file(dbid=row['id'])
@@ -203,7 +200,7 @@ def email_error(errcode, text, instr='', check_time=True):
         last_email_times[errcode] = now
 
     #get admin email.  Return if none.
-    with open('config.live.ini') as f: config = yaml.safe_load(f)
+    config = get_config()
     adminEmail = config['REPORT']['ADMIN_EMAIL']
     if not adminEmail: return
     

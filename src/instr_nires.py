@@ -3,18 +3,13 @@ This is the class to handle all the NIRES specific attributes.
 '''
 
 import instrument
-import datetime as dt
 from common import *
-
-import logging
-log = logging.getLogger('koa_dep')
 
 
 class Nires(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
-
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None, logger_name=DEFAULT_LOGGER_NAME):
+        super().__init__(instr, filepath, reprocess, transfer, progid, dbid, logger_name)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']       = 'DATAFILE'        
@@ -217,7 +212,7 @@ class Nires(instrument.Instrument):
 
         #warn if undefined
         if (koaimtyp == 'undefined'):
-            log.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value of "' + str(obstype) + '"')
+            self.logger.info('set_koaimtyp: Could not determine KOAIMTYP from OBSTYPE value of "' + str(obstype) + '"')
             self.log_warn("KOAIMTYP_UDF")
 
         #update keyword

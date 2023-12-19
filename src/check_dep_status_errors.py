@@ -9,7 +9,7 @@ import argparse
 import smtplib
 from email.mime.text import MIMEText
 import datetime as dt
-import db_conn
+from db_conn import db_conn
 import socket
 #sys.path.append('/koa/koa-rti/default/common')
 #from slack import send_to_slack
@@ -29,7 +29,7 @@ def main(dev=False, admin_email=None, slack=False):
     os.environ['TZ'] = 'Pacific/Honolulu'
 
     #db connect
-    db = db_conn.db_conn(f'config.live.ini', configKey='DATABASE')
+    db = db_conn()
 
     #Query for last email times
     if not dev:

@@ -1,10 +1,28 @@
 import datetime as dt
+import logging
 import os
+from sys import stdout
 import hashlib
-import json
 import glob
 import re
 import yaml
+from DDOILoggerClient import DDOILogger as dl
+
+CONFIG_FILE = 'config.live.ini'
+
+def get_config(filePath=None):
+    if not filePath:
+        configPath = os.path.realpath(os.path.dirname(__file__) )
+        configPath = os.path.join(configPath, CONFIG_FILE)
+    else:
+        configPath = filePath
+    assert os.path.isfile(configPath), f"ERROR: config path'{configPath}' does not exist.  Exiting."
+    with open(configPath) as f:
+        config = yaml.safe_load(f)
+    return config
+
+config = get_config() 
+DEFAULT_LOGGER_NAME = config['LOGGER']['MAIN_LOGGER']
 
 
 def make_file_md5(infile, outfile):
@@ -133,3 +151,64 @@ def convert_ra_dec_to_degrees(coord, value):
 
     return newValue
 
+def create_logger(name=None, logFile=None, **kwargs):
+    """creates a logger with the following handlers: 
+    StreamHandler, ZMQHandler and the optional FileHandler.
+
+    Args:
+        name (str, optional): Name of logger. Use dot notation 'koa.dep'.
+        logFile (str, optional): name of log file for FileHandler. Defaults to None.
+    Returns:
+        _type_: _description_
+    """
+
+    # Create logger object
+    if not name:
+        name = DEFAULT_LOGGER_NAME 
+    logger = logging.getLogger(name)
+    lvl = kwargs.get('logLevel', logging.INFO)
+    logger.setLevel(lvl)
+
+    #Remove all handlers
+    #NOTE: This is important if processing multiple files with archive.py since
+    #we reuse global log object and do some renaming of log file (see change_logger())
+    logger.handlers = []
+
+    # Create a file handler
+    if logFile:
+        flvl = kwargs.get('fileLogLevel', logging.INFO)
+        logger = add_file_handler(logger, logFile, flvl)
+
+    #add stdout to output so we don't need both log and print statements(>= warning only)
+    sh = logging.StreamHandler(stdout)
+
+    shlvl = kwargs.get('stdoutLogLevel', logging.WARNING)
+    sh.setLevel(shlvl)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
+
+    # add additonal log keys that we want to include in the log schema
+    subsystem = kwargs.get('subsystem', name)
+    logger = add_zmq_handler(subsystem, logger, **kwargs)
+    
+    #init message and return
+    logger.info(f'logger created for {name} at {logFile}')
+    return logger 
+
+def add_file_handler(logger, logFile, lvl=logging.INFO):
+    # Create a file handler
+    handle = logging.FileHandler(logFile)
+    handle.setLevel(lvl)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+    handle.setFormatter(formatter)
+    logger.addHandler(handle)
+    print(f'Logging to {logFile}')
+    return logger
+
+def add_zmq_handler(subsystem, logger, **kwargs):
+    # add additonal log keys that we want to include in the log schema
+    zmqkwargs = { **kwargs, 'subsystem': subsystem, } 
+    zmq_log_handler = dl.ZMQHandler(url=config['LOGGER']['URL'], config=config, **zmqkwargs )
+    logger.addHandler(zmq_log_handler)
+    return logger
