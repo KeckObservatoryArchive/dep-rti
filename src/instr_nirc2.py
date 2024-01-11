@@ -385,15 +385,9 @@ class Nirc2(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword
         '''
-        #skip it it exists
+        #skip if it exists
         if self.get_keyword('ELAPTIME', False) != None: 
             return True
-
-        #get necessary keywords
-        #itime  = self.get_keyword('ITIME')
-        #if (itime == None or coadds == None):
-        #    self.log_warn("SET_ELAPTIME_ERROR")
-        #    return False
 
         coadds = self.get_keyword('COADDS')
         if (coadds == None):
