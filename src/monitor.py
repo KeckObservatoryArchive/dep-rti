@@ -566,6 +566,9 @@ class KtlMonitor:
                 filepath = f'/s{filepath}'
 
             # check for invalid filepath
+            if not os.path.isfile(filepath):
+                self.log.error(f"INVALID FILEPATH (file does not exist - {filepath}")
+                return            
             if '/sdata' not in filepath and '/operations' not in filepath:
                 self.log.error(f"INVALID FILEPATH (no 'sdata' or 'operations')\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
@@ -577,6 +580,12 @@ class KtlMonitor:
                 return
             if '/hireseng/xdchange/' in filepath:
                 self.log.error(f"INVALID FILE (hireseng/xdchange)\t{self.instr}\t{keyword.service}\t{filepath}")
+                return
+            if 'TEMPFITS.fits' in filepath:
+                self.log.error(f"INVALID FILE {self.instr}\t{filepath}")
+                return
+            if re.search(r'KP.\d{8}.\d{5}.\d{2}-\d.fits', filepath):
+                self.log.error(f"INVALID FILE {self.instr}\t{filepath}")
                 return
 
             # Check file mod time and ensure it is not the same as last file (re-broadcasts)
