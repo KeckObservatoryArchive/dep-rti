@@ -169,7 +169,7 @@ class Kpf(instrument.Instrument):
                          f'wavelength (angstroms) based on detectors used.')
 
         return True
-    
+
 
     def set_elaptime(self):
         """
