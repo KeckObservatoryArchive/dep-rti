@@ -17,7 +17,6 @@ from watchdog.observers.polling import PollingObserver
 from astropy.io import fits
 
 class KoaGuiderWatchdog(PatternMatchingEventHandler):
-#class KoaGuiderWatchdog(RegexMatchingEventHandler):
     '''
     Handles the directory monitoring and processing
     '''
@@ -35,10 +34,6 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
                                              ignore_directories=True,
                                              case_sensitive=False)
 
-#        RegexMatchingEventHandler.__init__(self,
-#                                             regexes=['\w+.*_\d{4}.fits'],
-#                                             ignore_directories=True,
-#                                             case_sensitive=False)
 
     def create_logger(self):
         """Creates a logger"""
