@@ -340,6 +340,8 @@ class Guider(instrument.Instrument):
         filters = {}
         filters['ACAM']       = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['ACAMA']      = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['K1ACAMA']    = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['K2ACAMA']    = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['DEIMOS']     = {'blue':0.400,  'cntr':0.650,  'red':0.900}     # BVRI
         filters['ESI']        = {'blue':0.400,  'cntr':0.650,  'red':0.900}     # BVRI
         filters['HIRESSLIT']  = {'blue':0.360,  'cntr':0.680,  'red':1.000}
