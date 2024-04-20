@@ -103,14 +103,13 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
                     ktl_keyword = 'koa.k2guiderfile'
                     ktl_keyword_name = 'K2GUIDERFILE'
                
-                #if result not in ('ssc','pcs') and not islink(event.src_path):
                 if 'pcs' not in result and 'ssc' not in result and not islink(event.src_path):
                     keyword = ktl.cache(ktl_keyword)
                     keyword.write(event.src_path)
                     value = keyword.read()
                     self.log.info("Service=koa, Keyword=" + ktl_keyword_name + ", Value=" + value)
                 else:
-                    self.log.info("Ignored PCS or SSC: " + event.src_path + " is an camname or sym link")
+                    self.log.info("Ignored CAMNAME=PCS|SSC or symlink: " + event.src_path)
             else:
                 self.log.info("Ignored: No CAMNAME " + event.src_path + " for " + instr_name)
             hdul.close()
