@@ -135,8 +135,8 @@ class Guider(instrument.Instrument):
 
     def get_schedule_data(self, instr):
         '''
-           Queries the schedule API to return ToO, twilight, and classical programs.
-           Combines the results into a single list of dictionaries.
+        Queries the schedule API to return ToO, twilight, and classical programs.
+        Combines the results into a single list of dictionaries.
         '''
         api = self.config['API']['TELAPI']
         too = self.get_api_data(f'{api}cmd=getToORequest&date={self.hstdate}')
@@ -392,4 +392,3 @@ class Guider(instrument.Instrument):
         self.set_keyword('WAVERED', wavered, 'KOA: Approximate red end wavelength (in microns)')
 
         return True
-
