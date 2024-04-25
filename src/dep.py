@@ -1139,7 +1139,10 @@ class DEP:
     def get_archsize_mb(self):
         """Returns the archive size in MB"""
         bytes = 0
-        files = self.get_koaid_files()
+        if self.level == 0:
+            files = self.get_koaid_files()
+        else:
+            files = self.drp_files[self.koad]
         for path in files:
             bytes += os.path.getsize(path)
         return str(bytes/1e6)
