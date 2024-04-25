@@ -1142,7 +1142,7 @@ class DEP:
         if self.level == 0:
             files = self.get_koaid_files()
         else:
-            files = self.drp_files[self.koad]
+            files = self.drp_files[self.koaid]
         for path in files:
             bytes += os.path.getsize(path)
         return str(bytes/1e6)
