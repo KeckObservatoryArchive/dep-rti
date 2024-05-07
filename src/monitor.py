@@ -212,7 +212,7 @@ class Monitor:
                 self.log.warning(f'DATABASE_ERROR,  retrying query: {query}')
                 return self.is_duplicate_file(filepath, retry=False)
             if not retry:
-                self.handle_error('DATABASE_ERROR', query)
+#                self.handle_error('DATABASE_ERROR', query)
                 return False
 
         if len(row) == 0:

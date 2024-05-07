@@ -165,7 +165,7 @@ class Monitor():
 
         row = self.db.query('koa', query, getOne=True)
         if row is False:
-            self.handle_error('DATABASE_ERROR', query)
+#            self.handle_error('DATABASE_ERROR', query)
             return False
         if len(row) == 0:
             return 

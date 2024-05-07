@@ -135,8 +135,8 @@ class Guider(instrument.Instrument):
 
     def get_schedule_data(self, instr):
         '''
-           Queries the schedule API to return ToO, twilight, and classical programs.
-           Combines the results into a single list of dictionaries.
+        Queries the schedule API to return ToO, twilight, and classical programs.
+        Combines the results into a single list of dictionaries.
         '''
         api = self.config['API']['TELAPI']
         too = self.get_api_data(f'{api}cmd=getToORequest&date={self.hstdate}')
@@ -340,6 +340,8 @@ class Guider(instrument.Instrument):
         filters = {}
         filters['ACAM']       = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['ACAMA']      = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['K1ACAMA']    = {'blue':0.380,  'cntr':0.640,  'red':0.700}
+        filters['K2ACAMA']    = {'blue':0.380,  'cntr':0.640,  'red':0.700}
         filters['DEIMOS']     = {'blue':0.400,  'cntr':0.650,  'red':0.900}     # BVRI
         filters['ESI']        = {'blue':0.400,  'cntr':0.650,  'red':0.900}     # BVRI
         filters['HIRESSLIT']  = {'blue':0.360,  'cntr':0.680,  'red':1.000}
@@ -390,4 +392,3 @@ class Guider(instrument.Instrument):
         self.set_keyword('WAVERED', wavered, 'KOA: Approximate red end wavelength (in microns)')
 
         return True
-

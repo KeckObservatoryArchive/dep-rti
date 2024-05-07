@@ -17,7 +17,6 @@ from watchdog.observers.polling import PollingObserver
 from astropy.io import fits
 
 class KoaGuiderWatchdog(PatternMatchingEventHandler):
-#class KoaGuiderWatchdog(RegexMatchingEventHandler):
     '''
     Handles the directory monitoring and processing
     '''
@@ -35,10 +34,6 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
                                              ignore_directories=True,
                                              case_sensitive=False)
 
-#        RegexMatchingEventHandler.__init__(self,
-#                                             regexes=['\w+.*_\d{4}.fits'],
-#                                             ignore_directories=True,
-#                                             case_sensitive=False)
 
     def create_logger(self):
         """Creates a logger"""
@@ -103,15 +98,15 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
                     ktl_keyword = 'koa.k2guiderfile'
                     ktl_keyword_name = 'K2GUIDERFILE'
                
-                if result not in ('ssc','pcs') and not islink(event.src_path):
+                if 'pcs' not in result and 'ssc' not in result and not islink(event.src_path):
                     keyword = ktl.cache(ktl_keyword)
                     keyword.write(event.src_path)
                     value = keyword.read()
                     self.log.info("Service=koa, Keyword=" + ktl_keyword_name + ", Value=" + value)
                 else:
-                    self.log.info("Ignored: " + event.src_path + " is a sym link instead of a valid fits file")
+                    self.log.info("Ignored CAMNAME=PCS|SSC or symlink: " + event.src_path)
             else:
-                self.log.info("Ignored: Invalid file " + event.src_path + " for " + instr_name)
+                self.log.info("Ignored: No CAMNAME " + event.src_path + " for " + instr_name)
             hdul.close()
 
 def main():

@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS `koa_status` (
   `id`                     int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
   `level`                  int(11)                     COMMENT 'Data processing level',
-  `koaid`                  varchar(30)                 COMMENT 'Unique KOA ID',
+  `koaid`                  varchar(48)                 COMMENT 'Unique KOA ID',
   `instrument`             varchar(15)   NOT NULL      COMMENT 'Instrument name',
   `service`                varchar(16)                 COMMENT 'Instrument KTL service',
   `utdatetime`             datetime                    COMMENT 'DATE-OBS UTC',
@@ -41,7 +41,7 @@ ALTER TABLE  `koa_status_history` DROP PRIMARY KEY, CHANGE id id int(11);
 
 
 CREATE TABLE IF NOT EXISTS `headers` (
-  `koaid`         varchar(30)   PRIMARY KEY         COMMENT 'Unique KOA ID',
+  `koaid`         varchar(48)   PRIMARY KEY         COMMENT 'Unique KOA ID',
   `header`        json          DEFAULT NULL        COMMENT 'Store all FITS header info as json',    
   `last_mod`      timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;

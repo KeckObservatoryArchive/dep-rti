@@ -1046,8 +1046,13 @@ class Instrument(dep.DEP):
     def is_at_domeflat(self):
         """Returns true/false if telescope is at the dome flat position"""
 
+        # Dome flat EL position differs by telescope
+        elLimits = ['', [66.99, 67.03], [44.99, 45.03]]
+        print(elLimits)
+        elValues = elLimits[self.telnr]
+        print(elValues)
         telel = self.get_keyword('EL', default=0)
-        if 44.99 < telel < 45.03:
+        if elValues[0] < telel < elValues[1]:
             telaz  = self.get_keyword('AZ', default=0)
             domeaz = self.get_keyword('DOMEPOSN', default=0)
             if 83 < abs(domeaz - telaz) < 93:
