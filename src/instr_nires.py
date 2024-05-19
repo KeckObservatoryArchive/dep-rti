@@ -241,7 +241,7 @@ class Nires(instrument.Instrument):
 
     def get_drp_files_list(self, datadir, koaid, level):
         '''
-        Returns a list of files to archive for the DRP specific to MOSFIRE.
+        Returns a list of files to archive for the DRP specific to NIRES.
         '''
         return self.get_pypeit_drp_files_list(datadir, koaid, level)
 
