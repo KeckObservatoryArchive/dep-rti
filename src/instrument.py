@@ -783,7 +783,7 @@ class Instrument(dep.DEP):
             self.log_warn('WEATHER_DATA_FAIL')
             return True
         if len(errors) > 0:
-            self.log_warn('EPICS_ARCHIVER_ERROR', str(errors))
+            self.log_warn('EPICS_ARCHIVER_WARNING', str(errors))
         if len(warns) > 0:
             log.info(f"EPICS archiver warn {dateobs} {utc}: {str(warns)}")
 
