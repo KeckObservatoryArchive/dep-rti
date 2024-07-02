@@ -525,8 +525,10 @@ class Instrument(dep.DEP):
         progid = self.progid
         if not progid:
             progid = self.get_keyword('PROGNAME')
+        outdir = self.get_keyword('OUTDIR', default='')
+        if '_ToO_' in outdir:
+            too = True
         if not progid:
-            outdir = self.get_keyword('OUTDIR', default='')
             if '_ToO_' in outdir:
                 if outdir.endswith('/'): outdir = outdir[:-1]
                 progid = outdir.split('_')[-1]
