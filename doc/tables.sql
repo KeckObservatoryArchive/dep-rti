@@ -67,29 +67,29 @@ CREATE TABLE IF NOT EXISTS `koa_pi_notify` (
 CREATE TABLE IF NOT EXISTS `koa_summary` (
   `id`                           int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
   `instrument`                   varchar(15)   DEFAULT NULL        COMMENT 'Instrument name',
-  `utdate`                       date          DEFAULT NULL        COMMENT 'UT date of summary'
-  `level0_files`                 int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 KOAIDs'
-  `level0_files_reprocessed`     int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 KOAIDs'
-  `level0_science_files`         int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 science KOAIDs'
-  `level0_calibration_files`     int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 calibration KOAIDs'
-  `level0_exposure_time`         double        DEFAULT NULL        COMMENT 'Total exposure time of all KOAIDs'
-  `level0_science_exposure_time` double        DEFAULT NULL        COMMENT 'Total exposure time for science KOAIDs'
-  `level0_total_dep_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 0 DEP processing'
-  `level0_total_xfr_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 0 data transfer'
-  `level0_total_ingest_time`     double        DEFAULT NULL        COMMENT 'Total seconds of level 0 data ingestion'
-  `level0_total_time`            double        DEFAULT NULL        COMMENT 'Total seconds of level 0 end-to-end processing'
-  `level0_total_size`            double        DEFAULT NULL        COMMENT 'Total size of level 0 data in MB'
-  `level1_files`                 int(11)       DEFAULT NULL        COMMENT 'Total number of level 1 KOAIDs'
-  `level1_total_size`            double        DEFAULT NULL        COMMENT 'Total size of level 1 data in MB'
-  `level1_total_dep_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 1 DEP processing'
-  `level1_total_xfr_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 1 data transfer'
-  `level1_total_ingest_time`     double        DEFAULT NULL        COMMENT 'Total seconds of level 1 data ingestion'
-  `level1_total_time`            double        DEFAULT NULL        COMMENT 'Total seconds of level 1 end-to-end processing'
-  `level2_files`                 int(11)       DEFAULT NULL        COMMENT 'Total number of level 2 KOAIDs'
-  `level2_total_size`            double        DEFAULT NULL        COMMENT 'Total size of level 2 data in MB'
-  `level2_total_dep_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 2 DEP processing'
-  `level2_total_xfr_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 2 data transfer'
-  `level2_total_ingest_time`     double        DEFAULT NULL        COMMENT 'Total seconds of level 2 data ingestion'
-  `level2_total_time`            double        DEFAULT NULL        COMMENT 'Total seconds of level 2 end-to-end processing'
+  `utdate`                       date          DEFAULT NULL        COMMENT 'UT date of summary',
+  `level0_files`                 int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 KOAIDs',
+  `level0_files_reprocessed`     int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 KOAIDs',
+  `level0_science_files`         int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 science KOAIDs',
+  `level0_calibration_files`     int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 calibration KOAIDs',
+  `level0_exposure_time`         double        DEFAULT NULL        COMMENT 'Total exposure time of all KOAIDs',
+  `level0_science_exposure_time` double        DEFAULT NULL        COMMENT 'Total exposure time for science KOAIDs',
+  `level0_total_dep_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 0 DEP processing',
+  `level0_total_xfr_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 0 data transfer',
+  `level0_total_ingest_time`     double        DEFAULT NULL        COMMENT 'Total seconds of level 0 data ingestion',
+  `level0_total_time`            double        DEFAULT NULL        COMMENT 'Total seconds of level 0 end-to-end processing',
+  `level0_total_size`            double        DEFAULT NULL        COMMENT 'Total size of level 0 data in MB',
+  `level1_files`                 int(11)       DEFAULT NULL        COMMENT 'Total number of level 1 KOAIDs',
+  `level1_total_size`            double        DEFAULT NULL        COMMENT 'Total size of level 1 data in MB',
+  `level1_total_dep_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 1 DEP processing',
+  `level1_total_xfr_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 1 data transfer',
+  `level1_total_ingest_time`     double        DEFAULT NULL        COMMENT 'Total seconds of level 1 data ingestion',
+  `level1_total_time`            double        DEFAULT NULL        COMMENT 'Total seconds of level 1 end-to-end processing',
+  `level2_files`                 int(11)       DEFAULT NULL        COMMENT 'Total number of level 2 KOAIDs',
+  `level2_total_size`            double        DEFAULT NULL        COMMENT 'Total size of level 2 data in MB',
+  `level2_total_dep_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 2 DEP processing',
+  `level2_total_xfr_time`        double        DEFAULT NULL        COMMENT 'Total seconds of level 2 data transfer',
+  `level2_total_ingest_time`     double        DEFAULT NULL        COMMENT 'Total seconds of level 2 data ingestion',
+  `level2_total_time`            double        DEFAULT NULL        COMMENT 'Total seconds of level 2 end-to-end processing',
   `last_mod`      datetime      DEFAULT CURRENT_TIMESTAMP  COMMENT 'Time of last modification'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
