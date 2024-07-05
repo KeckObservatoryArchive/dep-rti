@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS `koa_summary` (
   `id`                           int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
   `instrument`                   varchar(15)   DEFAULT NULL        COMMENT 'Instrument name',
   `utdate`                       date          DEFAULT NULL        COMMENT 'UT date of summary',
+  `service`                      varchar(15)   DEFAULT NULL        COMMENT 'Instrument service name',
   `level0_files`                 int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 KOAIDs',
   `level0_files_reprocessed`     int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 KOAIDs',
   `level0_science_files`         int(11)       DEFAULT NULL        COMMENT 'Total number of level 0 science KOAIDs',
