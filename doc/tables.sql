@@ -94,3 +94,11 @@ CREATE TABLE IF NOT EXISTS `koa_summary` (
   `level2_total_time`            double        DEFAULT NULL        COMMENT 'Total seconds of level 2 end-to-end processing',
   `last_mod`      datetime      DEFAULT CURRENT_TIMESTAMP  COMMENT 'Time of last modification'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
+CREATE TABLE IF NOT EXISTS `odap_queue` (
+  `filename`       varchar(250) NOT NULL COMMENT 'File to send to ODAP',
+  `koaid`          varchar(48)           COMMENT 'Unique KOA ID',
+  `level`          int(11)               COMMENT 'Data processing level',
+  `creation_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Time of last modification',
+  UNIQUE `uidx` (`filename`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
