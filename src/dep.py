@@ -89,6 +89,16 @@ class DEP:
                 if   self.level == 0: ok = self.process_lev0()
                 elif self.level == 1: ok = self.process_lev1()
                 elif self.level == 2: ok = self.process_lev2()
+            if ok and self.level == 0:
+                try:
+                    if not any(odap in self.koaid for odap in self.config["MISC"]["ODAP_SKIP"]):
+                        thisfile = f"{self.levdir}/{self.koaid}.fits"
+                        query = (f"insert into odap_queue set filename='{thisfile}', \
+                                   level={self.level}, koaid='{self.koaid}'")
+                        result = self.db.query('koa', query)
+                except:
+                    print(f"Unable to add {self.filepath} to odap_queue")
+
         except Exception as e:
             ok = False
             self.log_error('CODE_ERROR', traceback.format_exc())
