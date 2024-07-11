@@ -22,6 +22,7 @@ class Kpf(instrument.Instrument):
         self.dev = False
         self.progid = progid
         super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+        self.keymap['UTC'] = 'UT'
 
     def run_dqa(self):
         """
@@ -169,36 +170,6 @@ class Kpf(instrument.Instrument):
 
         return True
 
-
-    def set_semester(self):
-        """
-        Set the semester from the DATE-OBS keyword,  this is UT date.
-        """
-        date_obs = self.get_keyword('DATE-OBS')
-
-        if not date_obs:
-            self.log_error('SET_SEMESTER_FAIL')
-            return False
-
-        fmt = "%Y-%m-%d"
-        dt_obj = datetime.strptime(date_obs, fmt)
-
-        # set the semester based on the date
-        semA = datetime.strptime(f'{dt_obj.year}-02-01', fmt)
-        semB = datetime.strptime(f'{dt_obj.year}-08-01', fmt)
-
-        sem = 'A' if semA <= dt_obj < semB else 'B'
-
-        # adjust year if january
-        year = dt_obj.year
-        if dt_obj.month == 1:
-            year -= 1
-
-        semester = f'{year}{sem}'
-        self.set_keyword('SEMESTER', semester,
-                         'Calculated SEMESTER from UT DATE-OBS')
-
-        return True
 
     def set_elaptime(self):
         """
