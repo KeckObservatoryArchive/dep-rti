@@ -262,8 +262,11 @@ class Nirc2(instrument.Instrument):
 
         self.set_keyword('DETMODE',detmode,'KOA: Detector Mode')
         self.set_keyword('DISPERS',disp,'KOA: Dispersion')
-        self.set_keyword('DETGAIN',4,'KOA: Detector Gain')
-        self.set_keyword('DETRN',39,'KOA: Detector Read Noise')
+        # Not needed for archon 20240718
+        if self.get_keyword('DETGAIN', False) == None:
+            self.set_keyword('DETGAIN',4,'KOA: Detector Gain')
+        if self.get_keyword('DETRN', False) == None:
+            self.set_keyword('DETRN',39,'KOA: Detector Read Noise')
         return True
 
     def set_wcs(self):

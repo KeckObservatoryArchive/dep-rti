@@ -206,6 +206,7 @@ class Instrument(dep.DEP):
         """Check for indicators that this is definitely engineering data."""
             
         #keyword values that indicate ENG
+        # 20240719 trust OSIRIS PROGNAME
         keyvals = {
             'PROGNAME': [
                 'eng',
@@ -223,7 +224,7 @@ class Instrument(dep.DEP):
                 'lriseng', 
                 'esieng',
                 'nireseng', 
-                'osrseng',
+#                'osrseng',
                 'osiriseng',                            
                 'moseng'   
             ],
