@@ -51,6 +51,7 @@ class Guider(instrument.Instrument):
             {'name':'set_oa',          'crit': False},
             {'name':'set_dqa_vers',    'crit': False},
             {'name':'set_dqa_date',    'crit': False},
+            {'name':'fix_targradv',    'crit': False},
         ]
         return self.run_functions(funcs)
 
@@ -392,3 +393,15 @@ class Guider(instrument.Instrument):
         self.set_keyword('WAVERED', wavered, 'KOA: Approximate red end wavelength (in microns)')
 
         return True
+
+    def fix_targradv(self):
+        '''
+        TARGRADV can get set to nan, causing problems later on
+        '''
+
+        targradv = self.get_keyword('TARGRADV', default=None)
+        if targradv == None:
+            self.set_keyword('TARGRADV', '')
+
+        return True
+
