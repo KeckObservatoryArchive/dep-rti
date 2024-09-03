@@ -210,7 +210,8 @@ class Instrument(dep.DEP):
         keyvals = {
             'PROGNAME': [
                 'eng',
-                'calibrations'
+                'calibrations',
+                'my program'
             ],
             'OUTDIR': [
                 'kpfeng',
