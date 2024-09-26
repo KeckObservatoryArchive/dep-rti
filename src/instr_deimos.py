@@ -676,81 +676,16 @@ class Deimos(instrument.Instrument):
 
     def get_drp_files_list(self, datadir, koaid, level):
         '''
-        Return list of files to archive for DRP specific to DEIMOS.
-
-        QL ingest (KOA level 1)
-            icubed.fits files
-            icubes.fits files
-            calibration validation (arc_ and bars_ < FRAMENO)
-
-        Science ingest (KOA level 2)
-            Science/*KOAID*.[fits|txt]
-            QA/PNGs/KOAI*.png and associated Arc*.png files
-            Associated Masters/Master*.fits
-            calib, log and pytpeit files
+        Returns a list of files to archive for the DRP specific to DEIMOS.
         '''
-        files = []
-
-        #back out of /redux/ subdir
-        if datadir.endswith('/'): datadir = datadir[:-1]
-        maskConfig = datadir.split('/')[-1]
-
-        #level 1 and greater
-        if level >= 1:
-            searchfiles = []
-            for f in searchfiles:
-                if os.path.isfile(f): files.append(f)
-
-        #level 2 (note: includes level 1 stuff, see above)
-        if level == 2:
-            searchfiles = [
-                f"{datadir}/{maskConfig}.calib",
-                f"{datadir}/{maskConfig}.log",
-                f"{datadir}/{maskConfig}.pypeit"
-            ]
-            for f in searchfiles:
-                if os.path.isfile(f): files.append(f)
-            # Search for all files with a matching koaid
-            associatedFiles = []
-            for rootdir, dirs, fileList in os.walk(datadir):
-                for file in fileList:
-                    if koaid in file:
-                        files.append(os.path.join(rootdir, file))
-                    if file.startswith('Master') or file.startswith('Arc'):
-                        associatedFiles.append(os.path.join(rootdir, file))
-
-            # Now search for all associated files
-            for file in files:
-                start = file.find('DET0')
-                end   = file.find('_', start)
-                masterSearch = file[start:end]
-                end   = file.find('_', start+6)
-                arcSearch = file[start:end]
-                # Search for all master calibrations and arc QA plots for this detector
-                for afile in associatedFiles:
-                    if '/Master' in afile and masterSearch in afile:
-                        if afile not in files:
-                            files.append(afile)
-                    if '/Arc' in afile and arcSearch in afile:
-                        if afile not in files:
-                            files.append(afile)
-
-        return files
+        return self.get_pypeit_drp_files_list(datadir, koaid, level)
 
 
     def get_drp_destfile(self, koaid, srcfile):
         '''
-        Returns the destination of the DRP file for RTI.
+        Returns the destination of the DRP file.  Uses the PypeIt version.
         '''
-
-        # PypeIt uses 'keck_deimos_X'
-        loc = srcfile.find('keck_deimos')
-
-        # New desitnation file
-        outdir = self.dirs[f'lev{self.level}']
-        destfile = f"{outdir}/{srcfile[loc:]}"
-
-        return True, destfile
+        return self.get_pypeit_drp_destfile(koaid, srcfile)
 
 
     def run_lev1(self):
@@ -793,3 +728,4 @@ class Deimos(instrument.Instrument):
             self.drp_files[self.koaid].append(jpg_file)
             self.xfr_files.append(jpg_file)
         return True
+
