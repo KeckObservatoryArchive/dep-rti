@@ -99,6 +99,8 @@ def main(dev=False, admin_email=None, slack=False):
             data = {}
             data["user"] = f"{getuser()}@{gethostname()}"
             data["status_code"] = "ERROR" if errors else "WARNING"
+            q = ("select * from koa_status where status_code<>'' and reviewed=0 order by id desc limit 1")
+            lasterror = db.query('koa', q, getOne=True)
             data["message"] = f"{lasterror['instrument']}\n{lasterror['status_code']}\n{lasterror['ofname']}"
             slackMsg = requests.post(SLACKAPP, json=data)
     else:
