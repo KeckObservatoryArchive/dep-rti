@@ -210,7 +210,8 @@ class Instrument(dep.DEP):
         keyvals = {
             'PROGNAME': [
                 'eng',
-                'calibrations'
+                'calibrations',
+                'my program'
             ],
             'OUTDIR': [
                 'kpfeng',
@@ -1051,12 +1052,11 @@ class Instrument(dep.DEP):
 
         # Dome flat EL position differs by telescope
         elLimits = ['', [66.99, 67.03], [44.99, 45.03]]
-        print(elLimits)
         elValues = elLimits[self.telnr]
-        print(elValues)
         telel = self.get_keyword('EL', default=0)
         if elValues[0] < telel < elValues[1]:
             telaz  = self.get_keyword('AZ', default=0)
+            telaz = telaz % 360
             domeaz = self.get_keyword('DOMEPOSN', default=0)
             if 83 < abs(domeaz - telaz) < 93:
                 return True
@@ -1102,10 +1102,14 @@ class Instrument(dep.DEP):
 
         # level 2 (note: includes level 1 stuff, see above)
         if level == 2:
+            # Go back one sub-directory for these files
             searchfiles = [
-                f"{datadir}/../{maskConfig}.calib",
-                f"{datadir}/../{maskConfig}.log",
-                f"{datadir}/../{maskConfig}.pypeit"
+                f"{os.path.dirname(datadir)}/{maskConfig}.calib",
+                f"{os.path.dirname(datadir)}/{maskConfig}.log",
+                f"{os.path.dirname(datadir)}/{maskConfig}.pypeit"
+#                f"{datadir}/../{maskConfig}.calib",
+#                f"{datadir}/../{maskConfig}.log",
+#                f"{datadir}/../{maskConfig}.pypeit"
             ]
             for f in searchfiles:
                 if os.path.isfile(f): files.append(f)

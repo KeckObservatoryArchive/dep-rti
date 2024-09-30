@@ -11,12 +11,13 @@ from email.mime.text import MIMEText
 import datetime as dt
 import db_conn
 import socket
-#sys.path.append('/koa/koa-rti/default/common')
-#from slack import send_to_slack
+from getpass import getuser
+from socket import gethostname
+import requests
 
 #globals
 MAX_EMAIL_SEC = 2*60*60
-
+SLACKAPP = 'https://hooks.slack.com/workflows/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'
 
 def main(dev=False, admin_email=None, slack=False):
 
@@ -90,13 +91,20 @@ def main(dev=False, admin_email=None, slack=False):
 
     #email and insert new record
     print(msg)
-    if not dev and admin_email:
-        email_admin(msg, dev=dev, to=admin_email)
+    if not dev:
         db.query('koa', 'insert into dep_error_notify set email_time=NOW()')
+        if admin_email:
+            email_admin(msg, dev=dev, to=admin_email)
+        if slack:
+            data = {}
+            data["user"] = f"{getuser()}@{gethostname()}"
+            data["status_code"] = "ERROR" if errors else "WARNING"
+            q = ("select * from koa_status where status_code<>'' and reviewed=0 order by id desc limit 1")
+            lasterror = db.query('koa', q, getOne=True)
+            data["message"] = f"{lasterror['instrument']}\n{lasterror['status_code']}\n{lasterror['ofname']}"
+            slackMsg = requests.post(SLACKAPP, json=data)
     else:
         print("\nNOT SENDING EMAIL")
-#    if dev and slack:
-#        send_to_slack(msg)
 
 
 def gen_last_error_report(row):

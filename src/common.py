@@ -13,7 +13,7 @@ def make_file_md5(infile, outfile):
         fp.write(md5 + '  ' + os.path.basename(infile) + '\n')
 
 
-def make_dir_md5_table(readDir, endswith, outfile, fileList=None, regex=None):
+def make_dir_md5_table(readDir, endswith, outfile, fileList=None, regex=None, koaid=""):
     '''
     Create md5sum file for all files matching endswith pattern in readDir.
     Multiple files will be put into one file in table format.
@@ -31,6 +31,7 @@ def make_dir_md5_table(readDir, endswith, outfile, fileList=None, regex=None):
                 if not dirpath.endswith('/'): dirpath += '/'
                 match = False
                 if f.endswith(".log"): continue
+                if "_unp" in f and "_unp" not in koaid: continue
                 if endswith and f.endswith(endswith): match = True
                 elif regex and re.search(regex, f): match = True
                 if match:

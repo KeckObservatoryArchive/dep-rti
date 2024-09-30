@@ -89,16 +89,6 @@ class DEP:
                 if   self.level == 0: ok = self.process_lev0()
                 elif self.level == 1: ok = self.process_lev1()
                 elif self.level == 2: ok = self.process_lev2()
-            if ok and self.level == 0:
-                try:
-                    if not any(odap in self.koaid for odap in self.config["MISC"]["ODAP_SKIP"]):
-                        thisfile = f"{self.levdir}/{self.koaid}.fits"
-                        query = (f"insert into odap_queue set filename='{thisfile}', \
-                                   level={self.level}, koaid='{self.koaid}'")
-                        result = self.db.query('koa', query)
-                except:
-                    print(f"Unable to add {self.filepath} to odap_queue")
-
         except Exception as e:
             ok = False
             self.log_error('CODE_ERROR', traceback.format_exc())
@@ -686,8 +676,10 @@ class DEP:
         #delete files matching KOAID*
         try:
             log.info(f'Deleting local files in {self.levdir}')
-            for path in Path(self.levdir).rglob(f'*{self.koaid}.*'):
+            for path in Path(self.levdir).rglob(f'*{self.koaid}*'):
                 path = str(path)
+                if "_unp" in path and "_unp" not in self.koaid:
+                    continue
                 log.info(f"removing file: {path}")
                 os.remove(path)
         except Exception as e:
@@ -934,8 +926,9 @@ class DEP:
                 md5Outfile = f'{outdir}/{self.koaid}.md5sum.table'
                 log.info(f'Creating {md5Outfile}')
                 # Now that KOAID can have _[value], need the ending .
-                kid = f'{self.koaid}\.'
-                make_dir_md5_table(outdir, None, md5Outfile, regex=kid)
+#                kid = f'{self.koaid}\.'
+                kid = f'{self.koaid}'
+                make_dir_md5_table(outdir, None, md5Outfile, regex=kid, koaid=self.koaid)
                 self.xfr_files.append(md5Outfile)                
             elif self.level in (1, 2):
                 for koaid, files in self.drp_files.items():
@@ -1031,7 +1024,7 @@ class DEP:
 
         #call check_dep_status_errors
         if (status == 'ERROR' or status == 'WARN') and not self.dev:
-            check_dep_status_errors.main(dev=self.dev, admin_email=self.config['REPORT']['ADMIN_EMAIL'])
+            check_dep_status_errors.main(dev=self.dev, admin_email=self.config['REPORT']['ADMIN_EMAIL'], slack=True)
 
 
     def verify_utc(self, utc=''):
@@ -1162,9 +1155,11 @@ class DEP:
         '''Recursive search for all files with KOAID in filename.'''
         search = f"{self.levdir}/{self.koaid}*"
         files = []
-        for path in Path(self.levdir).rglob(f'*{self.koaid}.*'):
+        for path in Path(self.levdir).rglob(f'*{self.koaid}*'):
             path = str(path)
             if f"{self.koaid}.log" in path:
+                continue
+            if "_unp" in path and "_unp" not in self.koaid:
                 continue
             files.append(path)
         return files
@@ -1194,6 +1189,18 @@ class DEP:
         final archive destination.  After successful transfer of data set, 
         ingestion API (KOAXFR:INGESTAPI) is called to trigger the archiving process.
         """
+
+        # Add the file to odap_queue
+        if self.level in [0, 1]:
+            try:
+                if not any(odap in self.koaid for odap in self.config["MISC"]["ODAP_SKIP"]):
+                    thisfile = f"{self.levdir}/{self.koaid}.fits"
+                    query = (f"insert into odap_queue set filename='{thisfile}', \
+                               level={self.level}, koaid='{self.koaid}'")
+                    print(query)
+                    result = self.db.query('koa', query)
+            except:
+                print(f"Unable to add {self.filepath} to odap_queue")
 
         if not self.transfer:
             log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'

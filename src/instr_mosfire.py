@@ -137,8 +137,9 @@ class Mosfire(instrument.Instrument):
 
         # Is telescope in flatlamp position
         flatlampPos = 0
-        azDiff = abs(domeposn - az)
-        if (44.99 <= el <= 45.01) and (89.00 <= azDiff <= 91.00):
+#        azDiff = abs(domeposn - az)
+#        if (44.99 <= el <= 45.01) and (89.00 <= azDiff <= 91.00):
+        if self.is_at_domeflat():
             flatlampPos = 1
 
         # Is the dust cover open
