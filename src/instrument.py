@@ -1115,11 +1115,12 @@ class Instrument(dep.DEP):
                 if os.path.isfile(f): files.append(f)
             # Search for all files with a matching koaid
             associatedFiles = []
+            subDir = ['/Masters', '/Calibrations']
             for rootdir, dirs, fileList in os.walk(datadir):
                 for file in fileList:
                     if koaid in file:
                         files.append(os.path.join(rootdir, file))
-                    if file.startswith('Master') or file.startswith('Arc'):
+                    if any(sub in rootdir for sub in subDir) or file.startswith('Arc'):
                         associatedFiles.append(os.path.join(rootdir, file))
 
             # Now search for all associated files
@@ -1131,7 +1132,7 @@ class Instrument(dep.DEP):
                 arcSearch = file[start:end]
                 # Search for all master calibrations and arc QA plots for this detector
                 for afile in associatedFiles:
-                    if '/Master' in afile and masterSearch in afile:
+                    if any(sub in afile for sub in subDir) and masterSearch in afile:
                         if afile not in files:
                             files.append(afile)
                     if '/Arc' in afile and arcSearch in afile:
