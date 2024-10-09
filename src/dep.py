@@ -1191,16 +1191,16 @@ class DEP:
         """
 
         # Add the file to odap_queue
-        if self.level in [0, 1]:
-            try:
-                if not any(odap in self.koaid for odap in self.config["MISC"]["ODAP_SKIP"]):
-                    thisfile = f"{self.levdir}/{self.koaid}.fits"
-                    query = (f"insert into odap_queue set filename='{thisfile}', \
-                               level={self.level}, koaid='{self.koaid}'")
-                    print(query)
-                    result = self.db.query('koa', query)
-            except:
-                print(f"Unable to add {self.filepath} to odap_queue")
+#        if self.level in [0, 1]:
+#            try:
+#                if not any(odap in self.koaid for odap in self.config["MISC"]["ODAP_SKIP"]):
+#                    thisfile = f"{self.levdir}/{self.koaid}.fits"
+#                    query = (f"insert into odap_queue set filename='{thisfile}', \
+#                               level={self.level}, koaid='{self.koaid}'")
+#                    print(query)
+#                    result = self.db.query('koa', query)
+#            except:
+#                print(f"Unable to add {self.filepath} to odap_queue")
 
         if not self.transfer:
             log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'
