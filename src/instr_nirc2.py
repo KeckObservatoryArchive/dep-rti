@@ -141,6 +141,7 @@ class Nirc2(instrument.Instrument):
             'domeflat'   : 'domeflat',
             'flatlamp'   : 'flatlamp',
             'flatlampoff': 'flatlampoff',
+            'standard'   : 'object',
             'object'     : 'object',
         }
 
