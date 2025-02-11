@@ -538,47 +538,55 @@ class Kpf(instrument.Instrument):
         @param level: <int> the data level,  >=1
         @return:
 
-        KPF/[DATE]/L1
-            KP.20221029.25049.52_L1.fits
+        datadir = /kpfdata/data_drp/L1/20250131 (lev2)
+        datadir = /kpfdata/data_drp/L2/20250131 (lev1)
 
-        /[DATE]/QLP
-            KP.20221029.19915.35_1D_spectrum.png
-            KP.20221029.19915.35_2D_Frame_GREEN_CCD.png
-            KP.20221029.19915.35_2D_Frame_RED_CCD.png
-            KP.20221029.19915.35_3_science_fibres_GREEN_CCD.png
-            KP.20221029.19915.35_3_science_fibres_RED_CCD.png
-            KP.20221029.19915.35_Column_cut_GREEN_CCD.png
-            KP.20221029.19915.35_Column_cut_RED_CCD.png
-            KP.20221029.19915.35_Histogram_GREEN_CCD.png
-            KP.20221029.19915.35_Histogram_RED_CCD.png
-            KP.20221029.19915.35_order_trace_GREEN_CCD.png
-            KP.20221029.19915.35_order_trace_RED_CCD.png
-            KP.20221029.19915.35_simple_ccf.png
+        Find files in:
+          /kpfdata/data_drp/L2/YYYYMMDD/KOAID/*
+          /kpfdata/data_drp/QLP/YYYYMMDD/KOAID/*
+          /kpfdata/data_drp/logs/YYYYMMDD/KOAID/*
         """
-        if level != 1:
-            raise NotImplementedError(f"Level {level} is not implemented!")
 
-        # datadir = /koadata/KPF/stage/20221029//s/sdata1701/kpfdev/L0/KP.20221029.19915.35.fits
-        # want : /kpfdata/KPF_DRP/20221029/L1/
-        root_path = datadir.split('/s/')[0].replace('stage/', '').replace('koadata', 'kpfdata').replace('KPF/', 'KPF_DRP/')
+        drp_files = []
 
-        # quicklook images
-        qlp_file_suffix = '.png'
-        qlp_dir = f'{root_path}/QLP/fig/'
-        qlp_filelist = glob.glob(f'{qlp_dir}/{koaid}*{qlp_file_suffix}')
+        dir_list = [datadir]
 
-        # lev1
-        lev1_suffix = '.fits'
-        lev1_dir = f'{root_path}/L1'
-        lev1_filelist = glob.glob(f'{lev1_dir}/{koaid}*{lev1_suffix}')
+        if level == 2:
+            # L2 directory
+            dir_list.append(datadir.replace('L1', 'L2'))
 
-        return lev1_filelist + qlp_filelist
+            # Log file directory
+            dir_list.append(datadir.replace(f'L1', 'logs'))
 
+            # Look for other QLP directories
+            qlpdir = f"{datadir.replace('L1', 'QLP')}/{koaid}"
+            qlpdirs = []
+            for root, dirs, files in os.walk(qlpdir):
+                if len(dirs) > 0:
+                    qlpdirs = dirs
 
+            for qlp in qlpdirs:
+                dir_list.append(f'{qlpdir}/{qlp}')
 
+        # Find files
+        for d in dir_list:
+            log.info(f'get_drp_files_list: looking for files in {d}')
+            for rootdir, dirs, file_list in os.walk(d):
+                for filename in file_list:
+                    if koaid in filename:
+                        log.info(f'get_drp_files_list: found {filename}')
+                        drp_files.append(f'{rootdir}/{filename}')
 
+        return drp_files
 
+    def get_drp_destfile(self, koaid, srcfile):
+        '''Return output destination file to copy DRP file to.'''
 
-
-
+        # New destination file with KOAID subdirectory
+        outdir = self.dirs[f'lev{self.level}']
+        split = srcfile.split('/')
+        test = f'QLP/{split[-2]}/' if 'QLP' in srcfile else ''
+        destfile = f'{outdir}/{koaid}/{test}{split[-1]}'
+        destfile = destfile.replace("_zoomable", "")
+        return True, destfile
 

@@ -170,7 +170,7 @@ class Guider(instrument.Instrument):
                 self.convert_to_start_end(self.utdate, entry['StartTime'], entry['Duration'])
             sched.append(proj)
 
-        classical = self.get_api_data(f'{api}cmd=getSchedule&date={self.hstdate}&instr={instr}')
+        classical = self.get_api_data(f'{api}cmd=getSchedule&date={self.hstdate}&instr={instr.replace("+", "%2b")}')
         for entry in classical:
             proj = {}
             proj['Type'] = 'Classical'

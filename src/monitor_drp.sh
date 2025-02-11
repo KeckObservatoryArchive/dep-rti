@@ -18,6 +18,9 @@ endif
 #get list
 set instrs = $argv
 
+# get the UT date
+set UT_DATE=`date -u +%Y%m%d`
+
 if ($argv[1] == "all") then
 	set instrs = ( $all_instrs )
 endif
@@ -27,7 +30,7 @@ foreach instr ( $instrs )
 
 	set PYTHON='/usr/local/anaconda/bin/python'
 	set DEPDIR=`dirname $0`
-	set LOGFILE="/log/dep-drp-$instr.log"
+	set LOGFILE="/log/dep-drp-$instr-$UT_DATE.log"
 
 	set cmd="$PYTHON $DEPDIR/manager.py monitor_drp restart --extra $instr >>& $LOGFILE"
 	echo $cmd
