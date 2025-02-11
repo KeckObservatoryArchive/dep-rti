@@ -849,7 +849,6 @@ class DEP:
         '''
 
         # Skip if this entry is not for a DRP
-        print(f"status {self.status['service']}")
         if self.status['service'] != 'DRP':
             return True
 
