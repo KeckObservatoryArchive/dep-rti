@@ -1,13 +1,14 @@
 import argparse
 import datetime as dt
 import logging
-from os import walk
+from os import chdir, walk
 from os.path import isdir, basename, dirname
 import requests
 import sys
 import time
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler
+import yaml
 
 
 def log_entry(msg):
@@ -28,7 +29,12 @@ class KpfDrp(FileSystemEventHandler):
         self.instrument      = instrument
         self.datadir         = datadir
 
-        self.rti_url = 'https://www3.keck.hawaii.edu/api/rti'
+        chdir(sys.path[0])
+        with open('config.live.ini') as f:
+            config = yaml.safe_load(f)
+        self.rti_url  = config['RTI']['API']
+        self.rti_user = config['RTI']['USER']
+        self.rti_pass = config['RTI']['PWD']
 
         self.params = {}
         self.params['instrument'] = self.instrument
@@ -139,7 +145,7 @@ class KpfDrp(FileSystemEventHandler):
                 self.params['koaid']   = f"{koaid}.fits"
                 data = requests.get(self.rti_url,
                                     params=self.params, 
-                                    auth=('koa','plate2'))
+                                    auth=(self.rti_user, self.rti_pass))
 
             self.fileList.append(filename)
             self.queue.remove(filename)
