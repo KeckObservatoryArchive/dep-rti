@@ -268,6 +268,9 @@ class Nirspec(instrument.Instrument):
         filters['FEII']      = {'blue':1.6390, 'cntr':1.6465, 'red':1.6540}
         filters['H2']        = {'blue':2.1100, 'cntr':2.1195, 'red':2.1290}
         filters['M-WIDE']    = {'blue':4.4200, 'cntr':4.9750, 'red':5.5300}
+        filters['Yband-new'] = {'blue':0.9500, 'cntr':1.0350, 'red':1.1200}
+        filters['Jband-new'] = {'blue':1.1400, 'cntr':1.2450, 'red':1.3500}
+        filters['Hband-new'] = {'blue':1.4340, 'cntr':1.5715, 'red':1.7090}
 
         filter = self.get_keyword('FILTER', default='')
 
