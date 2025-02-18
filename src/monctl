@@ -118,9 +118,9 @@ echo
 
 hostname=`hostname -s`
 case ${hostname} in
-  "vm-koarti") svr="k1" ;;
-  "vm-k2koarti") svr="k2" ;;
-  "vm-koartibuild") svr="k0" ;;
+  "ADD_SVR_NAME") svr="k1" ;;
+  "ADD_SVR_NAME") svr="k2" ;;
+  "ADD_SVR_NAME") svr="k0" ;;
   *) echo -e "\nInvalid server ${hostname}\n"; exit ;;
 esac
 
