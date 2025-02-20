@@ -3,7 +3,12 @@
 # Monitor Controller - Routine Mode (this script)
 #                    - Release Mode (TBD - in dev)
 
-# Restore: server names, instrument lists, wait_time
+# Restore: server names, instrument lists, wait_time, CAUTION
+
+# *** CAUTION ***
+#     instrument run lists contain all instruments
+#     (see monctl_dev branch for custom instrument lists)
+# *** CAUTION ***
 
 # Execute on an RTI ops or test server as the rti user
 #   SVRK1 (k1 instruments), SVRK2 (k2 instruments), or SVRBLD (k0, k1 and k2 instruments combined)
@@ -54,9 +59,6 @@ wait_secs=10   # ops
 k1InstList=( "guiderk1" "hires" "kpf" "lris_blue" "lris_red" "mosfire" "osiris_img" "osiris_spec" )   # required for count
 k1_base_list=${k1InstList[@]}
 k1_base_count=${#k1InstList[@]}
-# custom k1 run lists
-#k1InstList=( "guiderk1" "hires" "lris_blue" "lris_red" "mosfire" "osiris_img" "osiris_spec" )         # without KPF 
-#k1InstList=( "kpf" )                                                                                  # only KPF
 k1_run_list=${k1InstList[@]}
 k1_run_count=${#k1InstList[@]}
 
@@ -64,9 +66,6 @@ k1_run_count=${#k1InstList[@]}
 k1InstDrpList=( "kpf" "mosfire" "osiris" )   # required for count
 k1_base_drp_list=${k1InstDrpList[@]}
 k1_base_drp_count=${#k1InstDrpList[@]}
-# k1 custom drp run lists
-#k1InstDrpList=( "mosfire" "osiris" )         # without KPF DRP
-#k1InstDrpList=( "kpf" )                      # only KPF DRP
 k1_run_drp_list=${k1InstDrpList[@]}
 k1_run_drp_count=${#k1InstDrpList[@]}
 
@@ -76,14 +75,6 @@ k1_run_drp_count=${#k1InstDrpList[@]}
 k2InstList=( "deimos_fcs" "deimos_spec" "esi" "guiderk2" "kcwi_blue" "kcwi_fcs" "kcwi_red" "nirc2_unp" "nirc2" "nires_img" "nires_spec" "nirspec_scam" "nirspec_spec" )   # required for count
 k2_base_list=${k2InstList[@]}
 k2_base_count=${#k2InstList[@]}
-# custom k2 run lists
-#k2InstList=( "deimos_fcs" "deimos_spec" "guiderk2" "kcwi_blue" "kcwi_fcs" "kcwi_red" "nirc2_unp" "nirc2" "nires_img" "nires_spec" "nirspec_scam" "nirspec_spec" )         # without ESI
-#k2InstList=( "deimos_fcs" "deimos_spec" "esi" "guiderk2" "kcwi_blue" "kcwi_fcs" "kcwi_red" "nirc2_unp" "nirc2" "nires_img" "nires_spec")                                  # without NIRSPEC scam and spec
-
-#k2InstList=( "deimos_fcs" "deimos_spec" "guiderk2" "kcwi_blue" "kcwi_fcs" "kcwi_red" "nirc2_unp" "nirc2" "nires_img" "nires_spec" )                                       # without ESI and NIRSPEC scam and spec
-#k2InstList=( "esi" )                                                                                                                                                      # only ESI
-#k2InstList=( "nirspec_scam" "nirspec_spec" )                                                                                                                              # only NIRSPEC scam and spec
-#k2InstList=( "esi" "nirspec_scam" nirspec_spec" )                                                                                                                         # only ESI, NIRSPEC scam and spec
 k2_run_list=${k2InstList[@]}
 k2_run_count=${#k2InstList[@]}
 
@@ -91,9 +82,6 @@ k2_run_count=${#k2InstList[@]}
 k2InstDrpList=( "kcwi" "deimos" "esi" "nirc2" "nires" )    # required for count
 k2_base_drp_list=${k2InstDrpList[@]}
 k2_base_drp_count=${#k2InstDrpList[@]}
-# custom k2 drp run lists
-#k2InstDrpList=( "kcwi" "deimos" "nirc2" "nires" )          # without ESI DRP
-#k2InstDrpList=( "esi" )                                    # only ESI DRP
 k2_run_drp_list=${k2InstDrpList[@]}
 k2_run_drp_count=${#k2InstDrpList[@]}
 
@@ -110,9 +98,9 @@ echo
 
 hostname=`hostname -s`
 case ${hostname} in
-  "vm-koarti") svr="k1" ;;
-  "vm-k2koarti") svr="k2" ;;
-  "vm-koartibuild") svr="k0" ;;
+  "ADD_SVR_NAME") svr="k1" ;;
+  "ADD_SVR_NAME") svr="k2" ;;
+  "ADD_SVR_NAME") svr="k0" ;;
   *) echo -e "\nInvalid server ${hostname}\n"; exit ;;
 esac
 
