@@ -271,8 +271,7 @@ echo -e "Running: ${drp_procs_cnt}\n${drp_procs_lst[@]}"
 
 echo -e "\nNotes:"
 echo -e " - For any mismatched counts, wait a few seconds, then re-run monctl for status"
-echo -e " - Current run list includes all instruments. Terminate undesired monitors"
-echo -e " - If multiple child processes per instrument, either"
-echo -e "      wait until child processes complete and re-run monctl stop on parent"
-echo -e "      or run monctl stop again to terminate all processes immediately"
+echo -e " - Current run list includes all instruments. Terminate undesired monitors, manually."
+echo -e " - If multiple child processes per instrument,"
+echo -e "      wait until child processes complete and re-run monctl stop for parent."
 echo
