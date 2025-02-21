@@ -60,7 +60,7 @@ wait_secs=10   # ops
 k1InstList=( "guiderk1" "hires" "kpf" "lris_blue" "lris_red" "mosfire" "osiris_img" "osiris_spec" )   # required for count
 k1_base_list=${k1InstList[@]}
 k1_base_count=${#k1InstList[@]}
-#k1InstList=( " " " ")   # customized instrument list
+#k1InstList=( " " " ")   # customized instrument list(s)
 k1_run_list=${k1InstList[@]}
 k1_run_count=${#k1InstList[@]}
 
