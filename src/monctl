@@ -68,7 +68,7 @@ k1_run_count=${#k1InstList[@]}
 k1InstDrpList=( "kpf" "mosfire" "osiris" )   # required for count
 k1_base_drp_list=${k1InstDrpList[@]}
 k1_base_drp_count=${#k1InstDrpList[@]}
-#k1InstDrpList=( " " " ")   # customized instrument list(s)
+#k1InstDrpList=( " " " ")   # customized drp instrument list(s)
 k1_run_drp_list=${k1InstDrpList[@]}
 k1_run_drp_count=${#k1InstDrpList[@]}
 
@@ -86,7 +86,7 @@ k2_run_count=${#k2InstList[@]}
 k2InstDrpList=( "kcwi" "deimos" "esi" "nirc2" "nires" )    # required for count
 k2_base_drp_list=${k2InstDrpList[@]}
 k2_base_drp_count=${#k2InstDrpList[@]}
-#k2InstDrpList=( " " " ")   # customized instrument list(s)
+#k2InstDrpList=( " " " ")   # customized drp instrument list(s)
 k2_run_drp_list=${k2InstDrpList[@]}
 k2_run_drp_count=${#k2InstDrpList[@]}
 
