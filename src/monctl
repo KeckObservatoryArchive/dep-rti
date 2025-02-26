@@ -125,7 +125,7 @@ case "$#" in
   0) cmd="status" ;;
   1) cmd=$1 ;;
   2) cmd=$1;
-     if [[ ${svr} -eq "k0" ]]; then
+     if [[ "${svr}" -eq "k0" ]]; then
        svr=$2
      fi
      ;;
@@ -201,7 +201,7 @@ case $cmd in
     echo "Launching $svr Monitors"; echo
     for instr in ${inst_run_list[@]}; do
       pid=`ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
-      if [ -z ${pid} ]; then
+      if [ -z "${pid}" ]; then
         /usr/local/koa/dep-rti/default/src/monitor.sh ${instr}
         pid=`ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
         echo "   Started PID=${pid} monitor for ${instr} since it was not running"
@@ -216,7 +216,7 @@ case $cmd in
     echo "Launching $svr DRP Monitors"; echo
     for instr in ${inst_run_drp_list[@]}; do
       pid=`ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
-      if [ -z ${pid} ]; then
+      if [ -z "${pid}" ]; then
         /usr/local/koa/dep-rti/default/src/monitor_drp.sh ${instr}
         pid=`ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
         echo "   Started PID=${pid} DRP monitor for ${instr} since it was not running"
@@ -235,7 +235,7 @@ case $cmd in
       ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr}
       pid=`ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
       if [ ! -z "${pid}" ]; then
-        if [ ${#pid[@]} -eq 1 ]; then
+        if [ "${#pid[@]}" -eq 1 ]; then
           kill -15 $pid
           echo -e "   Stopped monitor for PID=${pid}\n"
         else
@@ -250,8 +250,8 @@ case $cmd in
     for instr in ${inst_run_drp_list[@]}; do
       ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr}
       pid=`ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
-      if [ ! -z ${pid} ]; then
-        if [ ${#pid[@]} -eq 1 ]; then
+      if [ ! -z "${pid}" ]; then
+        if [ "${#pid[@]}" -eq 1 ]; then
           kill -15 $pid
           echo -e "   Stopped DRP monitor for PID=${pid}\n"
         else
@@ -287,8 +287,9 @@ echo -e "Requested DRP Instruments: ${inst_run_drp_count}\n[${inst_run_drp_list[
 echo -e "Running: ${drp_procs_cnt}\n${drp_procs_lst[@]}"
 
 echo -e "\nNotes:"
-echo -e " - For any mismatched counts, wait a few seconds, then re-run monctl for status"
-echo -e " - Current run list includes all instruments. Terminate undesired monitors, manually."
-echo -e " - If multiple child processes per instrument,"
-echo -e "      wait until child processes complete and re-run monctl stop for parent."
+echo -e " - For any mismatched counts, wait a few seconds, then re-run monctl for status."
+echo -e " - Default run list includes all instruments. Terminate undesired monitors, manually or create custom list(s)."
+echo -e " - If multiple child processes persist per instrument, run monctl for status then"
+echo -e "      wait until child processes complete and re-run monctl stop for parent." 
+echo -e "      Otherwise manually terminate processes(s), since they are likely stuck."
 echo
