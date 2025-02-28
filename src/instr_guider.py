@@ -139,8 +139,8 @@ class Guider(instrument.Instrument):
         Queries the schedule API to return ToO, twilight, and classical programs.
         Combines the results into a single list of dictionaries.
         '''
-        api = self.config['API']['TELAPI']
-        too = self.get_api_data(f'{api}cmd=getToORequest&date={self.hstdate}')
+        api = self.config['API']['MAIN']
+        too = self.get_api_data(f'{api}/schedule/getToORequest&date={self.hstdate}')
         sched = []
         for entry in too:
             if entry['Instrument'] != instr or \
@@ -170,7 +170,7 @@ class Guider(instrument.Instrument):
                 self.convert_to_start_end(self.utdate, entry['StartTime'], entry['Duration'])
             sched.append(proj)
 
-        classical = self.get_api_data(f'{api}cmd=getSchedule&date={self.hstdate}&instr={instr.replace("+", "%2b")}')
+        classical = self.get_api_data(f'{api}/schedule/getSchedule&date={self.hstdate}&instr={instr.replace("+", "%2b")}')
         for entry in classical:
             proj = {}
             proj['Type'] = 'Classical'

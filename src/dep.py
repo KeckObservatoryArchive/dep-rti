@@ -1070,8 +1070,8 @@ class DEP:
 
     def get_prog_inst(self, semid, default=None, isToO=False):
         '''Query for the program institution'''
-        api = self.config.get('API', {}).get('PROPAPI')
-        url = api + 'ktn='+semid+'&cmd=getAllocInst&json=True'
+        api = self.config.get('API', {}).get('MAIN')
+        url = api + '/proposals/getAllocInst?ktn='+semid
         data = self.get_api_data(url)
         if not data or not data.get('success'):
             self.log_warn('PROP_API_ERROR', url)
@@ -1084,8 +1084,8 @@ class DEP:
     def get_prog_pi(self, semid, default=None):
         '''Query for program's PI last name'''
 
-        api = self.config.get('API', {}).get('PROPAPI')
-        url = api + 'ktn='+semid+'&cmd=getPI&json=True'
+        api = self.config.get('API', {}).get('MAIN')
+        url = api + '/proposals/getPI?ktn='+semid
         data = self.get_api_data(url)
         if not data or not data.get('success'):
             self.log_warn('PROP_API_ERROR', url)
@@ -1098,8 +1098,8 @@ class DEP:
 
     def get_prog_title(self, semid, default=None):
         '''Query the DB and get the program title'''
-        api = self.config.get('API', {}).get('PROPAPI')
-        url = api + 'ktn='+semid+'&cmd=getTitle&json=True'
+        api = self.config.get('API', {}).get('MAIN')
+        url = api + '/proposals/getTitle?ktn='+semid
         data = self.get_api_data(url)
         if not data or not data.get('success'):
             self.log_warn('PROP_API_ERROR', url)
