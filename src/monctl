@@ -1,0 +1,275 @@
+#! /usr/bin/bash
+
+# Monitor Controller - Routine Mode (this script)
+#                    - Release Mode (TBD - in dev)
+
+# Execute on an RTI ops or test server as the rti user
+#   SVRK1 (k1 instruments), SVRK2 (k2 instruments), or SVRBLD (k0, k1 and k2 instruments combined)
+#   servers are auto-detected by the script by hostname
+
+# Usage:
+# (0) General
+#   $ cd to script location
+#   $ monctl [cmd] [svr]             full command with args
+#                                    for all servers
+#                                      - cmd restart|start|stop|status, where status is default
+#                                    for test server, only
+#                                      - svr [k1|k2|k0] where k0 = k1 + k2 is default
+# (1) on ops servers
+#   $ monctl [restart|start|stop|[status]]   full command with args
+#   $ monctl                                 assumes cmd=status on respective svr
+#   $ monctl status                          default, same as previous
+#   $ monctl restart|start|stop              start - will not start if monitor is already running
+#                                            restart - starts all monitors on run lis
+
+# (2) on test server: 
+#     Running all (k0 default, k1+k2) vs specific server (restart|start|stop|status k1|k2)
+#   $ monctl                            defaultis: cmd=status and svr=k0=k1+k2 instrument run lists
+#   $ monctl status                     same as above
+#   $ monctl restart|start|stop         runs for k0=k1 and k2 instruments, unless specified with svr
+#   $ monctl restart|start|stop k1|k2   specific: runs for specified svr=k1 or k2
+
+
+# ToDo(s):
+# - Routine Mode:
+#   - convert to Python 3
+#     - use config.live.ini
+#     - track and report skipped instruments list
+#     - implement --list parameter ([all]|skip|only|other <instrument list>)
+#   - optional refinements
+#     - graceful stop - track proc ids and wait, recheck until all processes have terminated
+#     - detect and report instrument/subsystem not available
+# - Release Mode (new and change/revert to existing):
+#   - one way permissions build server to ops server, may require two scrip
+
+wait_secs=10   # ops
+
+## ===== K1 Instrument Lists ===== ##
+# INSTRUMENT LISTS - to be fixed in later version
+# for now, supply custom run list where indicated for long term use
+
+# K1 L0/raw instrument lists
+k1InstList=( "guiderk1" "hires" "kpf" "lris_blue" "lris_red" "mosfire" "osiris_img" "osiris_spec" )   # required for count
+k1_base_list=${k1InstList[@]}
+k1_base_count=${#k1InstList[@]}
+#k1InstList=( " " " ")   # customized instrument list(s)
+k1_run_list=${k1InstList[@]}
+k1_run_count=${#k1InstList[@]}
+
+# K1 DRP instrument lists
+k1InstDrpList=( "kpf" "mosfire" "osiris" )   # required for count
+k1_base_drp_list=${k1InstDrpList[@]}
+k1_base_drp_count=${#k1InstDrpList[@]}
+#k1InstDrpList=( " " " ")   # customized drp instrument list(s)
+k1_run_drp_list=${k1InstDrpList[@]}
+k1_run_drp_count=${#k1InstDrpList[@]}
+
+## ===== K2 Instrument Lists ===== ##
+
+# K2 L0/raw instrument lists
+k2InstList=( "deimos_fcs" "deimos_spec" "esi" "guiderk2" "kcwi_blue" "kcwi_fcs" "kcwi_red" "nirc2_unp" "nirc2" "nires_img" "nires_spec" "nirspec_scam" "nirspec_spec" )   # required for count
+k2_base_list=${k2InstList[@]}
+k2_base_count=${#k2InstList[@]}
+#k2InstList=( " " " ")   # customized instrument list(s)
+k2_run_list=${k2InstList[@]}
+k2_run_count=${#k2InstList[@]}
+
+# K2 DRP instrument lists
+k2InstDrpList=( "kcwi" "deimos" "esi" "nirc2" "nires" )    # required for count
+k2_base_drp_list=${k2InstDrpList[@]}
+k2_base_drp_count=${#k2InstDrpList[@]}
+#k2InstDrpList=( " " " ")   # customized drp instrument list(s)
+k2_run_drp_list=${k2InstDrpList[@]}
+k2_run_drp_count=${#k2InstDrpList[@]}
+
+## ===== K0 Instrument Lists (for build server) =====
+k0_base_list=("${k1_base_list[@]} ${k2_base_list[@]}")
+k0_base_count=$((k1_base_count + k2_base_count))
+k0_run_list=("${k1_run_list[@]} ${k2_run_list[@]}")
+k0_run_count=$((k1_run_count + k2_run_count))
+k0_base_drp_list=("${k1_base_drp_list[@]} ${k2_base_drp_list[@]}")
+k0_base_drp_count=$((k1_base_drp_count + k2_base_drp_count))
+k0_run_drp_list=("${k1_run_drp_list[@]} ${k2_run_drp_list[@]}")
+k0_run_drp_count=$((k1_run_drp_count + k2_run_drp_count))
+echo
+
+hostname=`hostname -s`
+case ${hostname} in
+  "ADD_SVR_NAME") svr="k1" ;;
+  "ADD_SVR_NAME") svr="k2" ;;
+  "ADD_SVR_NAME") svr="k0" ;;
+  *) echo -e "\nInvalid server ${hostname}\n"; exit ;;
+esac
+
+case "$#" in
+  0) cmd="status" ;;
+  1) cmd=$1 ;;
+  2) cmd=$1;
+     if [[ "${svr}" -eq "k0" ]]; then
+       svr=$2
+     fi
+     ;;
+  *) echo -e "\nInvalid number of arguments : restart|start|stop|status k0|k1|k2\n"; exit ;;
+esac
+
+case $svr in
+  "k1")
+    #inst_base_list=${k1_base_list[@]}
+    inst_base_list=("${k1_base_list[@]}")
+    inst_base_count=$((k1_base_count))
+    inst_run_list=("${k1_run_list[@]}")
+    inst_run_count=$((k1_run_count))
+    inst_base_drp_list=("${k1_base_drp_list[@]}")
+    inst_base_drp_count=$((k1_base_drp_count))
+    inst_run_drp_list=("${k1_run_drp_list[@]}")
+    inst_run_drp_count=$((k1_run_drp_count))
+    ;;
+  "k2")
+    inst_base_list=${k2_base_list[@]}
+    inst_base_count=$((k2_base_count))
+    inst_run_list=${k2_run_list[@]}
+    inst_run_count=$((k2_run_count))
+    inst_base_drp_list=${k2_base_drp_list[@]}
+    inst_base_drp_count=$((k2_base_drp_count))
+    inst_run_drp_list=${k2_run_drp_list[@]}
+    inst_run_drp_count=$((k2_run_drp_count))
+    ;;
+  "k0")
+    inst_base_list=${k0_base_list[@]}
+    inst_base_count=${k0_base_count}
+    inst_run_list=${k0_run_list[@]}
+    inst_run_count=$((k0_run_count))
+    inst_base_drp_list=${k0_base_drp_list[@]}
+    inst_base_drp_count=$((k0_base_drp_count))
+    inst_run_drp_list=${k0_run_drp_list[@]}
+    inst_run_drp_count=$((k0_run_drp_count))
+    ;;
+  *)
+    echo -e "Invalid server arg: ${svr}\n"
+    exit
+    ;;
+esac
+
+case $cmd in
+
+  "status")
+    ;;
+
+  "restart")
+    echo "Restarting $svr Monitors"; echo
+    for instr in ${inst_run_list[@]}; do
+      /usr/local/koa/dep-rti/default/src/monitor.sh ${instr}
+      pid=`ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
+      echo "   Re/Started ${instr} monitor as PID=$pid"
+      ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr}
+      echo -e "   Sleeping ${wait_secs}...\n"
+      sleep ${wait_secs}
+    done
+
+    echo "Restarting $svr DRP Monitors"; echo
+    for instr in ${inst_run_drp_list[@]}; do
+      /usr/local/koa/dep-rti/default/src/monitor_drp.sh ${instr}
+      pid=`ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
+      echo "   Started PID=$pid"
+      ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr}
+      echo -e "   Sleeping ${wait_secs}...\n"
+      sleep ${wait_secs}
+    done
+    ;;
+
+  "start")
+    echo "Launching $svr Monitors"; echo
+    for instr in ${inst_run_list[@]}; do
+      pid=`ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
+      if [ -z "${pid}" ]; then
+        /usr/local/koa/dep-rti/default/src/monitor.sh ${instr}
+        pid=`ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
+        echo "   Started PID=${pid} monitor for ${instr} since it was not running"
+        ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr}
+        echo -e "   Sleeping ${wait_secs}...\n"
+        sleep ${wait_secs}
+      else
+        echo -e "   ${instr} monitor not started since PID=$pid is already running\n"
+      fi
+    done
+
+    echo "Launching $svr DRP Monitors"; echo
+    for instr in ${inst_run_drp_list[@]}; do
+      pid=`ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
+      if [ -z "${pid}" ]; then
+        /usr/local/koa/dep-rti/default/src/monitor_drp.sh ${instr}
+        pid=`ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
+        echo "   Started PID=${pid} DRP monitor for ${instr} since it was not running"
+        ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr}
+        echo -e "   Sleeping ${wait_secs}...\n"
+        sleep ${wait_secs}
+      else
+        echo -e "   ${instr} DRP monitor not started since PID=$pid is already running\n"
+      fi
+    done
+    ;;
+
+  "stop")
+    echo -e "Terminating $svr Monitors\n"
+    for instr in ${inst_run_list[@]}; do
+      ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr}
+      pid=`ps -ef | grep "monitor.py" | grep -v _drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
+      if [ ! -z "${pid}" ]; then
+        if [ "${#pid[@]}" -eq 1 ]; then
+          kill -15 $pid
+          echo -e "   Stopped monitor for PID=${pid}\n"
+        else
+          echo "Did not stop since ${#pid[@]} ${instr} processes are still active"
+        fi
+      else
+        echo -e "   ${instr} Monitor not terminated since it was not running\n"
+      fi
+    done
+
+    echo -e "Terminating $svr DRP Monitors\n"
+    for instr in ${inst_run_drp_list[@]}; do
+      ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr}
+      pid=`ps -ef | grep monitor_drp | grep -v grep | grep -w ${instr} | awk -F " " '{print $2}'`
+      if [ ! -z "${pid}" ]; then
+        if [ "${#pid[@]}" -eq 1 ]; then
+          kill -15 $pid
+          echo -e "   Stopped DRP monitor for PID=${pid}\n"
+        else
+          echo "Did not stop since ${#pid[@]} ${instr} processes are still active"
+        fi
+      else
+        echo -e "   ${instr} DRP Monitor not terminated since it was not running\n"
+      fi
+    done
+    ;;
+
+  *)
+    echo -e "\nInvalid command arg: ${cmd}\n"
+    exit
+    ;;
+esac
+
+echo -e "\n=====================================================\n"
+echo -e "Monitor Controller Summary for ${hostname} (${svr}):"
+echo -e "${wait_secs} secs delay between start commands"
+echo -e "Command: ${cmd}\n"
+
+mon_procs_lst=`ps -ef | grep "monitor.py" | grep -v grep | sort | grep -v _drp`
+mon_procs_cnt=`ps -ef | grep "monitor.py" | grep -v grep | sort | grep -v _drp | wc -l`
+echo -e "=== Raw (L0) Base Instrument Monitors: ${inst_base_count} Possible ===\n[${inst_base_list[@]}]\n"
+echo -e "Requested Instruments: ${inst_run_count}\n[${inst_run_list[@]}]\n"
+echo -e "Running: ${mon_procs_cnt}\n${mon_procs_lst[@]}"
+
+drp_procs_lst=`ps -ef | grep monitor_drp | grep -v grep | sort`
+drp_procs_cnt=`ps -ef | grep monitor_drp | grep -v grep | sort | wc -l`
+echo -e "\n=== DRP Base Instrument Monitors: ${inst_base_drp_count} Possible ===\n[${inst_base_drp_list[@]}]\n"
+echo -e "Requested DRP Instruments: ${inst_run_drp_count}\n[${inst_run_drp_list[@]}]\n"
+echo -e "Running: ${drp_procs_cnt}\n${drp_procs_lst[@]}"
+
+echo -e "\nNotes:"
+echo -e " - For any mismatched counts, wait a few seconds, then re-run monctl for status."
+echo -e " - Default run list includes all instruments. Terminate undesired monitors, manually or create custom list(s)."
+echo -e " - If multiple child processes persist per instrument, run monctl for status then"
+echo -e "      wait until child processes complete and re-run monctl stop for parent." 
+echo -e "      Otherwise manually terminate processes(s), since they are likely stuck."
+echo
