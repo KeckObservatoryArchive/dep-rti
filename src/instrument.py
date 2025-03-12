@@ -656,13 +656,13 @@ class Instrument(dep.DEP):
 
     def is_daytime(self, utc):
         """Is the UTC time during the day?"""
-        url = f"{self.config['API']['METAPI']}date={self.utdate}"
-        suntimes = self.get_api_data(url, getOne=True)
+        url = f"{self.config['API']['MAIN']}/schedule/getTwilightData?date={self.utdate}"
+        suntimes = self.get_api_data(url)
         sunrise = suntimes['sunrise']
         sunset  = suntimes['sunset']
         tm         = dt.datetime.strptime(utc,     '%H:%M:%S.%f').time()
-        sunset_tm  = dt.datetime.strptime(sunset,  '%H:%M').time()
-        sunrise_tm = dt.datetime.strptime(sunrise, '%H:%M').time()
+        sunset_tm  = dt.datetime.strptime(sunset,  '%H:%M:%S').time()
+        sunrise_tm = dt.datetime.strptime(sunrise, '%H:%M:%S').time()
         is_daytime = (tm < sunset_tm or tm > sunrise_tm)
         return is_daytime
 
