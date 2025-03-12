@@ -133,7 +133,7 @@ class Guider(instrument.Instrument):
         sched = []
 
         # The new getSchedule will return ToO, twilight, and classical programs
-        classical = self.get_api_data(f'{api}/schedule/getSchedule&date={self.hstdate}&instr={instr.replace("+", "%2b")}')
+        classical = self.get_api_data(f'{api}/schedule/getSchedule?date={self.hstdate}&instr={instr.replace("+", "%2b")}')
         for entry in classical:
             proj = {}
             proj['Type'] = 'Classical'
