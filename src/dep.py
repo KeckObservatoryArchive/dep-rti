@@ -1168,6 +1168,7 @@ class DEP:
         '''
         Gets data for common calls to url API requests.
         '''
+        log.info(f'Getting data from {url}')
         try:
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
@@ -1179,6 +1180,8 @@ class DEP:
                 data = data[0]
             return data
         except Exception as e:
+            log.warn(f'API call failed: {url}')
+            log.warn(str(e))
             return None
 
 
