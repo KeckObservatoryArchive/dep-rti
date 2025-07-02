@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS `koa_status` (
   `koaimtyp`               varchar(25)                 COMMENT 'Image type of the FITS file',
   `semid`                  varchar(25)                 COMMENT 'SEMID of FITS file association',
   `propint`                integer                     COMMENT 'Proprietary period for FITS file',
-  `reviewed`               tinyint(1)                  COMMENT '0 file not deleted, 1 disregard warning/error.',
+  `reviewed`               tinyint(1)                  COMMENT '0 review not needed, 1 disregard warning/error.',
   `source_deleted`         tinyint(1)                  COMMENT '0 file not deleted, 1 file deleted, 2 do not delete file.',
   `last_mod`               timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE `uidx` (`level`,`koaid`)
