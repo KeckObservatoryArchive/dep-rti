@@ -894,7 +894,7 @@ class Instrument(dep.DEP):
         ax = fig.add_axes([0, 0, 1, 1]) #this forces no border padding
         plt.axis('off')
         plt.imshow(data, cmap='gray', origin='lower', norm=norm)
-        plt.savefig(jpg_filepath, quality=92)
+        plt.savefig(jpg_filepath, pil_kwargs={'quality':92})
         plt.close()
 
 
