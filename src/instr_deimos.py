@@ -596,7 +596,7 @@ class Deimos(instrument.Instrument):
         plt.axis('off')
         plt.imshow(alldata, cmap='gray', origin='lower', norm=norm)
         # DEIMOS jpegs are large, let's reduce the size using dpi (default is 100)
-        plt.savefig(out_filepath, quality=92, dpi=(50))
+        plt.savefig(out_filepath, pil_kwargs={'quality':92}, dpi=(50))
         plt.close()
 
 

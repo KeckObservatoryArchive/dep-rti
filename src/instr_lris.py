@@ -878,7 +878,7 @@ class Lris(instrument.Instrument):
             ax = fig.add_axes([0, 0, 1, 1])  # this forces no border padding
             plt.axis('off')
             plt.imshow(image_eq, cmap='gray', origin='lower')  # , norm=norm)
-            plt.savefig(jpg_filepath, quality=92)
+            plt.savefig(jpg_filepath, pil_kwargs={'quality':92})
             plt.close()
             return
 
@@ -963,7 +963,7 @@ class Lris(instrument.Instrument):
         ax = fig.add_axes([0, 0, 1, 1]) #this forces no border padding; bbox_inches='tight' doesn't really work
         plt.axis('off')
         plt.imshow(alldata, cmap='gray', origin='lower', norm=norm)
-        plt.savefig(out_filepath, quality=92)
+        plt.savefig(out_filepath, pil_kwargs={'quality':92})
         plt.close()
 
 
@@ -1030,7 +1030,7 @@ class Lris(instrument.Instrument):
         ax = fig.add_axes([0, 0, 1, 1]) #this forces no border padding; bbox_inches='tight' doesn't really work
         plt.axis('off')
         plt.imshow(alldata, cmap='gray', origin='lower')
-        plt.savefig(out_filepath, quality=92)
+        plt.savefig(out_filepath, pil_kwargs={'quality':92})
         plt.close()
 
 
