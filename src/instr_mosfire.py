@@ -21,7 +21,7 @@ class Mosfire(instrument.Instrument):
         self.keymap['FRAMENO']      = 'FRAMENUM'
 
         # Other vars that subclass can overwrite
-        self.keyskips   = ['B\d+STAT', 'B\d+POS']
+        self.keyskips   = ['B'+r'\d+'+'STAT', 'B'+r'\d+'+'POS']
 
 
     def run_dqa(self):
