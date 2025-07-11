@@ -861,7 +861,7 @@ class Hires(instrument.Instrument):
                 basewidth = int(len(image)/2)
                 wpercent = basewidth/float(img.size[0])
                 hsize = int((float(img.size[1]) * float(wpercent)))
-                img = img.resize((basewidth, hsize), Image.ANTIALIAS)
+                img = img.resize((basewidth, hsize), Image.Resampling.LANCZOS)
                 img.save(jpgFile)
                 os.remove(pngFile)
                 plt.close()
