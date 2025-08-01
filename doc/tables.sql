@@ -65,6 +65,17 @@ CREATE TABLE IF NOT EXISTS `koa_pi_notify` (
   `last_mod`      datetime      DEFAULT CURRENT_TIMESTAMP  COMMENT 'Time of last modification'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
+CREATE TABLE IF NOT EXISTS `koapi_send` (
+  `semid`         varchar(15)   NOT NULL            COMMENT 'Semester ID (2025A_K123)',
+  `utdate_beg`    date          DEFAULT NULL        COMMENT 'UT date of start of observing run',
+  `utdate_end`    date          DEFAULT NULL        COMMENT 'UT date of end of observing run',
+  `send_data`     integer       DEFAULT NULL        COMMENT 'Whether or not data notification sent',
+  `data_notified` integer       DEFAULT NULL        COMMENT 'Whether or not data notification sent',
+  `send_dvd`      integer       DEFAULT NULL        COMMENT 'Whether or not DVD notification sent',
+  `dvd_notified`  integer       DEFAULT NULL        COMMENT 'Whether or not DVD notification sent',
+  `instr`         varchar(32)   DEFAULT NULL        COMMENT 'Instrument name',
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
 CREATE TABLE IF NOT EXISTS `koa_summary` (
   `id`                           int(11)       NOT NULL  AUTO_INCREMENT PRIMARY KEY,
   `instrument`                   varchar(15)   DEFAULT NULL        COMMENT 'Instrument name',
