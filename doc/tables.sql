@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS `koapi_send` (
   `data_notified` integer       DEFAULT NULL        COMMENT 'Whether or not data notification sent',
   `send_dvd`      integer       DEFAULT NULL        COMMENT 'Whether or not DVD notification sent',
   `dvd_notified`  integer       DEFAULT NULL        COMMENT 'Whether or not DVD notification sent',
-  `instr`         varchar(32)   DEFAULT NULL        COMMENT 'Instrument name',
+  `instr`         varchar(32)   DEFAULT NULL        COMMENT 'Instrument name'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
 CREATE TABLE IF NOT EXISTS `koa_summary` (
