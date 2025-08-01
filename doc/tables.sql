@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS `koa_status` (
   `archsize_mb`            double                      COMMENT 'Size of complete FITS dataset in megabytes',
   `koaimtyp`               varchar(25)                 COMMENT 'Image type of the FITS file',
   `semid`                  varchar(25)                 COMMENT 'SEMID of FITS file association',
-  `propint`                integer                     COMMENT 'Proprietary period for FITS file',
-  `reviewed`               tinyint(1)                  COMMENT '0 file not deleted, 1 disregard warning/error.',
+  `propint`                integer     DEFAULT 18      COMMENT 'Proprietary period for FITS file',
+  `reviewed`               tinyint(1)                  COMMENT '0 review not needed, 1 disregard warning/error.',
   `source_deleted`         tinyint(1)                  COMMENT '0 file not deleted, 1 file deleted, 2 do not delete file.',
   `last_mod`               timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE `uidx` (`level`,`koaid`)
@@ -63,6 +63,17 @@ CREATE TABLE IF NOT EXISTS `koa_pi_notify` (
   `level`         integer       DEFAULT NULL        COMMENT 'Data processing level',
   `pi_email`      varchar(64)   DEFAULT NULL        COMMENT 'PI email used for notification',
   `last_mod`      datetime      DEFAULT CURRENT_TIMESTAMP  COMMENT 'Time of last modification'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
+CREATE TABLE IF NOT EXISTS `koapi_send` (
+  `semid`         varchar(15)   NOT NULL            COMMENT 'Semester ID (2025A_K123)',
+  `utdate_beg`    date          DEFAULT NULL        COMMENT 'UT date of start of observing run',
+  `utdate_end`    date          DEFAULT NULL        COMMENT 'UT date of end of observing run',
+  `send_data`     integer       DEFAULT NULL        COMMENT 'Whether or not data notification sent',
+  `data_notified` integer       DEFAULT NULL        COMMENT 'Whether or not data notification sent',
+  `send_dvd`      integer       DEFAULT NULL        COMMENT 'Whether or not DVD notification sent',
+  `dvd_notified`  integer       DEFAULT NULL        COMMENT 'Whether or not DVD notification sent',
+  `instr`         varchar(32)   DEFAULT NULL        COMMENT 'Instrument name'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
 CREATE TABLE IF NOT EXISTS `koa_summary` (
@@ -112,3 +123,56 @@ CREATE TABLE IF NOT EXISTS `koa_storage` (
 #  `creation_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Time of last modification',
 #  UNIQUE `uidx` (`filename`)
 #) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+# Moved from legacy processing server
+
+CREATE TABLE IF NOT EXISTS `koawx` (
+  `utdate`      date         NOT NULL     PRIMARY KEY COMMENT 'UT date of weather ingestion',
+  `files`       integer      DEFAULT NULL             COMMENT 'Number of files archived',
+  `size`        float        DEFAULT NULL             COMMENT 'Size in MB of data archived',
+  `nightly1`    varchar(30)  DEFAULT NULL             COMMENT 'Timestamp of processing step',
+  `nightly2`    varchar(30)  DEFAULT NULL             COMMENT 'Timestamp of processing step',
+  `graphs`      varchar(30)  DEFAULT NULL             COMMENT 'Timestamp of processing step',
+  `allsky`      varchar(30)  DEFAULT NULL             COMMENT 'Timestamp of processing step',
+  `skyprobe`    varchar(30)  DEFAULT NULL             COMMENT 'Timestamp of processing step',
+  `cfht_seeing` varchar(30)  DEFAULT NULL             COMMENT 'Timestamp of processing step',
+  `data_sent`   varchar(30)  DEFAULT NULL             COMMENT 'Timestamp of processing step',
+  `wx_complete` varchar(30)  DEFAULT NULL             COMMENT 'Timestamp of processing step'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
+# Moved from legacy processing server
+CREATE TABLE IF NOT EXISTS `koatpx` (
+  `utdate`         date         NOT NULL     PRIMARY KEY COMMENT 'UT date of data',
+  `instr`          varchar(10)  DEFAULT NULL             COMMENT 'Instrument',
+  `pi`             varchar(68)  DEFAULT NULL             COMMENT 'PI assigned to data',
+  `files`          integer      DEFAULT NULL             COMMENT 'Number of files processed',
+  `files_arch`     integer      DEFAULT NULL             COMMENT 'Number of files archived',
+  `size`           float        DEFAULT NULL             COMMENT 'Size in MB of archived data',
+  `sdata`          varchar(15)  DEFAULT NULL             COMMENT 'Original location of data',
+  `ondisk_stat`    varchar(10)  DEFAULT NULL             COMMENT 'Status of processing step',
+  `ondisk_time`    varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step',
+  `arch_stat`      varchar(10)  DEFAULT NULL             COMMENT 'Status of processing step',
+  `arch_time`      varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step',
+  `metadata_stat`  varchar(10)  DEFAULT NULL             COMMENT 'Status of processing step',
+  `metadata_time`  varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step',
+  `dvdwrit_stat`   varchar(10)  DEFAULT NULL             COMMENT 'Status of processing step',
+  `dvdwrit_time`   varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step',
+  `dvdsent_stat`   varchar(10)  DEFAULT NULL             COMMENT 'Status of processing step',
+  `dvdsent_time`   varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step',
+  `dvdsent_init`   char(3)      DEFAULT NULL             COMMENT 'Initials of user',
+  `dvdsent_com`    varchar(80)  DEFAULT NULL             COMMENT 'Comment for processing step',
+  `dvdstor_stat`   varchar(10)  DEFAULT NULL             COMMENT 'Status of processing step',
+  `dvdstor_time`   varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step',
+  `dvdstor_init`   char(3)      DEFAULT NULL             COMMENT 'Initials of user',
+  `dvdstor_com`    varchar(80)  DEFAULT NULL             COMMENT 'Comment for processing step',
+  `tpx_stat`       varchar(10)  DEFAULT NULL             COMMENT 'Status of processing step',
+  `tpx_time`       varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step',
+  `comment`        varchar(250) DEFAULT NULL             COMMENT 'General comment',
+  `start_time`     varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step',
+  `metadata_time2` varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step',
+  `sci_files`      integer      DEFAULT NULL             COMMENT 'Number of science files archived',
+  `drpSent`        varchar(15)  DEFAULT NULL             COMMENT 'Datetime of drp data sent',
+  `lev1_stat`      varchar(10)  DEFAULT NULL             COMMENT 'Status of processing step',
+  `lev1_time`      varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
+

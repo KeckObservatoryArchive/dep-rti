@@ -1,39 +1,40 @@
-#!/usr/local/bin/tcsh
+#!/bin/bash
 
-#source environment variables so script will work from cron
-source $HOME/.cshrc
+# Source environment variables so script will work from cron
+source "$HOME/.bashrc"
 
-#Usage
-set all_instrs = ("deimos" "esi" "hires" "kcwi" "lris" "mosfire" "nirc2" "nires" "nirspec" "osiris")
-if ($#argv == 0) then
-	echo "\nUSAGE: Specify space-seperated list of instruments to restart or 'all'"
-	echo "INSTRS: $all_instrs"
-	echo "EXAMPLES:"
-	echo "  monitor.sh kcwi nires"
-	echo "  monitor.sh all"
-	echo "\n"
-	exit
-endif
+# Usage
+all_instrs=("deimos" "esi" "hires" "kcwi" "lris" "mosfire" "nirc2" "nires" "nirspec" "osiris")
 
-#get list
-set instrs = $argv
+if [ "$#" -eq 0 ]; then
+  echo -e "\nUSAGE: Specify space-separated list of instrs to restart or 'all'"
+  echo "INSTRS: ${all_instrs[*]}"
+  echo "EXAMPLES:"
+  echo "  monitor.sh kcwi nires"
+  echo "  monitor.sh all"
+  echo -e "\n"
+  exit 1
+fi
+
+# get list
+instrs=("$@")
 
 # get the UT date
-set UT_DATE=`date -u +%Y%m%d`
+UT_DATE=$(date -u +%Y%m%d)
 
-if ($argv[1] == "all") then
-	set instrs = ( $all_instrs )
-endif
+if [ "${instrs[0]}" == "all" ]; then
+  instrs=("${all_instrs[@]}")
+fi
 
-#loop instrs
-foreach instr ( $instrs )
+# loop instrs
+for instr in "${instrs[@]}"; do
+  PYTHON='/usr/local/anaconda/bin/python'
+  DEPDIR="$(dirname "$0")"
+  LOGFILE="/log/dep-drp-${instr}-${UT_DATE}.log"
 
-	set PYTHON='/usr/local/anaconda/bin/python'
-	set DEPDIR=`dirname $0`
-	set LOGFILE="/log/dep-drp-$instr-$UT_DATE.log"
+  cmd="$PYTHON $DEPDIR/manager.py monitor_drp restart --extra $instr"
+  echo "$cmd"
+  $cmd >> "$LOGFILE" 2>&1
 
-	set cmd="$PYTHON $DEPDIR/manager.py monitor_drp restart --extra $instr >>& $LOGFILE"
-	echo $cmd
-	eval "$cmd"
+done
 
-end

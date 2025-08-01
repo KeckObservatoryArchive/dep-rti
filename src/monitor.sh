@@ -1,39 +1,39 @@
-#!/usr/local/bin/tcsh
+#!/bin/bash
 
-#source environment variables so script will work from cron
-source $HOME/.cshrc
+# Source environment variables so script will work from cron
+source "$HOME/.bashrc"
 
-#Usage
-set all_services = ("kcwi_fcs" "kcwi_blue" "kcwi_red" "deimos" "deimos_fcs" "hires" "kpf")
-if ($#argv == 0) then
-	echo "\nUSAGE: Specify space-seperated list of services to restart or 'all'"
-	echo "SERVICES: $all_services"
-	echo "EXAMPLES:"
-	echo "  monitor.sh kfcs kbds"
-	echo "  monitor.sh all"
-	echo "\n"
-	exit
-endif
+# Usage
+all_services=("kfcs" "kblue" "kred" "deimos" "deifcs" "hrs" "kpf")
 
-#get list
-set services = $argv
+if [ "$#" -eq 0 ]; then
+  echo -e "\nUSAGE: Specify space-separated list of services to restart or 'all'"
+  echo "SERVICES: ${all_services[*]}"
+  echo "EXAMPLES:"
+  echo "  monitor.sh kfcs kbds"
+  echo "  monitor.sh all"
+  echo -e "\n"
+  exit 1
+fi
 
-# get the UT date
-set UT_DATE=`date -u +%Y%m%d`
+services=("$@")
 
-if ($argv[1] == "all") then
-	set services = ( $all_services )
-endif
+# Get the UT date
+UT_DATE=$(date -u +%Y%m%d)
 
-#loop services
-foreach service ( $services )
+if [ "${services[0]}" == "all" ]; then
+  services=("${all_services[@]}")
+fi
 
-	set PYTHON='/usr/local/anaconda/bin/python'
-	set DEPDIR=`dirname $0`
-  set LOGFILE="/log/dep-rti-$service-$UT_DATE.log"
+# Loop through services
+for service in "${services[@]}"; do
+  PYTHON='/usr/local/anaconda/bin/python'
+  DEPDIR="$(dirname "$0")"
+  LOGFILE="/log/dep-rti-${service}-${UT_DATE}.log"
 
-	set cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $service >>& $LOGFILE"
-	echo $cmd
-	eval "$cmd"
+  cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $service"
+  echo "$cmd"
+  $cmd >> "$LOGFILE" 2>&1
 
-end
+done
+

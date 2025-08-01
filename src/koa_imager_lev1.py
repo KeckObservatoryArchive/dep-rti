@@ -438,7 +438,7 @@ def main():
     datadir = args.datadir
     print(f'Waiting for directory ({datadir}) to appear')
     while not isdir(datadir):
-        hourNow = int(dt.datetime.utcnow().strftime('%H'))
+        hourNow = int(dt.datetime.now(dt.timezone.utc).strftime('%H'))
         if hourNow >= endHour:
             print('Night is over - goodbye')
             exit()
@@ -463,10 +463,10 @@ def main():
 
     try:
         while True:
-            hourNow = int(dt.datetime.utcnow().strftime('%H'))
+            hourNow = int(dt.datetime.now(dt.timezone.utc).strftime('%H'))
             if event_handler.running == False:
                 # Stop the DRP if 7am or later
-                hourNow = int(dt.datetime.utcnow().strftime('%H'))
+                hourNow = int(dt.datetime.now(dt.timezone.utc).strftime('%H'))
                 if hourNow >= endHour:
                     event_handler.log.info('Shutting down')
                     observer.stop()

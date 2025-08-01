@@ -596,7 +596,7 @@ class Deimos(instrument.Instrument):
         plt.axis('off')
         plt.imshow(alldata, cmap='gray', origin='lower', norm=norm)
         # DEIMOS jpegs are large, let's reduce the size using dpi (default is 100)
-        plt.savefig(out_filepath, quality=92, dpi=(50))
+        plt.savefig(out_filepath, pil_kwargs={'quality':92}, dpi=(50))
         plt.close()
 
 
@@ -707,7 +707,7 @@ class Deimos(instrument.Instrument):
                     f"service='RTI',"
                     f"status='QUEUED',"
                     f"stage_file='{stage_file}',"
-                    f"creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
+                    f"creation_time='{dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}' ")
             log.info(query)
             result = self.db.query('koa', query)
             if result is False:

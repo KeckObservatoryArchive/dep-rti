@@ -326,7 +326,7 @@ def main():
     parser.add_argument('--rti', dest='rti', default=False, action='store_true',
                         help='Notify RTI upon each successful reduction')
     parser.add_argument('--utdate', type=str, help='UT date to process',
-                        default=dt.datetime.utcnow().strftime('%Y-%m-%d'))
+                        default=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d'))
     parser.add_argument('--manual', dest='manual', default=False,
                         action='store_true',
                         help='Manual run, disable end hour')
@@ -371,12 +371,12 @@ def main():
     root      = config[instrument]['ROOTDIR']
     outputdir = f'{root}/{instrument}/{utdateStr}/lev1'
 
-    hourStart = int(dt.datetime.utcnow().strftime('%H'))
+    hourStart = int(dt.datetime.now(dt.timezone.utc).strftime('%H'))
 
     # Wait for datadir to appear
     endHour = 17 if not args.manual else 24
     while not isdir(datadir):
-        hourNow = int(dt.datetime.utcnow().strftime('%H'))
+        hourNow = int(dt.datetime.now(dt.timezone.utc).strftime('%H'))
         if hourNow >= endHour:
             print('Night is over - goodbye')
             exit()
@@ -410,7 +410,7 @@ def main():
         while True:
             if event_handler.running == False:
                 # Stop the DRP if 7am or later
-                hourNow = int(dt.datetime.utcnow().strftime('%H'))
+                hourNow = int(dt.datetime.now(dt.timezone.utc).strftime('%H'))
                 if hourNow >= endHour:
                     print('Night is over - goodbye')
                     observer.stop()
