@@ -119,7 +119,7 @@ def main():
     parser.add_argument('--destdir', type=str, help='Destination data dir to process',
                         default=".")
     parser.add_argument('--utdate', type=str, help='UT date to process',
-                        default=dt.datetime.utcnow().strftime('%Y-%m-%d'))
+                        default=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d'))
     parser.add_argument('--manual', dest='manual', default=False,
                         action='store_true', help='Manual run, disable end hour')
 
@@ -158,7 +158,7 @@ def main():
     try:
         while True:
             # Stop the DRP if 9am or later
-            hourNow = int(dt.datetime.utcnow().strftime('%H'))
+            hourNow = int(dt.datetime.now(dt.timezone.utc).strftime('%H'))
             
             if hourNow >= beginHour and hourNow < endHour:
                 if observer.is_alive():

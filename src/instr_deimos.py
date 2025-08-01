@@ -707,7 +707,7 @@ class Deimos(instrument.Instrument):
                     f"service='RTI',"
                     f"status='QUEUED',"
                     f"stage_file='{stage_file}',"
-                    f"creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
+                    f"creation_time='{dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}' ")
             log.info(query)
             result = self.db.query('koa', query)
             if result is False:

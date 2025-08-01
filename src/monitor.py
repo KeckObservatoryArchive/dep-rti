@@ -114,7 +114,7 @@ class Monitor:
         self.transfer = self.keys.get('transfer', False)
 
         # create logger first
-        self.utd = dt.datetime.utcnow().strftime('%Y%m%d')
+        self.utd = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
         self.log = self.create_logger(self.config[self.instr]['ROOTDIR'],
                                       self.instr, self.service_name)
         self.log.info(f"Starting KOA Monitor for {self.instr} "
@@ -174,7 +174,7 @@ class Monitor:
 
         # Do insert record
         self.log.info(f'Adding to queue: {filepath}')
-        now = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        now = dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         query = ("insert into koa_status set level=0,"
                 f"   instrument='{self.instr}' "
                 f" , service='{self.service_uniquename}' "
@@ -313,7 +313,7 @@ class Monitor:
         if diff >= QUEUE_CHECK_SEC or not self.last_queue_check:
 
             # check if the ut date changed
-            current_date = dt.datetime.utcnow().strftime('%Y%m%d')
+            current_date = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
             if self.utd != current_date:
                 # clear logs
                 for handler in self.log.handlers[:]:

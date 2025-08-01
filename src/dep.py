@@ -235,7 +235,7 @@ class DEP:
 
         #paths 
         processDir = f'{rootdir}/{instr.upper()}'
-        ymd = dt.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+        ymd = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d%H%M%S%f')
         logFile =  f'{processDir}/logtmp/{name}_{instr.upper()}_{ymd}.log'
 
         #create directory if it does not exist
@@ -306,7 +306,7 @@ class DEP:
                     f"   instrument='{self.instr}' "
                     f" , ofname='{self.filepath}' "
                     f" , status='PROCESSING' "
-                    f" , creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}' ")
+                    f" , creation_time='{dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}' ")
             log.info(query)
             result = self.db.query('koa', query, getInsertId=True)
             if result is False: 
@@ -346,7 +346,7 @@ class DEP:
         #update koa_status
         if not self.update_koa_status('status', 'PROCESSING'): return False
         if not self.update_koa_status('status_code', ''): return False
-        if not self.update_koa_status('process_start_time', dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')): return False
+        if not self.update_koa_status('process_start_time', dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')): return False
 
         #handy list of files we will be transfering
         self.xfr_files = []
@@ -572,7 +572,7 @@ class DEP:
                  f" status_code_ipac   = NULL, " 
                  f" process_dir        = NULL, "
                  f" archive_dir        = NULL, "
-                 f" creation_time='{dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}', "
+                 f" creation_time='{dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}', "
                  f" process_start_time = NULL, "
                  f" process_end_time   = NULL, "
                  f" xfr_start_time     = NULL, "
@@ -1126,7 +1126,7 @@ class DEP:
         archsize_mb = self.get_archsize_mb()
         if not self.update_koa_status('archsize_mb', archsize_mb): return False
 
-        now = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        now = dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_koa_status('process_end_time', now): return False
 
         return True
@@ -1246,7 +1246,7 @@ class DEP:
         api = self.config['KOAXFR']['INGESTAPI']
 
         # Configure the transfer command
-        utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        utstring = dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_koa_status('xfr_start_time', utstring): return False
         if not self.update_koa_status('status', 'TRANSFERRING'): return False
 
@@ -1276,7 +1276,7 @@ class DEP:
             return False
 
         # Transfer success
-        utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        utstring = dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         if not self.update_koa_status('xfr_end_time', utstring): return False
         if not self.update_koa_status('status', 'TRANSFERRED'): return False
 
@@ -1318,7 +1318,7 @@ class DEP:
 
 
             log.info(f'sending ingest API call {apiUrl}')
-            utstring = dt.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            utstring = dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             if not self.update_koa_status('ipac_notify_time', utstring): return False
             apiData = self.get_api_data(apiUrl)
             log.info(f"IPAC API response: {apiData}")

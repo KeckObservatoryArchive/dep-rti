@@ -60,7 +60,7 @@ class KpfDrp(FileSystemEventHandler):
         '''
 
         if self.level == 1:
-            date_str = dt.datetime.utcnow().strftime('%Y%m%d')
+            date_str = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
         if self.level == 2:
             date_str = dt.datetime.now().strftime('%Y%m%d')
 
@@ -161,7 +161,7 @@ def main():
     parser.add_argument('--rti', default=False, action='store_true',
                         help='Notify RTI upon each successful reduction')
     parser.add_argument('--utdate', type=str, help='UT date to process',
-                        default=dt.datetime.utcnow().strftime('%Y-%m-%d'))
+                        default=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d'))
     parser.add_argument('--ops', default=False, action='store_true', 
                         help='Operations mode: testonly = dev = false')
     args  = parser.parse_args()
@@ -197,7 +197,7 @@ def main():
 
     try:
         # Stop lev1 at 9am (19 UT) and lev2 at 5pm (3 UT)
-        while dt.datetime.utcnow().hour != stopHour:
+        while dt.datetime.now(dt.timezone.utc).hour != stopHour:
             # Check the queue and process any files
             if not event_handler.running:
                 event_handler.process_current_file_list()
