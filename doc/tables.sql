@@ -175,4 +175,18 @@ CREATE TABLE IF NOT EXISTS `koatpx` (
   `lev1_time`      varchar(15)  DEFAULT NULL             COMMENT 'Datetime of processing step'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
+# Moved from legacy processing server
+CREATE TABLE IF NOT EXISTS `koadrp` (
+  `utdate`         date         NOT NULL      COMMENT 'UT date of data',
+  `phase`          integer      NOT NULL      COMMENT 'Phase of data reduction',
+  `files`          integer      DEFAULT NULL  COMMENT 'Number of files processed',
+  `reduced`        float        DEFAULT NULL  COMMENT 'Number of files reduced',
+  `startTime`      datetime     DEFAULT NULL  COMMENT 'Datetime of processing step',
+  `startReduce`    datetime     DEFAULT NULL  COMMENT 'Datetime of processing step',
+  `endTime`        datetime     DEFAULT NULL  COMMENT 'Datetime of processing step',
+  `timeLost`       float        DEFAULT NULL  COMMENT 'Amount of time lost',
+  `notes`          varchar(255) DEFAULT NULL  COMMENT 'Processing notes',
+  `instr`          varchar(10)  DEFAULT NULL  COMMENT 'Instrument',
+  PRIMARY KEY (utdate, phase)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
