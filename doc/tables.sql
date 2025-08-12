@@ -190,3 +190,25 @@ CREATE TABLE IF NOT EXISTS `koadrp` (
   PRIMARY KEY (utdate, phase)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
 
+# Moved from legacy processing server
+CREATE TABLE IF NOT EXISTS `koadrp_pass` (
+  `file`           varchar(100) NOT NULL      COMMENT 'DRP filename',
+  `orderNum`       integer      NOT NULL      COMMENT 'Reduction echelle order number',
+  `phase`          integer      NOT NULL      COMMENT 'Reduction phase',
+  `pass`           varchar(5)   DEFAULT NULL  COMMENT 'Whether or not passed reduction',
+  `qa`             integer      DEFAULT NULL  COMMENT 'QA value',
+  `name`           varchar(20)  DEFAULT NULL  COMMENT '',
+  `errors`         integer      DEFAULT NULL  COMMENT '',
+  `priSky`         integer      DEFAULT NULL  COMMENT '',
+  `adjSky`         integer      DEFAULT NULL  COMMENT '',
+  `addSky`         integer      DEFAULT NULL  COMMENT '',
+  `highObj`        integer      DEFAULT NULL  COMMENT '',
+  `lowObj`         integer      DEFAULT NULL  COMMENT '',
+  `pseO`           integer      DEFAULT NULL  COMMENT '',
+  `cosmic`         float        DEFAULT NULL  COMMENT '',
+  `width`          float        DEFAULT NULL  COMMENT '',
+  `comment`        varchar(250) DEFAULT NULL  COMMENT 'QA comments',
+  `lastmod`        timestamp    DEFAULT NULL  COMMENT 'Loast modification time',
+  PRIMARY KEY (file, orderNum, phase)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ;
+
