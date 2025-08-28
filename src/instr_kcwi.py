@@ -470,3 +470,19 @@ class Kcwi(instrument.Instrument):
     def create_ext_meta(self):
         '''Override parent function'''
         return True
+
+    def get_drp_destfile(self, koaid, srcfile):
+        '''Return output destination file to copy DRP file to.'''
+
+        # New destination file with KOAID subdirectory
+        outdir = self.dirs[f'lev{self.level}']
+        split = srcfile.split('/')
+        if split[-2] in ['plots', 'redux', 'logs']:
+            outdir = f'{outdir}/{split[-2]}'
+        if split[-2] == 'logs':
+            color = 'red' if koaid.startswith('KR') else 'blue'
+            destfile = f'{outdir}/{color}_{os.path.basename(srcfile)}'
+        else:
+            destfile = f'{outdir}/{os.path.basename(srcfile)}'
+        return True, destfile
+
