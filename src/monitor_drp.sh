@@ -4,7 +4,7 @@
 source "$HOME/.bashrc"
 
 # Usage
-all_instrs=("deimos" "esi" "hires" "kcwi" "lris" "mosfire" "nirc2" "nires" "nirspec" "osiris")
+all_instrs=("deimos" "esi" "hires" "kcwi" "lris" "mosfire" "nirc2" "nires" "nirspec" "osiris" "scales")
 
 if [ "$#" -eq 0 ]; then
   echo -e "\nUSAGE: Specify space-separated list of instrs to restart or 'all'"
