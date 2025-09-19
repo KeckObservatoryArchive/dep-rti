@@ -172,8 +172,7 @@ class Scales(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword.
         '''
-        itime  = self.get_keyword('ITIME')
-        coadds = self.get_keyword('COADDS')
+        itime  = self.get_keyword('TRUITIME')
         if self.get_keyword('ELAPTIME') is not None:
             elaptime = self.get_keyword('ELAPTIME')
         elif self.get_keyword('EXPTIME') is not None:
@@ -182,9 +181,6 @@ class Scales(instrument.Instrument):
         elif self.get_keyword('XPOSURE') is not None:
             elaptime = self.get_keyword('XPOSURE')
             log.info('set_elaptime: Setting ELAPTIME from XPOSURE')
-        elif itime != None and coadds != None:
-            elaptime = round(itime*coadds,4)
-            log.info('set_elaptime: Setting ELAPTIME from ITIME*COADDS')
         else:
             self.log_warn('SET_ELAPTIME_ERROR')
             return False
@@ -217,25 +213,13 @@ class Scales(instrument.Instrument):
         # Configuration for KB
         configurations = {
                           'bl'  : {'waves':2000, 'large':900, 'medium':1800, 'small':3600},
-                          'bm'  : {'waves':850, 'large':2000, 'medium':4000, 'small':8000},
-                          'bh3' : {'waves':500, 'large':4500, 'medium':9000, 'small':18000},
-                          'bh2' : {'waves':405, 'large':4500, 'medium':9000, 'small':18000},
-                          'bh1' : {'waves':400, 'large':4500, 'medium':9000, 'small':18000},
-                          #TODO: verify these numbers are accurate.
-                          'rl'  : {'waves':275, 'large': 10500, 'medium':7000, 'small':3500},
-                          'rm1' : {'waves':145, 'large':4050, 'medium':2700, 'small':1350},
-                          'rm2' : {'waves':190, 'large':4700, 'medium':2800, 'small':1900},
-                          'rh1' : {'waves':60, 'large':1800, 'medium':1200, 'small':600},
-                          'rh2' : {'waves':75, 'large':2025, 'medium':1350, 'small':675},
-                          'rh3' : {'waves':90, 'large':2400, 'medium':1600, 'small':800},
-                          'rh4' : {'waves':80, 'large':2775, 'medium':1850, 'small':925},
                           }
         
         # Slit width by slicer, slit length is always 20.4"
         slits = {'large':'1.35', 'medium':'0.69', 'small':'0.35'}
         if slicer in slits.keys():
             slitwidt = slits[slicer]
-            slitlen = 20.4
+            slitlen = 108
         #get wavelengths from configuration dictionary
         if gratname in configurations.keys() and slicer in slits.keys():
             if cwave > 0:
@@ -418,6 +402,7 @@ class Scales(instrument.Instrument):
         #level 1
         if level >= 1:
             searchfiles = [
+                f"{datadir}/redux/{koaid}_rampfit.fits",
                 f"{datadir}/redux/{koaid}_icubed.fits",
                 f"{datadir}/redux/{koaid}_icubes.fits"
             ]
