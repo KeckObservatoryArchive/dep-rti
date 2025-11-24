@@ -223,4 +223,3 @@ class db_conn(object):
             if conn:
                 conn.close()
 
-

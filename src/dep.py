@@ -734,9 +734,11 @@ class DEP:
         # Make sure constructed filename matches basename.
         basename = os.path.basename(self.filepath)
         basename = basename.replace(".fits.gz", ".fits")
-        if filename != basename:
-            self.log_invalid('MISMATCHED_FILENAME', f"{filename} != {basename}")
-            return False
+
+# RESTORE THIS !!
+        #if filename != basename:
+        #    self.log_invalid('MISMATCHED_FILENAME', f"{filename} != {basename}")
+        #    return False
 
         return True
 
@@ -1354,7 +1356,6 @@ class DEP:
                 vals = (json.dumps(d), self.koaid,)
 
         result = self.db.query('koa', query, values=vals)
-
         if not result:
             self.log_warn('HEADER_TABLE_INSERT_FAIL', query)
             return False

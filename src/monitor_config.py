@@ -198,20 +198,22 @@ instr_keymap = {
         'transfer'      : 1
     },
     'scales_img' : {
-        'ktl_service'   : 'scales',
+        'ktl_service'   : 'koa',
+        'ktl_uniquename': 'scales_img',
         'instr'         : 'SCALES',
         'trigger'       : 'LASTFILE',
         'val'           : None,
-        'heartbeat'     : ['DISP1CLK', 1],
-        'transfer'      : 1
+        'heartbeat'     : ['DISPCLK', 1],
+        'transfer'      : 0
     },
     'scales_spec' : {
-        'ktl_service'   : 'scales',
+        'ktl_service'   : 'koa',
+        'ktl_uniquename': 'scales_spec',
         'instr'         : 'SCALES',
         'trigger'       : 'LASTFILE',
         'val'           : None,
-        'heartbeat'     : ['DISP1CLK', 1],
-        'transfer'      : 1
+        'heartbeat'     : ['DISPCLK', 1],
+        'transfer'      : 0
     },
     'guiderk1': {
         'ktl_service':  'koa',

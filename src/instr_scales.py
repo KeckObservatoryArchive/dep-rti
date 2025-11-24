@@ -17,6 +17,9 @@ import glob
 from pathlib import Path
 import logging
 log = logging.getLogger('koa_dep')
+from astropy.visualization import ZScaleInterval, AsinhStretch, SinhStretch
+from astropy.visualization import SqrtStretch
+from astropy.visualization.mpl_normalize import ImageNormalize
 
 
 class Scales(instrument.Instrument):
@@ -47,9 +50,9 @@ class Scales(instrument.Instrument):
             {'name':'set_image_stats', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
-            {'name':'set_npixsat',     'crit': False,  'args': {'satVal':65535}},
-            {'name':'set_slitdims',    'crit': False},
-            {'name':'set_wcs',         'crit': False},
+            {'name':'set_npixsat',     'crit': False,  'args': {'satVal':65535}}, # need SATURATE header kwds
+            #{'name':'set_slitdims',    'crit': False}, # need headerheader kwds: IFUNAM CWAVE GRATNAM NASNAM
+            #{'name':'set_wcs',         'crit': False}, # not writing values to kwd headers
             {'name':'set_dqa_vers',    'crit': False},
             {'name':'set_dqa_date',    'crit': False},
         ]
@@ -84,9 +87,12 @@ class Scales(instrument.Instrument):
         if instr == 'scales':
             try:
                 camera = self.get_keyword('OBSMODE').lower()
-                if camera in ['low-res', 'med-res']:
+                #if camera in ['low-res', 'med-res']:
+                if camera in ['low-res', 'med-res', 'ifs']:
+                #if camera in ['ifs']:
                     prefix = 'SS'
-                elif camera == 'imager':
+                #elif camera in ('imager', 'ifs'):
+                elif camera in ('imager'):
                     prefix = 'SI'
                 else:
                     prefix = ''
@@ -106,47 +112,139 @@ class Scales(instrument.Instrument):
         return True
 
 
-    def create_jpg_from_fits(self, fits_filepath, outdir):
+    def create_jpg_from_fits(self, fits_filepath, outdir_path):
         '''
-        Basic convert fits primary data to jpg.  Instrument subclasses can override this function.
+        Basic convert fits primary data to jpg. overrides super class function
         '''
 
         #get image data
-        hdu = fits.open(fits_filepath, ignore_missing_end=True)
-        data = hdu[0].data
-        hdr  = hdu[0].header
-        #use histogram equalization to increase contrast
-        image_eq = exposure.equalize_hist(data)
-        
-        #form filepaths
+        try:
+            with fits.open(fits_filepath, ignore_missing_end=True) as hdul:
+                data = hdul[0].data
+                hdr = hdul[0].header
+        except Exception as e:
+            logger.warning(f"Problem with FITS file {fits_filepath}: {e}")
+            return None
+
+        if data is None:
+            raise ValueError(f"No data in primary HDU of {fits_filepath}")
+            return None
+
+        # NAXIS dimensionality from header, fall back to ndim if missing
+        naxis = hdr.get("NAXIS", data.ndim)
+
+        # FITS convention: NAXIS1 = x, NAXIS2 = y single slice, NAXIS3 = number of slices
+        #if hdr["NAXIS"] == 3:     # reduces 3D cube -> "dirty FITS"
+        if naxis == 3:     # reduces 3D cube -> "dirty FITS"
+            result = data[-1] - data[0]
+            #print(f'result is 3D')
+        #elif hdr["NAXIS"] == 2:   # 2D image regular/original processing
+        elif naxis == 2:   # 2D image regular/original processing
+            result = data
+            #print(f'result is 2D')
+        else:   # Any other dimensionality: first slice along axis 0
+            result = data[0]
+            #print(f'result is other (not 2D or 3D)')
+
+        # all objects should be 2D for JPEG
+        if result.ndim != 2:
+            raise ValueError(
+                f"Resulting array is {result.ndim}D, expected 2D for JPEG. "
+                f"Shape: {result.shape}. Adjust the slicing logic for this file."
+            )
+    
+        # cleans NaNs / infs
+        result = np.nan_to_num(result, nan=0.0, posinf=0.0, neginf=0.0)
+        result = np.asarray(result, dtype=np.float32)
+
+        # CREATE JPEG
+        # 1-scaling and limits
+        interval = ZScaleInterval()
+        try:
+            vmin, vmax = interval.get_limits(result)
+        except Exception as e:
+            raise ValueError(f"ZScaleInterval failed on data from {fits_path}: {e!r}")
+    
+        # for nonsense zscale, fall back to min/max
+        if (not np.isfinite(vmin)) or (not np.isfinite(vmax)) or (vmax <= vmin):
+            vmin, vmax = np.nanmin(result), np.nanmax(result)
+    
+        # 2a-normalize if min/max , give up and make a flat gray image
+        if (not np.isfinite(vmin)) or (not np.isfinite(vmax)) or (vmax <= vmin):
+            norm_arr = np.zeros_like(result, dtype=np.float32)
+        else:
+            # swap SinhStretch for AsinhStretch() if preferred
+            norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=SqrtStretch())
+            #norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=AsinhStretch())
+            #norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=SinhStretch())  # may sinh error
+            norm_arr = scaled = norm(result)    # float array in [0, 1]   # norm_arr
+    
+        # 2b- stretch ~0...1 ensures values are in [0, 1]
+        norm_arr = np.clip(norm_arr, 0.0, 1.0)
+    
+        # 3-optional forensic mode: histogram equalization on normalized data to increase contrast
+        #image_eq = exposure.equalize_hist(scaled)
+
+        # builds output filepath
         basename = os.path.basename(fits_filepath).replace('.fits', '')
-        jpg_filepath = f'{outdir}/{basename}.jpg'
-        #create jpg
-        dpi = 100
-        width_inches  = hdr['NAXIS1'] / dpi
-        height_inches = hdr['NAXIS2'] / dpi
-        fig = plt.figure(figsize=(width_inches, height_inches), frameon=False, dpi=dpi)
-        ax = fig.add_axes([0, 0, 1, 1]) #this forces no border padding
-        plt.axis('off')
-        plt.imshow(image_eq, cmap='gray', origin='lower')#, norm=norm)
-        plt.savefig(jpg_filepath, pil_kwargs={'quality':92})
-        plt.close()
+        jpg_filepath = f'{outdir_path}/{basename}.jpg'
+
+        # option 1: saves faster version, no fig necessary
+        # image_eq or norm_arr is your final 0-1 float array
+        #final_img = image_eq 
+        final_img = norm_arr 
+        plt.imsave(jpg_filepath, final_img, cmap="gray", format="jpg")
+
+#        # option 2: controlled fig size
+#        dpi = 100
+#        #width_inches  = hdr['NAXIS1'] / dpi
+#        #height_inches = hdr['NAXIS2'] / dpi
+#        width_pixels  = hdr.get('NAXIS1', result.shape[1])
+#        height_pixels = hdr.get('NAXIS2', result.shape[0])
+#        width_inches  = width_pixels / dpi
+#        height_inches = height_pixels / dpi
+#
+#        # creates figure with no padding, no axes, no border
+#        fig = plt.figure(figsize=(width_inches, height_inches), frameon=False, dpi=dpi)
+#        #fig = plt.figure(figsize=(width_inches, height_inches), dpi=dpi, frameon=False)
+#        
+#        ax = fig.add_axes([0, 0, 1, 1]) # forces no border padding
+#        ax.axis("off")
+#        #plt.axis('off')
+#
+#        # displays the processed 2D array (image_eq or scaled)
+#        ax.imshow(image_eq, cmap="gray", origin="lower", aspect="equal")
+#        i#ax.imshow(result, cmap='gray', origin='lower')#, norm=norm)
+#        #plt.imshow(result, cmap='gray', origin='lower', norm=norm)
+#
+#        #plt.savefig(jpg_filepath, pil_kwargs={'quality':92})
+#        #plt.close()
+#        plt.savefig(
+#            jpg_filepath,
+#            dpi=dpi,
+#            bbox_inches='tight',
+#            pad_inches=0,
+#            pil_kwargs={'quality': 92}
+#        )
+#        plt.close(fig)
+        
 
     def set_koaimtyp(self):
         '''
-        Add KOAIMTYP based on algorithm
-        Calls get_koaimtyp for algorithm
+        Add KOAIMTYP based on algorithm, Calls get_koaimtyp for algorithm
         '''
 
         koaimtyp = self.get_koaimtyp()
         
         #warn if undefined
-        if (koaimtyp == 'undefined'):
+        #if (koaimtyp == 'undefined'):
+        if not koaimtyp:
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
+            koaimtyp = 'undefined'
 
         #update keyword
-        self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
+        self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type from IMTYPE')
         
         return True
 
@@ -155,18 +253,22 @@ class Scales(instrument.Instrument):
         '''
         Sets koaimtyp based on keyword values
         '''
+        # 'bad', 'contbars', 'focus' ???
+        allowed = ('object', 'bias', 'dark', 'arclamp', 'flatlamp',
+                   'domeflat', 'twiflat', 'undefined')
+
         koaimtyp = 'undefined'
-        try:
-            camera = self.get_keyword('CAMERA').lower()
-        except:
-            camera = ''
-        if camera in ['low-res', 'med-res']:
-            koaimtyp = 'spec'
-        elif camera == 'imaging':
-            koaimtyp = 'image'
-        elif self.get_keyword('IMTYPE'):
-            koaimtyp = self.get_keyword('IMTYPE').lower()
-        return koaimtyp
+        # if instrument not defined, return
+        imtype = self.get_keyword('IMTYPE')
+        if not imtype:
+            return 'undefined'
+
+        imtype = imtype.lower()
+        if imtype in allowed:
+            return imtype
+
+        return 'undefined'
+
 
     def set_elaptime(self):
         '''
@@ -361,6 +463,13 @@ class Scales(instrument.Instrument):
         Does this fits have sensitive target info?
         '''
         return False
+
+
+#    def make_jpg(self):
+#        # Skip if this an image cube
+#        if self.isImageCube:
+#            return True
+#        return super().make_jpg()
 
 
     def get_drp_files_list(self, datadir, koaid, level):

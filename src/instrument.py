@@ -4,6 +4,7 @@ Contains basic keyword values common across all the instruments
 Children will contain the instrument specific values
 """
 
+import pdb
 import os
 from common import *
 from astropy.io import fits
@@ -179,15 +180,19 @@ class Instrument(dep.DEP):
         # Extract the UTC time and date observed from the header
         self.set_utc()
         utc = self.get_keyword('UTC', useMap=False)
-        if utc == None: return False
-
+        #if utc == None: return False
+        if utc == None:
+            return False
         self.set_dateObs()
         dateobs = self.get_keyword('DATE-OBS', useMap=False)
-        if dateobs == None: return False
-
+        #if dateobs == None: return False
+        if dateobs == None:
+            return False
         # Create a timedate object using the string from the header
         try:    utc = dt.datetime.strptime(utc, '%H:%M:%S.%f')
-        except: return False
+        #except: return False
+        except:
+            return False
 
         # Get total seconds and hundredths
         totalSeconds = str((utc.hour * 3600) + (utc.minute * 60) + utc.second)
