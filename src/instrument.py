@@ -923,16 +923,16 @@ class Instrument(dep.DEP):
         if self.get_keyword('FRAMENO', False) != None: return True
 
         #get value
-        #NOTE: If FRAMENO doesn't exist, derive from DATAFILE
+        #NOTE: If FRAMENO doesn't exist, derive from OBSNUM (or DATAFILE?)
         frameno = self.get_keyword('FRAMENUM')
         if (frameno == None): 
 
-            datafile = self.get_keyword('DATAFILE')
-            if (datafile == None): 
+            obsnum = self.get_keyword('OBSNUM')
+            if (obsnum == None): 
                 self.log_warn("SET_FRAMENO_ERROR")
                 return False
 
-            frameno = datafile.replace('.fits', '')
+            frameno = obsnum.replace('.fits', '')
             num = frameno.rfind('_') + 1
             frameno = frameno[num:]
             frameno = int(frameno)

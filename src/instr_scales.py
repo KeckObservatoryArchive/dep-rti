@@ -17,8 +17,8 @@ import glob
 from pathlib import Path
 import logging
 log = logging.getLogger('koa_dep')
-from astropy.visualization import ZScaleInterval, AsinhStretch, SinhStretch
-from astropy.visualization import SqrtStretch
+from astropy.visualization import ZScaleInterval, SqrtStretch
+#from astropy.visualization import ZScaleInterval, AsinhStretch, SinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 
 
@@ -87,11 +87,8 @@ class Scales(instrument.Instrument):
         if instr == 'scales':
             try:
                 camera = self.get_keyword('OBSMODE').lower()
-                #if camera in ['low-res', 'med-res']:
                 if camera in ['low-res', 'med-res', 'ifs']:
-                #if camera in ['ifs']:
                     prefix = 'SS'
-                #elif camera in ('imager', 'ifs'):
                 elif camera in ('imager'):
                     prefix = 'SI'
                 else:
@@ -117,7 +114,6 @@ class Scales(instrument.Instrument):
         Basic convert fits primary data to jpg. overrides super class function
         '''
 
-        #get image data
         try:
             with fits.open(fits_filepath, ignore_missing_end=True) as hdul:
                 data = hdul[0].data
@@ -134,17 +130,12 @@ class Scales(instrument.Instrument):
         naxis = hdr.get("NAXIS", data.ndim)
 
         # FITS convention: NAXIS1 = x, NAXIS2 = y single slice, NAXIS3 = number of slices
-        #if hdr["NAXIS"] == 3:     # reduces 3D cube -> "dirty FITS"
-        if naxis == 3:     # reduces 3D cube -> "dirty FITS"
+        if naxis == 3:     # flattens 3D cube -> 2D "dirty FITS"
             result = data[-1] - data[0]
-            #print(f'result is 3D')
-        #elif hdr["NAXIS"] == 2:   # 2D image regular/original processing
         elif naxis == 2:   # 2D image regular/original processing
             result = data
-            #print(f'result is 2D')
-        else:   # Any other dimensionality: first slice along axis 0
+        else:   # other dimensionality: first slice along axis 0
             result = data[0]
-            #print(f'result is other (not 2D or 3D)')
 
         # all objects should be 2D for JPEG
         if result.ndim != 2:
@@ -173,7 +164,7 @@ class Scales(instrument.Instrument):
         if (not np.isfinite(vmin)) or (not np.isfinite(vmax)) or (vmax <= vmin):
             norm_arr = np.zeros_like(result, dtype=np.float32)
         else:
-            # swap SinhStretch for AsinhStretch() if preferred
+            # swap SqrtStretch() or SinhStretch() for AsinhStretch() if preferred
             norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=SqrtStretch())
             #norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=AsinhStretch())
             #norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=SinhStretch())  # may sinh error
@@ -190,44 +181,11 @@ class Scales(instrument.Instrument):
         jpg_filepath = f'{outdir_path}/{basename}.jpg'
 
         # option 1: saves faster version, no fig necessary
-        # image_eq or norm_arr is your final 0-1 float array
+        # image_eq or norm_arr is final 0-1 float array
         #final_img = image_eq 
         final_img = norm_arr 
         plt.imsave(jpg_filepath, final_img, cmap="gray", format="jpg")
 
-#        # option 2: controlled fig size
-#        dpi = 100
-#        #width_inches  = hdr['NAXIS1'] / dpi
-#        #height_inches = hdr['NAXIS2'] / dpi
-#        width_pixels  = hdr.get('NAXIS1', result.shape[1])
-#        height_pixels = hdr.get('NAXIS2', result.shape[0])
-#        width_inches  = width_pixels / dpi
-#        height_inches = height_pixels / dpi
-#
-#        # creates figure with no padding, no axes, no border
-#        fig = plt.figure(figsize=(width_inches, height_inches), frameon=False, dpi=dpi)
-#        #fig = plt.figure(figsize=(width_inches, height_inches), dpi=dpi, frameon=False)
-#        
-#        ax = fig.add_axes([0, 0, 1, 1]) # forces no border padding
-#        ax.axis("off")
-#        #plt.axis('off')
-#
-#        # displays the processed 2D array (image_eq or scaled)
-#        ax.imshow(image_eq, cmap="gray", origin="lower", aspect="equal")
-#        i#ax.imshow(result, cmap='gray', origin='lower')#, norm=norm)
-#        #plt.imshow(result, cmap='gray', origin='lower', norm=norm)
-#
-#        #plt.savefig(jpg_filepath, pil_kwargs={'quality':92})
-#        #plt.close()
-#        plt.savefig(
-#            jpg_filepath,
-#            dpi=dpi,
-#            bbox_inches='tight',
-#            pad_inches=0,
-#            pil_kwargs={'quality': 92}
-#        )
-#        plt.close(fig)
-        
 
     def set_koaimtyp(self):
         '''
@@ -236,14 +194,13 @@ class Scales(instrument.Instrument):
 
         koaimtyp = self.get_koaimtyp()
         
-        #warn if undefined
+        # warn if undefined
         #if (koaimtyp == 'undefined'):
         if not koaimtyp:
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
             koaimtyp = 'undefined'
 
-        #update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type from IMTYPE')
         
         return True
@@ -253,12 +210,11 @@ class Scales(instrument.Instrument):
         '''
         Sets koaimtyp based on keyword values
         '''
-        # 'bad', 'contbars', 'focus' ???
+        # missing: 'bad', 'contbars', 'focus'
         allowed = ('object', 'bias', 'dark', 'arclamp', 'flatlamp',
                    'domeflat', 'twiflat', 'undefined')
 
         koaimtyp = 'undefined'
-        # if instrument not defined, return
         imtype = self.get_keyword('IMTYPE')
         if not imtype:
             return 'undefined'
@@ -289,6 +245,7 @@ class Scales(instrument.Instrument):
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
         return True
 
+
     def set_slitdims(self):
         '''
         Set slit dimensions and wavelengths
@@ -305,24 +262,24 @@ class Scales(instrument.Instrument):
         slicer = self.get_keyword('IFUNAM').lower()
         camera = self.get_keyword('CAMERA')
         binning = self.get_keyword('BINNING')
-        #lowercase camera if not None
+        # lowercase camera if not None
         camera = camera.lower() if camera is not None else camera
 
         prefix = "R" if camera=="red" else "B"
         cwave = self.get_keyword(prefix+'CWAVE', default=0)
         gratname = self.get_keyword(prefix+'GRATNAM').lower()
         nodmask = self.get_keyword(prefix+'NASNAM').lower()
-        # Configuration for KB
+        # confirm configuration for SCALES?
         configurations = {
                           'bl'  : {'waves':2000, 'large':900, 'medium':1800, 'small':3600},
                           }
         
-        # Slit width by slicer, slit length is always 20.4"
+        # slit width by slicer, slit length is always 20.4"
         slits = {'large':'1.35', 'medium':'0.69', 'small':'0.35'}
         if slicer in slits.keys():
             slitwidt = slits[slicer]
             slitlen = 108
-        #get wavelengths from configuration dictionary
+        # get wavelengths from configuration dictionary
         if gratname in configurations.keys() and slicer in slits.keys():
             if cwave > 0:
                 wavecntr = round(cwave)
@@ -335,7 +292,7 @@ class Scales(instrument.Instrument):
                 waveblue = wavecntr - diff
                 wavered = wavecntr + diff
         
-        # Camera plate scale, arcsec/pixel unbinned
+        # camera plate scale, arcsec/pixel unbinned
         #TODO verify pscale for red, svc
         pscale = {'imager':0.06, 'small':0.02, 'medium': 0.02}
         if camera in pscale.keys():
@@ -370,23 +327,23 @@ class Scales(instrument.Instrument):
         '''
         Set world coordinate system values
         '''
-        #extract values from header
+        # extract values from header
         camera = self.get_keyword('CAMERA')
-        #wcs values should only be set for fpc
+        # wcs values should only be set for fpc
         if camera != 'fpc':
             log.info(f'set_wcs: WCS keywords not set for camera type: {camera}')
             return True
-        #get ra and dec values
+        # get ra and dec values
         rakey = (self.get_keyword('RA')).split(':')
         rakey = 15.0*(float(rakey[0])+(float(rakey[1])/60.0)+(float(rakey[2])/3600.0))
         deckey = (self.get_keyword('DEC')).split(':')
-        #compensation for negative dec if applicable
+        # compensation for negative dec if applicable
         if float(deckey[0]) < 0:
             deckey = float(deckey[0])-(float(deckey[1])/60.0)-(float(deckey[2])/3600.0)
         else:
             deckey = float(deckey[0])+(float(deckey[1])/60.0)+(float(deckey[2])/3600.0)
         
-        #get more keywords
+        # get more keywords
         equinox = self.get_keyword('EQUINOX')
         naxis1 = self.get_keyword('NAXIS1')
         naxis2 = self.get_keyword('NAXIS2')
@@ -397,8 +354,8 @@ class Scales(instrument.Instrument):
         el = self.get_keyword('EL')
         binning = self.get_keyword('BINNING')
         self.set_keyword('BINNING',str(binning),'Binning: serial/axis1, parallel/axis2')
-        #special PA calculation determined by rotmode
-        #pa = rotposn + parantel - el
+        # special PA calculation determined by rotmode
+        # pa = rotposn + parantel - el
         mode = rotmode[0:4]
         if parantel == '' or parantel == None:
             parantel = parang
@@ -412,7 +369,7 @@ class Scales(instrument.Instrument):
             self.log_warn("SET_WCS_ERROR", mode)
             return False
 
-        #get correct units and formatting
+        # get correct units and formatting
         raindeg = 1
         pixscale = 0.0075 * float(binning)
         pa0 = 0.7
@@ -491,12 +448,12 @@ class Scales(instrument.Instrument):
         '''
         files = []
 
-        #back out of /redux/ subdir
-#        if level == 1:
+        # back out of /redux/ subdir
+        #if level == 1:
         if datadir.endswith('/'): datadir = datadir[:-1]
         datadir = os.path.split(datadir)[0]
 
-        #get frameno
+        # get frameno
         hdr = None
         icubed = f"{datadir}/redux/{koaid}_icubed.fits"
         icubes = f"{datadir}/redux/{koaid}_icubes.fits"
@@ -508,7 +465,7 @@ class Scales(instrument.Instrument):
             return False
         frameno = hdr['FRAMENO']
 
-        #level 1
+        # level 1
         if level >= 1:
             searchfiles = [
                 f"{datadir}/redux/{koaid}_rampfit.fits",
@@ -524,7 +481,7 @@ class Scales(instrument.Instrument):
                 if int(fparts[1]) >= frameno: continue
                 files.append(file)
 
-        #level 2 (note: includes level 1 stuff, see above)
+        # level 2 (note: includes level 1 stuff, see above)
         if level == 2:
             searchfiles = [
                 f"{datadir}/scales.proc",
