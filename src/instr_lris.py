@@ -1236,8 +1236,6 @@ class Lris(instrument.Instrument):
 
             self.fits_hdu.append(hdu)
 
-        # self.fits_hdu.flush()
-
 
     @staticmethod
     def map_extname(name: str) -> str:
