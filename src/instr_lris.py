@@ -1180,6 +1180,8 @@ class Lris(instrument.Instrument):
                            'Failed to find the GUINAME (SLITNAME) keyword')
             return False
 
+        log.info(f'Adding slitmask extensions for GUINAME (SLITNAME) {guiname}')
+
         api_base = self.config.get('API', {}).get('SLITMASKAPI')
         api_url = f'{api_base}?gui-name={guiname}'
         resp = requests.get(api_url)
