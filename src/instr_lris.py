@@ -11,9 +11,11 @@ import math
 from astropy.convolution import convolve,Box1DKernel
 from astropy.io import fits
 from astropy import units as u
+from astropy.table import Table
 from astropy.coordinates import SkyCoord
 import os
 import re
+import requests
 
 import matplotlib as mpl
 mpl.use('Agg')
@@ -74,6 +76,7 @@ class Lris(instrument.Instrument):
             {'name':'set_mjd_obs',      'crit': False},
             {'name':'set_dqa_vers',     'crit': False},
             {'name':'set_dqa_date',     'crit': False},
+            {'name': 'add_slitmask_extensions', 'crit': False},
         ]
         return self.run_functions(funcs)
 
@@ -1161,4 +1164,124 @@ class Lris(instrument.Instrument):
         Returns a list of files to archive for the DRP specific to LRIS.
         '''
         return self.get_pypeit_drp_files_list(datadir, koaid, level)
+
+    """
+    Functions used to add slitmask extensions from the slitmask database.
+    """
+
+    def add_slitmask_extensions(self):
+        """
+        Add the slitmask related extensions from the information about the mask
+        in the slitmask database.
+        """
+        guiname = self.get_keyword('SLITNAME', ext=0)
+        if not guiname:
+            self.log_error('ADD_SLITMASK_ERROR',
+                           'Failed to find the GUINAME (SLITNAME) keyword')
+            return False
+
+        api_base = self.config.get('API', {}).get('SLITMASKAPI')
+        api_url = f'{api_base}?gui-name={guiname}'
+        resp = requests.get(api_url)
+
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            self.log_error(f"error access API: {api_url}, error: {e}")
+            return False
+
+        json_data = resp.json()
+
+        # get the mask details from the slitmask DB API
+        api_data = json_data["data"]
+
+        # Append the information as fits table extensions
+        self.append_api_tables_to_fits(api_data, guiname)
+
+        return True
+
+
+    def append_api_tables_to_fits(self, api_data, guiname):
+        """
+        Append one FITS table extension per dataset in the API results,
+        but only if an extension with that EXTNAME does not already exist.
+        """
+
+        # Build a set of all existing EXTNAME values
+        existing_extnames = {
+            (h.header.get("EXTNAME") or "").upper()
+            for h in self.fits_hdu
+        }
+
+        for section_name, section_records in api_data:
+            extname = self.map_extname(section_name)
+
+            # Avoid duplication,  skip if this extension already exists
+            if extname.upper() in existing_extnames:
+                self.log_warn(
+                    "ADD_SLITMASK_WARN",
+                    f"Skipping '{extname}' (already exists in FITS)"
+                )
+
+                continue
+
+            tbl = self.sanitize_table_for_fits(section_records)
+
+            hdu = fits.BinTableHDU(data=tbl, name=extname)
+
+            hdu.header["NROWS"] = len(tbl)
+            hdu.header["SOURCE"] = f"Keck Slitmask Database - {guiname}"
+
+            self.fits_hdu.append(hdu)
+
+        # self.fits_hdu.flush()
+
+
+    @staticmethod
+    def map_extname(name: str) -> str:
+        """
+        Map webpage table names to extension names.
+        """
+        table_name_map = {
+            'Mask Author': 'Observers',
+            'Mask Design': 'MaskDesign',
+            'Design Slits': 'DesiSlits',
+            'Slit Object Information': 'ObjectCat',
+            'Slit Map': 'SlitObjMap',
+            'Blue Mask': 'MaskBlu',
+            'Blue Slits': 'BlueSlits',
+        }
+
+        return table_name_map.get(name, name)
+
+
+    @staticmethod
+    def sanitize_table_for_fits(rows):
+        """
+        Convert dict rows from JSON into a FITS-safe Astropy Table.
+        """
+        # Convert all rows so values are either float/int or fixed-length strings
+        clean_rows = []
+        for row in rows:
+            clean_row = {}
+            for k, v in row.items():
+                # None is not allowed in FITS
+                if v is None:
+                    clean_row[k] = ""
+                elif isinstance(v, (int, float, np.number)):
+                    clean_row[k] = v
+                else:
+                    # force other values to be strings
+                    clean_row[k] = str(v)
+            clean_rows.append(clean_row)
+
+        tbl = Table(clean_rows)
+
+        # Convert variable-length object strings to fixed-length byte strings
+        for col in tbl.colnames:
+            if tbl[col].dtype.kind in ("O", "U"):   # object or unicode
+                maxlen = max(len(str(x)) for x in tbl[col])
+                tbl[col] = np.array(tbl[col], dtype=f"S{maxlen}")
+
+        return tbl
 
