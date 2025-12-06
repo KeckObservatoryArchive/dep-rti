@@ -1279,9 +1279,12 @@ class Lris(instrument.Instrument):
 
         # Convert variable-length object strings to fixed-length byte strings
         for col in tbl.colnames:
-            if tbl[col].dtype.kind in ("O", "U"):   # object or unicode
-                maxlen = max(len(str(x)) for x in tbl[col])
-                tbl[col] = np.array(tbl[col], dtype=f"S{maxlen}")
+            # object or unicode
+            if tbl[col].dtype.kind in ("O", "U"):
+                col_values = [("" if x is None else str(x)) for x in tbl[col]]
+                maxlen = max((len(v) for v in col_values), default=0)
+
+                tbl[col] = np.array(col_values, dtype=f"S{maxlen}")
 
         return tbl
 
