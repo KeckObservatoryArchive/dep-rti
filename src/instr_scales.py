@@ -48,6 +48,8 @@ class Scales(instrument.Instrument):
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
             {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
+            {'name':'set_filter',      'crit': False}, # add this
+            {'name':'set_wavelengths', 'crit': False}, # add this
             {'name':'set_image_stats', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
@@ -244,6 +246,112 @@ class Scales(instrument.Instrument):
             self.log_warn('SET_ELAPTIME_ERROR')
             return False
         self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
+        return True
+
+
+    # added - what if no FILTERX keyword?
+    def set_filter(self):
+        '''
+        If FILTER keyword doesn't exist, create from FILTER0 and FILTER1
+        '''
+
+        if self.get_keyword('FILTER', False) != None: return True
+
+        filter0 = self.get_keyword('FILTER0', default='')
+        filter1 = self.get_keyword('FILTER1', default='')
+        if filter0 == '' and filter1 == '':
+            filterName = 'blank'
+        else:
+            filterName = '+'.join(filter(None,(filter0, filter1)))
+
+        #update keyword
+        self.set_keyword('FILTER', filterName, 'KOA: set from FILTER0 and FILTER1')
+        return True
+
+
+    # added
+    def set_wavelengths(self):
+        '''
+        Sets _____ (in microns) based on FILTER value
+            OBSMODE:
+                IMAGER (IMG) - 12.2 x 12.2" FOV (0.006 x 0.006" pixels)
+                    - Broad-Band Filters (BBFILT*)
+                    - Narrow-Band Filters (NBFILT*)
+                    - Neutral-Density Filters (NDFILT*)
+                INTEGRAL FIELD SPECTROGRPH (IFS) - 2 X 2" FOV, varies with prism (0.02 x 0.02" spaxels)
+                    - Low-Resolution Prisms (LRPRS*)
+                    - Medium-Resolution Gratings (MRGRA*)
+        NOTE: Keyword Widths: 6 to 10 chars (verify)
+        '''
+        filters = {}
+
+        # IMAGER Broad-Band Filters
+        filters['BBFILY']      = {'min':0.970, 'max':1.070}   # Y
+        filters['BBFILJ']      = {'min':1.170, 'max':1.330}   # J
+        filters['BBFILH']      = {'min':1.490, 'max':1.780}   # H
+        filters['BBFILCH4S']   = {'min':1.530, 'max':1.660}   # CH4s
+        filters['BBFILKP']     = {'min':1.950, 'max':2.290}   # Kp
+        filters['BBFILKS']     = {'min':1.990, 'max':2.300}   # Ks
+        filters['BBFILK']      = {'min':2.030, 'max':2.360}   # K
+        filters['BBFILLP']     = {'min':3.430, 'max':4.130}   # Lp
+        filters['BBFILMS']     = {'min':4.550, 'max':4.790}   # Ms
+
+        # IMAGER Narrow-Band Filters
+        filters['NBFILPABETA'] = {'min':1.280, 'max':1.300}   # Pa-Beta
+        filters['NBFILFELL']   = {'min':1.630, 'max':1.660}   # Fell
+        filters['NBFILBRGAM']  = {'min':2.150, 'max':2.190}   # Br-Gam
+        filters['NBFILKCONT']  = {'min':2.260, 'max':2.290}   # K_cont
+
+        # IMAGER Neutral-Density Filters (in combo with Broad-Band)
+        filters['NDFILND1']    = {'min':0.000, 'max':0.000}   # ND1 10x suppression
+        filters['NDFILND2']    = {'min':0.000, 'max':0.000}   # ND2 100x suppression
+        filters['NDFILND3']    = {'min':0.000, 'max':0.000}   # ND3 1000x suppression
+
+        # IFS Low-Resolution Prisms
+        filters['LRPRSK']      = {'min':2.000, 'max':2.400}   # K      (R~150)
+        filters['LRPRSKL']     = {'min':2.000, 'max':4.000}   # KL     (R~50) 
+        filters['LRPRSKLM']    = {'min':2.000, 'max':5.000}   # KLM    (R~35)
+        filters['LRPRSL']      = {'min':2.900, 'max':4.150}   # L      (R~80)
+        filters['LRPRSLS']     = {'min':3.100, 'max':3.500}   # LS     (R~200)
+        filters['LRPRSM']      = {'min':4.500, 'max':5.200}   # M      (R~200)
+        filters['LRPRSKLPOL']  = {'min':2.000, 'max':4.000}   # KL-pol (R~20)
+
+        # IFS Medium-Resolution Gratings
+        filters['MRGRAK']      = {'min':2.000, 'max':2.400}   # K      (R~6,000)
+        filters['MRGRAL']      = {'min':2.900, 'max':4.150}   # L      (R~2,500)
+        filters['MRGRAM']      = {'min':4.500, 'max':5.200}   # M      (R~7,000)
+
+        # FILTER[0,1] values may not be available, so CAMNAME is provided as the 
+        # default filter source to be overwritten when FILTERs are specified
+
+        filterName = ''
+        filterSource = ''
+
+        camname = self.get_keyword('CAMNAME', default='').upper()
+        if camname in filters.keys():
+            #filterSource = camname
+            filterName = camname
+
+        filterList = self.get_keyword('FILTER', default='').upper().split('+')
+
+        for fitem in filterList:
+            if fitem in filters.keys():
+                filterName = fitem
+
+        if filterName in filters.keys():
+            filterSource = filterName
+
+        # set wavelengths
+        wavemin = wavemax = 'null'
+        for filt, waves in filters.items():
+            if filt in filterSource.upper():
+                wavemin = waves['min']
+                wavemax  = waves['max']
+                break
+
+        self.set_keyword('WAVEMIN', wavemin, 'KOA: Approximate min wavelength (in microns)')
+        self.set_keyword('WAVEMAX', wavemax, 'KOA: Approximate max wavelength (in microns)')
+
         return True
 
 
