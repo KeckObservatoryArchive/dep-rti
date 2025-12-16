@@ -20,6 +20,7 @@ log = logging.getLogger('koa_dep')
 from astropy.visualization import ZScaleInterval, SqrtStretch
 #from astropy.visualization import ZScaleInterval, AsinhStretch, SinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
+#import pdb
 
 
 class Scales(instrument.Instrument):
@@ -51,8 +52,8 @@ class Scales(instrument.Instrument):
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
             {'name':'set_npixsat',     'crit': False,  'args': {'satVal':65535}}, # need SATURATE header kwds
-            #{'name':'set_slitdims',    'crit': False}, # need headerheader kwds: IFUNAM CWAVE GRATNAM NASNAM
-            #{'name':'set_wcs',         'crit': False}, # not writing values to kwd headers
+            #{'name':'set_slitdims',    'crit': False}, # need headerheader kwds: IFUNAM CWAVE GRATNAM NASNAM, camera!='fpc'
+            #{'name':'set_wcs',         'crit': False}, # not writing values to kwd headers camera!='fpc' so n/a? TBD
             {'name':'set_dqa_vers',    'crit': False},
             {'name':'set_dqa_date',    'crit': False},
         ]
