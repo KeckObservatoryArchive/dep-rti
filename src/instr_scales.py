@@ -253,6 +253,7 @@ class Scales(instrument.Instrument):
     def set_filter(self):
         '''
         If FILTER keyword doesn't exist, create from FILTER0 and FILTER1
+        NOTE: Filter Wheel Keywords IFSFW[1|2], IMGFW[1|2]
         '''
 
         if self.get_keyword('FILTER', False) != None: return True
@@ -272,7 +273,7 @@ class Scales(instrument.Instrument):
     # added
     def set_wavelengths(self):
         '''
-        Sets _____ (in microns) based on FILTER value
+        Sets WAVEMIN and WAVEMAX (in microns) based on FILTER value
             OBSMODE:
                 IMAGER (IMG) - 12.2 x 12.2" FOV (0.006 x 0.006" pixels)
                     - Broad-Band Filters (BBFILT*)
@@ -281,7 +282,9 @@ class Scales(instrument.Instrument):
                 INTEGRAL FIELD SPECTROGRPH (IFS) - 2 X 2" FOV, varies with prism (0.02 x 0.02" spaxels)
                     - Low-Resolution Prisms (LRPRS*)
                     - Medium-Resolution Gratings (MRGRA*)
-        NOTE: Keyword Widths: 6 to 10 chars (verify)
+        NOTES:
+        - Keyword Widths: 6 to 10 chars (verify)
+        - Infrared, so blue->min and red->max
         '''
         filters = {}
 
