@@ -42,7 +42,7 @@ class Scales(instrument.Instrument):
             {'name':'set_telescope',   'crit': False},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
-            {'name':'set_frameno',     'crit': True},
+#            {'name':'set_frameno',     'crit': True},
             {'name':'set_semester',    'crit': True},
             {'name':'set_prog_info',   'crit': True},
             {'name':'set_propint',     'crit': True},
@@ -53,9 +53,9 @@ class Scales(instrument.Instrument):
             {'name':'set_image_stats', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
-            {'name':'set_npixsat',     'crit': False,  'args': {'satVal':65535}}, # need SATURATE header kwds
+#            {'name':'set_npixsat',     'crit': False,  'args': {'satVal':65535}}, # need SATURATE header kwds
             #{'name':'set_slitdims',    'crit': False}, # need headerheader kwds: IFUNAM CWAVE GRATNAM NASNAM, camera!='fpc'
-            #{'name':'set_wcs',         'crit': False}, # not writing values to kwd headers camera!='fpc' so n/a? TBD
+            #{'name':'set_wcs',         'crit': False}, # not writing values to kwd headers camera!='fpc' so n/a?
             {'name':'set_dqa_vers',    'crit': False},
             {'name':'set_dqa_date',    'crit': False},
         ]
@@ -249,7 +249,7 @@ class Scales(instrument.Instrument):
         return True
 
 
-    # added - what if no FILTERX keyword?
+    # added - what if no FILTERX keyword? - use instr_nirspec instead of instr_deimos
     def set_filter(self):
         '''
         If FILTER keyword doesn't exist, create from FILTER0 and FILTER1
@@ -270,7 +270,7 @@ class Scales(instrument.Instrument):
         return True
 
 
-    # added
+    # added - use instr_nirspec instead of instr_deimos
     def set_wavelengths(self):
         '''
         Sets WAVEMIN and WAVEMAX (in microns) based on FILTER value
