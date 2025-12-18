@@ -42,20 +42,19 @@ class Scales(instrument.Instrument):
             {'name':'set_telescope',   'crit': False},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
-#            {'name':'set_frameno',     'crit': True},
-            {'name':'set_semester',    'crit': True},
+/bin/bash: :q: command not found
             {'name':'set_prog_info',   'crit': True},
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
             {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
-            {'name':'set_filter',      'crit': False}, # add this
-            {'name':'set_wavelengths', 'crit': False}, # add this
+            #{'name':'set_filter',      'crit': False}, # need this, but awaiting info
+            #{'name':'set_wavelengths', 'crit': False}, # need this, but awaiting info
             {'name':'set_image_stats', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
-#            {'name':'set_npixsat',     'crit': False,  'args': {'satVal':65535}}, # need SATURATE header kwds
-            #{'name':'set_slitdims',    'crit': False}, # need headerheader kwds: IFUNAM CWAVE GRATNAM NASNAM, camera!='fpc'
-            #{'name':'set_wcs',         'crit': False}, # not writing values to kwd headers camera!='fpc' so n/a?
+#            {'name':'set_npixsat',     'crit': False,  'args': {'satVal':65535}}, # need SATURATE header kwds; remove?
+            #{'name':'set_slitdims',    'crit': False}, # camera='fpc' but need 'fcs'
+            #{'name':'set_wcs',         'crit': False}, # not writing values to kwd, no camera!='fpc', but need 'fcs' 
             {'name':'set_dqa_vers',    'crit': False},
             {'name':'set_dqa_date',    'crit': False},
         ]
@@ -90,10 +89,14 @@ class Scales(instrument.Instrument):
         if instr == 'scales':
             try:
                 camera = self.get_keyword('OBSMODE').lower()
+                #ifsmodsel = self.get_keyword('IFSMODSEL').lower()
+                #if camera = 'ifs' and ifsmodsel in ['low-res', 'med-res']:
                 if camera in ['low-res', 'med-res', 'ifs']:
                     prefix = 'SS'
                 elif camera in ('imager'):
                     prefix = 'SI'
+                elif camera in ('dichroic'):
+                    prefix = 'SD'
                 else:
                     prefix = ''
             except:
@@ -249,39 +252,50 @@ class Scales(instrument.Instrument):
         return True
 
 
-    # added - what if no FILTERX keyword? - use instr_nirspec instead of instr_deimos
+    # added - what if no FILTER keyword? - changed to instr_nirspec
     def set_filter(self):
         '''
-        If FILTER keyword doesn't exist, create from FILTER0 and FILTER1
+        If FILTER keyword doesn't exist, create from SCIFILT1 and 2
+              (Also referred to as FILTER0 and FILTER1)
         NOTE: Filter Wheel Keywords IFSFW[1|2], IMGFW[1|2]
+                  or IFS-FW-[1|2], IM-FW-[1|2]
+              IFSFWNAM and IMGFWNAM shows the combination position for the imager
         '''
-
         if self.get_keyword('FILTER', False) != None: return True
 
-        filter0 = self.get_keyword('FILTER0', default='')
-        filter1 = self.get_keyword('FILTER1', default='')
-        if filter0 == '' and filter1 == '':
+        scifilt1 = self.get_keyword('SCIFILT1', default='')
+        scifilt2 = self.get_keyword('SCIFILT2', default='')
+
+        skip = ['thick', 'thin', 'open']           # need this?
+        if scifilt1.lower() in skip: scifilt1 = ''
+        if scifilt2.lower() in skip: scifilt2 = ''
+
+        if scifilt1 == '' and scifilt2 == '':
             filterName = 'blank'
         else:
-            filterName = '+'.join(filter(None,(filter0, filter1)))
+            filterName = '+'.join(filter(None,(scifilt1, scifilt2)))    # from nirspec
+            #filter = ''.join((scifilt1, scifilt2))                     # from kcwi
 
         #update keyword
-        self.set_keyword('FILTER', filterName, 'KOA: set from FILTER0 and FILTER1')
+        self.set_keyword('FILTER', filterName, 'KOA: set from SCIFILT1 and SCIFILT2')
+        #self.set_keyword('FILTER', filter, 'KOA: set from SCIFILT1 and SCIFILT2')
         return True
 
 
-    # added - use instr_nirspec instead of instr_deimos
+    # added - changed to instr_nirspec
     def set_wavelengths(self):
         '''
         Sets WAVEMIN and WAVEMAX (in microns) based on FILTER value
-            OBSMODE:
-                IMAGER (IMG) - 12.2 x 12.2" FOV (0.006 x 0.006" pixels)
-                    - Broad-Band Filters (BBFILT*)
-                    - Narrow-Band Filters (NBFILT*)
-                    - Neutral-Density Filters (NDFILT*)
+            OBSMODE (for CAMERA vaue): imgager, ifs, dichroic
+                IMAGER (IM[G]*) - 12.2 x 12.2" FOV (0.006 x 0.006" pixels)
+                    - Broad-Band Filters (BBFIL*)
+                    - Narrow-Band Filters (NBFIL*)
+                    - Neutral-Density Filters (NDFIL*)
                 INTEGRAL FIELD SPECTROGRPH (IFS) - 2 X 2" FOV, varies with prism (0.02 x 0.02" spaxels)
-                    - Low-Resolution Prisms (LRPRS*)
-                    - Medium-Resolution Gratings (MRGRA*)
+                    IFSMODSEL = low-res, med-res (represents spatial size for reduced cubes for IFS) 
+                        - Low-Resolution Prisms (LRPRS*)
+                        - Medium-Resolution Gratings (MRGRA*)
+                DICHROIC (DI*) - captures both imager and spectroscopy data simultaneously (tbd)
         NOTES:
         - Keyword Widths: 6 to 10 chars (verify)
         - Infrared, so blue->min and red->max
@@ -361,76 +375,88 @@ class Scales(instrument.Instrument):
     def set_slitdims(self):
         '''
         Set slit dimensions and wavelengths
+        NOTE: will need subpixel region size x and y, infrared detector keywords like
+              - SAMPMODE 
+              - NREAD
+              - NRESET
+              - NGROUP
+              - NDROP
+              - others
+        NOTE: No CAMERA keyword, use OBSMODE to get camera value
+              IFSMODSEL low-res, med-res (represents spatial size for reduced cubes for IFS)
         '''
-        waveblue = 'null'
-        wavecntr = 'null'
-        wavered  = 'null'
+        wavemin = 'null'
+        #wavecntr = 'null'
+        wavemax  = 'null'
         specres  = 'null'
         dispscal = 'null'
-        slitwidt = 'null'
-        slitlen  = 'null'
+        #slitwidt = 'null'
+        #slitlen  = 'null'
         spatscal = 'null'
 
-        slicer = self.get_keyword('IFUNAM').lower()
+        #slicer = self.get_keyword('IFUNAM').lower()     # remove
         camera = self.get_keyword('CAMERA')
-        binning = self.get_keyword('BINNING')
+        # binning = self.get_keyword('BINNING')          # remove
         # lowercase camera if not None
         camera = camera.lower() if camera is not None else camera
 
         prefix = "R" if camera=="red" else "B"
-        cwave = self.get_keyword(prefix+'CWAVE', default=0)
-        gratname = self.get_keyword(prefix+'GRATNAM').lower()
-        nodmask = self.get_keyword(prefix+'NASNAM').lower()
+        #cwave = self.get_keyword(prefix+'CWAVE', default=0)     # remove?
+        #gratname = self.get_keyword(prefix+'GRATNAM').lower()   # remove?
+        #nodmask = self.get_keyword(prefix+'NASNAM').lower()     # remove?
         # confirm configuration for SCALES?
         configurations = {
                           'bl'  : {'waves':2000, 'large':900, 'medium':1800, 'small':3600},
                           }
         
         # slit width by slicer, slit length is always 20.4"
-        slits = {'large':'1.35', 'medium':'0.69', 'small':'0.35'}
-        if slicer in slits.keys():
-            slitwidt = slits[slicer]
-            slitlen = 108
+        #slits = {'large':'1.35', 'medium':'0.69', 'small':'0.35'}
+        #if slicer in slits.keys():
+        #    slitwidt = slits[slicer]
+        #    slitlen = 108
+
         # get wavelengths from configuration dictionary
-        if gratname in configurations.keys() and slicer in slits.keys():
-            if cwave > 0:
-                wavecntr = round(cwave)
-                waveblue = round(wavecntr - configurations.get(gratname)['waves']/2)
-                wavered  = round(wavecntr + configurations.get(gratname)['waves']/2)
-            specres = configurations.get(gratname)[slicer]
-            if nodmask == "mask":
-                diff = int((wavered - waveblue)/3)
+        if gratname in configurations.keys() and slicer in slits.keys():                 # remove?
+            if cwave > 0:                                                                # remove?
+                #wavecntr = round(cwave)
+                #wavemin = round(wavecntr - configurations.get(gratname)['waves']/2)     # remove?
+                #wavemax   = round(wavecntr + configurations.get(gratname)['waves']/2)   # remove?
+            #specres = configurations.get(gratname)[slicer]                              # remove?
+            if nodmask == "mask":                                                        # remove?
+                diff = int((wavemax - wavemin)/3)
                 diff = int(math.ceil(diff/100.0)*100)
-                waveblue = wavecntr - diff
-                wavered = wavecntr + diff
+                wavemin = wavecntr - diff                                               # remove?
+                wavemax = wavecntr + diff                                               # remove? 
         
         # camera plate scale, arcsec/pixel unbinned
         #TODO verify pscale for red, svc
         pscale = {'imager':0.06, 'small':0.02, 'medium': 0.02}
         if camera in pscale.keys():
             try:
-                dispscal = pscale.get(camera) * binning
+                dispscal = pscale.get(camera) * binning                                 # remove?
             except:
-                dispscal = pscale.get(camera) * int(binning.split(',')[0])
+                dispscal = pscale.get(camera) * int(binning.split(',')[0])              # remove?
             spatscal = dispscal
             if camera == 'fpc':
-                waveblue = 3700
-                wavecntr = 6850
-                wavered = 10000
+                wavemin = 3700
+                #wavecntr = 6850
+                wavemax = 10000
         
-        try:
-            slitwidt = float(slitwidt)
-        except:
-            pass
+        #try:
+        #    slitwidt = float(slitwidt)
+        #except:
+        #    pass
+
         #set slit dimensions and wavelengths
-        self.set_keyword('WAVEBLUE',waveblue,'KOA: Blue end wavelength')
-        self.set_keyword('WAVECNTR',wavecntr,'KOA: Central wavelength')
-        self.set_keyword('WAVERED',wavered,'KOA: Red end wavelength')
+        self.set_keyword('WAVEMIN',waveblue,'KOA: Min wavelength')
+        self.set_keyword('WAVEMAX',wavered,'KOA: Max wavelength')
         self.set_keyword('SPECRES',specres,'KOA: Nominal spectral resolution')
         self.set_keyword('SPATSCAL',spatscal,'KOA: CCD pixel scale, spatial')
         self.set_keyword('DISPSCAL',dispscal,'KOA: CCD pixel scale, dispersion')
-        self.set_keyword('SLITWIDT',slitwidt,'KOA: Slit width on sky')
-        self.set_keyword('SLITLEN',slitlen,'KOA: Slit length on sky')
+        #self.set_keyword('SLITWIDT',slitwidt,'KOA: Slit width on sky')          # remove n/a
+        #self.set_keyword('SLITLEN',slitlen,'KOA: Slit length on sky')           # remove n/a
+
+        # IFSMODSEL low-res, med-res (represents spatial size for reduced cubes for IFS)
 
         return True
 
@@ -438,6 +464,8 @@ class Scales(instrument.Instrument):
     def set_wcs(self):
         '''
         Set world coordinate system values
+        NOTE: no fpc, but will need wcs/fcs for the imager and the cubified IFS data, 
+              and maybe bad/bizarre version for the basic IFS data
         '''
         # extract values from header
         camera = self.get_keyword('CAMERA')
@@ -464,10 +492,10 @@ class Scales(instrument.Instrument):
         parantel = self.get_keyword('PARANTEL')
         parang = self.get_keyword('PARANG')
         el = self.get_keyword('EL')
-        binning = self.get_keyword('BINNING')
-        self.set_keyword('BINNING',str(binning),'Binning: serial/axis1, parallel/axis2')
+        #binning = self.get_keyword('BINNING')                # remove?
+        #self.set_keyword('BINNING',str(binning),'Binning: serial/axis1, parallel/axis2')     # remove?
         # special PA calculation determined by rotmode
-        # pa = rotposn + parantel - el
+        #pa = rotposn + parantel - el
         mode = rotmode[0:4]
         if parantel == '' or parantel == None:
             parantel = parang
@@ -483,7 +511,7 @@ class Scales(instrument.Instrument):
 
         # get correct units and formatting
         raindeg = 1
-        pixscale = 0.0075 * float(binning)
+        # pixscale = 0.0075 * float(binning)                   # remove?
         pa0 = 0.7
         crval1 = rakey
         crval2 = deckey
