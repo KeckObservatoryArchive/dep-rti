@@ -47,6 +47,7 @@ class Nirc2(instrument.Instrument):
             {'name':'set_nlinear',      'crit': False},
             {'name':'set_sig2nois',     'crit': False},
             {'name':'set_isao',         'crit': False},
+            {'name':'set_ispol',         'crit': False},
             {'name':'set_oa',           'crit': False},
             {'name':'set_dqa_date',     'crit': False},
             {'name':'set_dqa_vers',     'crit': False},
@@ -449,6 +450,20 @@ class Nirc2(instrument.Instrument):
         Sets AO status
         '''
         self.set_keyword('ISAO','yes','KOA: AO status')
+        return True
+
+
+    def set_ispol(self):
+        '''
+        Sets Polarimetry status with the ISPOL keyword: yes = NIRC2p, no = NIRC2
+        '''
+        ispol = 'no'
+        instrume = self.get_keyword('INSTRUME')
+        fwoname = self.get_keyword('FWONAME')
+
+        if instrume == 'NIRC2p' or fwoname == 'Wollaston':
+            ispol = 'yes'
+        self.set_keyword('ISPOL', ispol, 'KOA: NIRC2p Polarimetry Data (ISPOL status)')
         return True
 
 
