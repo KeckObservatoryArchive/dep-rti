@@ -335,18 +335,12 @@ class Nirc2(instrument.Instrument):
             cd1_2 = -sign * pixscale[camname] * np.sin(pa) / 3600.0
             cd2_1 = -sign * pixscale[camname] * np.sin(pa) / 3600.0
 
-            #pixscale = '%f' % round(pixscale[camname], 6)
             pixscale = round(float(pixscale[camname]), 6)
 
-            #cd1_1 = '%0.12lf' % round(cd1_1, 12)
-            #cd1_2 = '%0.12lf' % round(cd1_2, 12)
-            #cd2_1 = '%0.12lf' % round(cd2_1, 12)
-            #cd2_2 = '%0.12lf' % round(cd2_2, 12)
-
-            cd1_1 = float('%0.12lf' % round(cd1_1, 12))
-            cd1_2 = float('%0.12lf' % round(cd1_2, 12))
-            cd2_1 = float('%0.12lf' % round(cd2_1, 12))
-            cd2_2 = float('%0.12lf' % round(cd2_2, 12))
+            cd1_1 = round(float(cd1_1), 12)
+            cd1_2 = round(float(cd1_2), 12)
+            cd2_1 = round(float(cd2_1), 12)
+            cd2_2 = round(float(cd2_2), 12)
 
             crpix1 = round(float((naxis1 + 1) / 2.0), 2)
             crpix2 = round(float((naxis2 + 1) / 2.0), 2)
