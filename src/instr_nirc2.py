@@ -461,9 +461,9 @@ class Nirc2(instrument.Instrument):
         instrume = self.get_keyword('INSTRUME')
         fwoname = self.get_keyword('FWONAME')
 
-        if instrume == 'NIRC2p' or fwoname == 'Wollaston':
+        if instrume.startswith('NIRC2p') or fwoname.lower() == 'wollaston':
             ispol = 'yes'
-        self.set_keyword('ISPOL', ispol, 'KOA: NIRC2p Polarimetry Data (ISPOL status)')
+        self.set_keyword('ISPOL', ispol, 'KOA: NIRC2 Polarimetry Data')
         return True
 
 
