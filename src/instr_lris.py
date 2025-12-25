@@ -1044,6 +1044,8 @@ class Lris(instrument.Instrument):
         '''
         key_orders = {}
         for i in range(1, len(hdus)):
+            if not hdus[i].name.startswith('VidInp'):
+                continue
             ds = Lris.get_detsec_data(hdus[i].header['DETSEC'])
             if not ds: return None
             key_orders[ds[0]] = i
@@ -1189,7 +1191,7 @@ class Lris(instrument.Instrument):
         try:
             resp.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            self.log_error(f"error access API: {api_url}, error: {e}")
+            self.log_error('ADD_SLITMASK_ERROR', e)
             return False
 
         json_data = resp.json()
