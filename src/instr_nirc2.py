@@ -24,6 +24,7 @@ class Nirc2(instrument.Instrument):
         self.keymap['OFNAME'] = 'FILENAME'
 
         self.isImageCube = False
+        self.isPolarimetry = False
 
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
@@ -38,6 +39,8 @@ class Nirc2(instrument.Instrument):
             {'name':'set_ofName',       'crit': True},
             {'name':'set_wavelengths',  'crit': False},
             {'name':'set_detdisp',      'crit': False},
+            {'name':'set_isao',         'crit': False},
+            {'name':'set_ispol',        'crit': False},
             {'name':'set_wcs',          'crit': False},
             {'name':'set_elaptime',     'crit': False},
             {'name':'set_instr_status', 'crit': False}, # inststat
@@ -46,8 +49,6 @@ class Nirc2(instrument.Instrument):
             {'name':'set_npixsat',      'crit': False}, 
             {'name':'set_nlinear',      'crit': False},
             {'name':'set_sig2nois',     'crit': False},
-            {'name':'set_isao',         'crit': False},
-            {'name':'set_ispol',         'crit': False},
             {'name':'set_oa',           'crit': False},
             {'name':'set_dqa_date',     'crit': False},
             {'name':'set_dqa_vers',     'crit': False},
@@ -276,7 +277,7 @@ class Nirc2(instrument.Instrument):
         Set the WCS keywords for NIRC2 images
         '''
         # Skip if this an image cube
-        if self.isImageCube:
+        if self.isImageCube or self.isPolarimetry:
             return True
 
         pixscale = radecsys = wcsdim = 'null'
@@ -463,6 +464,8 @@ class Nirc2(instrument.Instrument):
 
         if instrume.startswith('NIRC2p') or fwoname.lower() == 'wollaston':
             ispol = 'yes'
+            self.isPolarimetry = True
+
         self.set_keyword('ISPOL', ispol, 'KOA: NIRC2 Polarimetry Data')
         return True
 
