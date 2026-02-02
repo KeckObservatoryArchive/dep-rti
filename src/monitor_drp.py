@@ -161,7 +161,7 @@ class Monitor():
         query = (f"select * from koa_status where level in (1,2) "
                 f" and status='QUEUED' "
                 f" and instrument='{self.instr}' "
-                f" order by creation_time asc limit 1")
+                f" order by level asc, creation_time asc limit 1")
 
         row = self.db.query('koa', query, getOne=True)
         if row is False:

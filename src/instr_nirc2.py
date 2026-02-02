@@ -24,6 +24,7 @@ class Nirc2(instrument.Instrument):
         self.keymap['OFNAME'] = 'FILENAME'
 
         self.isImageCube = False
+        self.isPolarimetry = False
 
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
@@ -38,6 +39,8 @@ class Nirc2(instrument.Instrument):
             {'name':'set_ofName',       'crit': True},
             {'name':'set_wavelengths',  'crit': False},
             {'name':'set_detdisp',      'crit': False},
+            {'name':'set_isao',         'crit': False},
+            {'name':'set_ispol',        'crit': False},
             {'name':'set_wcs',          'crit': False},
             {'name':'set_elaptime',     'crit': False},
             {'name':'set_instr_status', 'crit': False}, # inststat
@@ -46,7 +49,6 @@ class Nirc2(instrument.Instrument):
             {'name':'set_npixsat',      'crit': False}, 
             {'name':'set_nlinear',      'crit': False},
             {'name':'set_sig2nois',     'crit': False},
-            {'name':'set_isao',         'crit': False},
             {'name':'set_oa',           'crit': False},
             {'name':'set_dqa_date',     'crit': False},
             {'name':'set_dqa_vers',     'crit': False},
@@ -218,7 +220,7 @@ class Nirc2(instrument.Instrument):
 
     def set_wavelengths(self):
         '''
-        Sets WAVERED, WAVEBLUE, and WAVECEN
+        Sets WAVERED, WAVEBLUE, and WAVECNTR
         '''
         #get current wave values from header
         maxwave = float(self.get_keyword('MAXWAVE'))
@@ -275,7 +277,7 @@ class Nirc2(instrument.Instrument):
         Set the WCS keywords for NIRC2 images
         '''
         # Skip if this an image cube
-        if self.isImageCube:
+        if self.isImageCube or self.isPolarimetry:
             return True
 
         pixscale = radecsys = wcsdim = 'null'
@@ -335,12 +337,12 @@ class Nirc2(instrument.Instrument):
             cd1_2 = -sign * pixscale[camname] * np.sin(pa) / 3600.0
             cd2_1 = -sign * pixscale[camname] * np.sin(pa) / 3600.0
 
-            pixscale = '%f' % round(pixscale[camname], 6)
+            pixscale = round(float(pixscale[camname]), 6)
 
-            cd1_1 = '%0.12lf' % round(cd1_1, 12)
-            cd1_2 = '%0.12lf' % round(cd1_2, 12)
-            cd2_1 = '%0.12lf' % round(cd2_1, 12)
-            cd2_2 = '%0.12lf' % round(cd2_2, 12)
+            cd1_1 = round(float(cd1_1), 12)
+            cd1_2 = round(float(cd1_2), 12)
+            cd2_1 = round(float(cd2_1), 12)
+            cd2_2 = round(float(cd2_2), 12)
 
             crpix1 = round(float((naxis1 + 1) / 2.0), 2)
             crpix2 = round(float((naxis2 + 1) / 2.0), 2)
@@ -449,6 +451,22 @@ class Nirc2(instrument.Instrument):
         Sets AO status
         '''
         self.set_keyword('ISAO','yes','KOA: AO status')
+        return True
+
+
+    def set_ispol(self):
+        '''
+        Sets Polarimetry status with the ISPOL keyword: yes = NIRC2p, no = NIRC2
+        '''
+        ispol = 'no'
+        instrume = self.get_keyword('INSTRUME')
+        fwoname = self.get_keyword('FWONAME')
+
+        if instrume.startswith('NIRC2p') or fwoname.lower() == 'wollaston':
+            ispol = 'yes'
+            self.isPolarimetry = True
+
+        self.set_keyword('ISPOL', ispol, 'KOA: NIRC2 Polarimetry Data')
         return True
 
 

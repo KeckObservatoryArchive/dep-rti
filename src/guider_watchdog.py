@@ -107,7 +107,8 @@ class KoaGuiderWatchdog(PatternMatchingEventHandler):
                     self.log.info("Ignored CAMNAME=PCS|SSC or symlink: " + event.src_path)
             else:
                 self.log.info("Ignored: No CAMNAME " + event.src_path + " for " + instr_name)
-            hdul.close()
+            if hdul is not None:
+                hdul.close()
 
 def main():
 

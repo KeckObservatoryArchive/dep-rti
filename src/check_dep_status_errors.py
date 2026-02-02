@@ -14,10 +14,10 @@ import socket
 from getpass import getuser
 from socket import gethostname
 import requests
+import yaml
 
 #globals
 MAX_EMAIL_SEC = 2*60*60
-SLACKAPP = 'https://hooks.slack.com/workflows/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'
 
 def main(dev=False, admin_email=None, slack=False):
 
@@ -102,7 +102,12 @@ def main(dev=False, admin_email=None, slack=False):
             q = ("select * from koa_status where status_code<>'' and reviewed=0 order by id desc limit 1")
             lasterror = db.query('koa', q, getOne=True)
             data["message"] = f"{lasterror['instrument']}\n{lasterror['status_code']}\n{lasterror['ofname']}"
-            slackMsg = requests.post(SLACKAPP, json=data)
+            with open("config.live.ini") as f:
+                config = yaml.safe_load(f)
+            try:
+                slackMsg = requests.post(config["API"]["SLACKAPP"], json=data)
+            except Exception as e:
+                print(f"Error reading SLACKAPP from config.live.ini: {e}")
     else:
         print("\nNOT SENDING EMAIL")
 
