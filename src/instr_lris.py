@@ -1251,7 +1251,7 @@ class Lris(instrument.Instrument):
             'Slit Object Information': 'ObjectCat',
             'Slit Map': 'SlitObjMap',
             'Blue Mask': 'MaskBlu',
-            'Blue Slits': 'BlueSlits',
+            'Blue Slits': 'BluSlits',
         }
 
         return table_name_map.get(name, name)
