@@ -569,9 +569,11 @@ class KtlMonitor:
             if not os.path.isfile(filepath):
                 self.log.error(f"INVALID FILEPATH (file does not exist - {filepath}")
                 return            
-            if '/sdata' not in filepath and '/operations' not in filepath:
-                self.log.error(f"INVALID FILEPATH (no 'sdata' or 'operations')\t{self.instr}\t{keyword.service}\t{filepath}")
+
+            if not any(p in filepath for p in ('/sdata', '/operations', '/su-synoarchivedata')):
+                self.log.error(f"INVALID FILEPATH (no 'sdata' or 'operations' or 'su-synoarchivedata')\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
+
             if '/osiris/test/' in filepath:
                 self.log.error(f"INVALID FILEPATH\t{self.instr}\t{keyword.service}\t{filepath}")
                 return
