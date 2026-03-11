@@ -86,23 +86,16 @@ class Scales(instrument.Instrument):
 
     def get_prefix(self):
         instr = self.get_instr()
+        prefix = ''
         if instr == 'scales':
             try:
-                camera = self.get_keyword('OBSMODE').lower()
-                #ifsmodsel = self.get_keyword('IFSMODSEL').lower()
-                #if camera = 'ifs' and ifsmodsel in ['low-res', 'med-res']:
-                if camera in ['low-res', 'med-res', 'ifs']:
-                    prefix = 'SS'
-                elif camera in ('imager'):
-                    prefix = 'SI'
-                elif camera in ('dichroic'):
-                    prefix = 'SD'
-                else:
-                    prefix = ''
+                camera = self.get_keyword('CAMERA').lower()
             except:
-                prefix = ''
-        else:
-            prefix = ''
+                return prefix
+
+            allowed = {'ifs':'SS', 'im':'SI', 'dichroic':'SD'}
+            prefix = allowed.get(camera, '')
+            
         return prefix
 
 
