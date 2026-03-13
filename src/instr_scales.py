@@ -209,19 +209,18 @@ class Scales(instrument.Instrument):
         '''
         Fixes missing ELAPTIME keyword.
         '''
-        itime  = self.get_keyword('TRUITIME')
-        if self.get_keyword('ELAPTIME') is not None:
-            elaptime = self.get_keyword('ELAPTIME')
-        elif self.get_keyword('EXPTIME') is not None:
-            elaptime = self.get_keyword('EXPTIME')
-            log.info('set_elaptime: Setting ELAPTIME from EXPTIME')
-        elif self.get_keyword('XPOSURE') is not None:
-            elaptime = self.get_keyword('XPOSURE')
-            log.info('set_elaptime: Setting ELAPTIME from XPOSURE')
-        else:
-            self.log_warn('SET_ELAPTIME_ERROR')
-            return False
-        self.set_keyword('ELAPTIME', elaptime, 'KOA: Total integration time')
+
+        if self.get_keyword('ELAPTIME') is None:
+            log.info('set_elaptime: ELAPTIME keyword missing, attempting to set from other keywords')
+            exptime = self.get_keyword('EXPTIME')
+            if exptime is not None:
+                self.set_keyword('ELAPTIME', exptime, 'KOA: Total integration time set from EXPTIME')
+                log.info('set_elaptime: Setting ELAPTIME from EXPTIME')
+                return True
+            else:
+                self.log_warn('SET_ELAPTIME_ERROR')
+                return False
+
         return True
 
 
