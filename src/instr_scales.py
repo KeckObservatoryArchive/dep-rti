@@ -51,7 +51,6 @@ class Scales(instrument.Instrument):
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
             #{'name':'set_slitdims',    'crit': False}, # camera='fpc' but need 'fcs'
-            #{'name':'set_wcs',         'crit': False}, # not writing values to kwd, no camera!='fpc', but need 'fcs' 
             {'name':'set_dqa_vers',    'crit': False},
             {'name':'set_dqa_date',    'crit': False},
         ]
