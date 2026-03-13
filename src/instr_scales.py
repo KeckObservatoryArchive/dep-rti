@@ -50,7 +50,6 @@ class Scales(instrument.Instrument):
             {'name':'set_image_stats', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
-#            {'name':'set_npixsat',     'crit': False,  'args': {'satVal':65535}}, # need SATURATE header kwds; remove?
             #{'name':'set_slitdims',    'crit': False}, # camera='fpc' but need 'fcs'
             #{'name':'set_wcs',         'crit': False}, # not writing values to kwd, no camera!='fpc', but need 'fcs' 
             {'name':'set_dqa_vers',    'crit': False},
