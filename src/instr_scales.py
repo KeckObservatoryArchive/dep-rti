@@ -181,10 +181,9 @@ class Scales(instrument.Instrument):
         
         # warn if undefined
         #if (koaimtyp == 'undefined'):
-        if not koaimtyp:
+        if koaimtyp == 'undefined':
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
-            koaimtyp = 'undefined'
 
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type from IMTYPE')
         
@@ -195,20 +194,15 @@ class Scales(instrument.Instrument):
         '''
         Sets koaimtyp based on keyword values
         '''
-        # missing: 'bad', 'contbars', 'focus'
-        allowed = ('object', 'bias', 'dark', 'arclamp', 'flatlamp',
-                   'domeflat', 'twiflat', 'undefined')
 
-        koaimtyp = 'undefined'
-        imtype = self.get_keyword('IMTYPE')
-        if not imtype:
+        allowed = ('object', 'bias', 'dark', 'flatlamp', 'flatlens', 'wavecal')
+
+        imtype = self.get_keyword('IMTYPE', default='undefined').lower()
+
+        if imtype not in allowed:
             return 'undefined'
 
-        imtype = imtype.lower()
-        if imtype in allowed:
-            return imtype
-
-        return 'undefined'
+        return imtype
 
 
     def set_elaptime(self):
