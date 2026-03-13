@@ -87,11 +87,7 @@ class Scales(instrument.Instrument):
         instr = self.get_instr()
         prefix = ''
         if instr == 'scales':
-            try:
-                camera = self.get_keyword('CAMERA').lower()
-            except:
-                return prefix
-
+            camera = self.get_keyword('CAMERA', default='').lower()
             allowed = {'ifs':'SS', 'im':'SI', 'dichroic':'SD'}
             prefix = allowed.get(camera, '')
             
