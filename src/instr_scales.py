@@ -39,7 +39,6 @@ class Scales(instrument.Instrument):
         funcs = [
             {'name':'set_telnr',       'crit': True},
             {'name':'set_ut',          'crit': True},
-            {'name':'set_telescope',   'crit': False},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
 /bin/bash: :q: command not found
@@ -97,15 +96,6 @@ class Scales(instrument.Instrument):
             prefix = allowed.get(camera, '')
             
         return prefix
-
-
-    def set_telescope(self):
-        '''
-        Set telescope to Keck 2
-        '''
-        if self.get_keyword('TELESCOP') != None: return True
-        self.set_keyword('TELESCOP','Keck II','KOA: Telescope name')
-        return True
 
 
     def create_jpg_from_fits(self, fits_filepath, outdir_path):
