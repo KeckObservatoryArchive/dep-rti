@@ -41,7 +41,6 @@ class Scales(instrument.Instrument):
             {'name':'set_ut',          'crit': True},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
-/bin/bash: :q: command not found
             {'name':'set_prog_info',   'crit': True},
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
