@@ -179,10 +179,19 @@ def main():
     datadir = f'/kpfdata/data_drp/{level}/{utdate_str}'
     log_entry(f'Checking that directory exists {datadir}')
 
-    # Wait for directory to exist and, if today, time check
+    # Wait 30 minutes for directory to exist and, if today, time check
+    wait_mins = 10
+    timeout = dt.timedelta(minutes=wait_mins)
+    start_time = dt.datetime.now()
     while not isdir(datadir):
+        elapsed = dt.datetime.now() - start_time
+        if elapsed > timeout:
+            log_entry(f'Timeout after {wait_mins} minutes waiting for {datadir}')
+            break
+
         log_entry(f'Checking that directory exists {datadir}')
         time.sleep(sleep_time)
+
     log_entry(f'Directory exists {datadir}')
 
     # Setup monitoring of directory
