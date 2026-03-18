@@ -29,7 +29,6 @@ def main():
     parser.add_argument('instr', help='Keck Instrument')
     parser.add_argument('--filepath', type=str, default=None, help='Filepath to FITS file to archive.')
     parser.add_argument('--files', type=str, default=None, help='Directory path to FITS files.  Can use "glob" pattern match.')
-    # parser.add_argument('--dbid', type=str, default=None, help='Database ID record to archive.')
     parser.add_argument('--dbid', type=int, default=None, help='Database ID record to archive.')
     parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
     parser.add_argument('--starttime', type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
