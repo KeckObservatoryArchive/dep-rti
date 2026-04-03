@@ -170,7 +170,7 @@ def main():
 
     utdate = dt.datetime.strptime(args.utdate, '%Y-%m-%d')
     utdate_str = utdate.strftime('%Y%m%d')
-    stopHour = 19 if args.level == 1 else 2
+    stopHour = 19 if args.level == 1 else 4
     log_entry(f'lev{args.level} archiving for {utdate_str} UT')
 
     # Watch the L2 directory during the night
