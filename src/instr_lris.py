@@ -1188,6 +1188,10 @@ class Lris(instrument.Instrument):
         api_url = f'{api_base}?gui-name={guiname}'
         resp = requests.get(api_url)
 
+        if resp.status_code == 422:
+            log.warning(f"No mask exists in db for {guiname}")
+            return False
+
         try:
             resp.raise_for_status()
         except requests.exceptions.HTTPError as e:
