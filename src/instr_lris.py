@@ -230,7 +230,7 @@ class Lris(instrument.Instrument):
                         if self._is_red(instrume):
                             if graname != 'mirror':
                                 return 'arclamp'
-                        elif self.is_blue(instrume):
+                        elif self._is_blue(instrume):
                             if grisname != 'clear':
                                 return 'arclamp'
                 else:
