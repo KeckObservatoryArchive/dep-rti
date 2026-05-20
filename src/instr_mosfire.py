@@ -36,6 +36,7 @@ class Mosfire(instrument.Instrument):
             {'name':'set_prog_info',    'crit': True},
             {'name':'set_propint',      'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
+            {'name':'add_pypeit_type', 'crit': True}, # new 
             {'name':'set_elaptime',     'crit': False},
             {'name':'set_wavelengths',  'crit': False},
             {'name':'set_weather',      'crit': False},
@@ -178,6 +179,74 @@ class Mosfire(instrument.Instrument):
 
         # Update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
+        return True
+    
+    def add_pypeit_type(self): # new
+        '''
+        Add Pypeit image type to koa_status
+        Source file: pypeit/spectrographs/keck_mosfire.py 
+        '''
+        pypeit_type = ''
+
+        flatspec = self.get_keyword('FLATSPEC', default=0)
+        pwstata7 = self.get_keyword('PWSTATA7', default=0)
+        pwstata8 = self.get_keyword('PWSTATA8', default=0)
+        flspectr = self.get_keyword('FLSPECTR', default='')
+        filt     = self.get_keyword('FILTER',   default='')
+        object_  = self.get_keyword('OBJECT',   default='')
+        decker   = self.get_keyword('MASKNAME', default='')  
+
+        # lines 361 - 378
+        arc_on  = pwstata7 == 1 or pwstata8 == 1
+        flat_on = flatspec == 1
+        is_dark = flatspec == 0 and filt == 'Dark'
+
+        if is_dark:
+            idname = 'dark'
+        elif flat_on:
+            idname = 'flatlamp'
+        elif arc_on:
+            idname = 'arclamp'
+        elif flatspec == 0 and not arc_on and filt != 'Dark':
+            idname = 'flatlampoff' if 'Flat' in object_ else 'object'
+        else:
+            idname = 'unknown'
+
+        # lines 379 - 390
+        if arc_on:
+            lamps = []
+            if pwstata7 == 1:
+                pwloca7 = self.get_keyword('PWLOCA7', default='')
+                lamps.append(pwloca7[:2])
+            if pwstata8 == 1:
+                pwloca8 = self.get_keyword('PWLOCA8', default='')
+                lamps.append(pwloca8[:2])
+            lampstat = ','.join(lamps)
+        elif flat_on or flspectr == 'on':
+            lampstat = 'on'
+        else:
+            lampstat = 'off'
+
+        lamps_off = lampstat == 'off'
+        lamps_on  = lampstat == 'on'
+
+        # lines 729 - 746
+        if idname == 'object' and 'long2pos_specphot' not in decker:
+            pypeit_type = 'science'
+        elif lamps_off and idname == 'dark':
+            pypeit_type = 'dark'
+        elif lamps_off and idname == 'flatlampoff':
+            pypeit_type = 'lampoffflats'
+        elif lamps_on and idname == 'flatlamp':
+            pypeit_type = 'pixelflat'
+        elif idname == 'arclamp':
+            pypeit_type = 'arc'
+        elif lamps_off and idname == 'object' and 'long2pos_specphot' in decker:
+            pypeit_type = 'arc'
+        else:
+            pypeit_type = 'unknown'
+
+        self.update_koa_status('pypeit_type', pypeit_type)
         return True
 
 
