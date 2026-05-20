@@ -36,7 +36,7 @@ class Mosfire(instrument.Instrument):
             {'name':'set_prog_info',    'crit': True},
             {'name':'set_propint',      'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
-            {'name':'add_pypeit_type', 'crit': True}, # new 
+            {'name':'add_pypeit_type',  'crit': True}, # new 
             {'name':'set_elaptime',     'crit': False},
             {'name':'set_wavelengths',  'crit': False},
             {'name':'set_weather',      'crit': False},

@@ -30,6 +30,7 @@ class Nirspec(instrument.Instrument):
             {'name':'set_ut',           'crit': True},
             {'name':'set_elaptime',     'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
+            {'name':'add_pypeit_type',  'crit': True}, # new 
             {'name':'set_frameno',      'crit': True},
             {'name':'set_ofName',       'crit': True},
             {'name':'set_semester',     'crit': True},
@@ -213,7 +214,95 @@ class Nirspec(instrument.Instrument):
         #update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         return True
+    
+    def add_pypeit_type(self): # new
+        '''
+        Add Pypeit image type to koa_status
+        Source file: pypeit/spectrographs/keck_nirspec.py 
+        '''
+        pypeit_type = ''
 
+        #   KeckNIRSPECHighSpectrograph     (new, high-res)  — check_frame_type line 474, lamps line 517
+        #   KeckNIRSPECHighSpectrographOld  (old, high-res)  — check_frame_type line 916, lamps line 959
+        #   KeckNIRSPECLowSpectrograph      (new, low-res)   — check_frame_type line 1344, lamps line 1389
+
+        imtype   = self.get_keyword('IMTYPE')    # high-res line 413
+        imagetyp = self.get_keyword('IMAGETYP')  # low-res  line 1301
+
+        # lines 421/839/130
+        arc_lamps = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON']
+        arcs_on = any(self.get_keyword(l, default='') == 'On' for l in arc_lamps)
+
+        # lines 842/1306
+        halogen = self.get_keyword('HALOGEN', default='')
+        flat_kw = self.get_keyword('FLAT',    default='')
+        dome_on = halogen == 'On' or flat_kw == 'On'
+
+        lamps_off = not arcs_on and not dome_on
+
+        calmpos = self.get_keyword('CALMPOS', default='')
+
+        if imtype is not None:
+            # New high-res: line 494
+            hatch_open   = calmpos == 'Out'
+            hatch_closed = calmpos == 'In'
+            elaptime = self.get_keyword('ELAPTIME', default=0)
+
+            if lamps_off and hatch_open and elaptime > 60:
+                pypeit_type = 'arc'                        # lines 511-512 
+            elif lamps_off and hatch_open:
+                pypeit_type = 'science'                    # line 497
+            elif lamps_off and hatch_closed:
+                pypeit_type = 'dark'                       # line 499
+            elif dome_on and hatch_closed:
+                pypeit_type = 'pixelflat'                  # line 502
+            elif arcs_on and hatch_closed:
+                pypeit_type = 'arc'                        # line 509
+            else:
+                pypeit_type = 'unknown'
+
+        elif imagetyp is not None:
+            # New low-res: line 1364
+            try:
+                hatch_val = int(calmpos)
+            except (ValueError, TypeError):
+                hatch_val = -1
+            hatch_open   = hatch_val == 0
+            hatch_closed = hatch_val == 1
+            idname = imagetyp
+
+            if lamps_off and hatch_open and idname == 'object':
+                pypeit_type = 'science'                    # lines 1366 - 1367
+            elif lamps_off and hatch_open and idname == 'dark':
+                pypeit_type = 'dark'                       # lines 1369 - 1370
+            elif dome_on and hatch_closed and idname == 'flatlamp':
+                pypeit_type = 'pixelflat'                  # lines 1373 - 1374
+            elif arcs_on and hatch_closed and idname == 'arclamp':
+                pypeit_type = 'arc'                        # lines 1381 - 1382
+            else:
+                pypeit_type = 'unknown'
+
+        else:
+            # Old high-res: line 936
+            hatch_open   = calmpos == '0'
+            hatch_closed = calmpos == '1'
+            elaptime = self.get_keyword('ELAPTIME', default=0)
+
+            if lamps_off and hatch_open and elaptime > 60:
+                pypeit_type = 'arc'                        # lines 953 - 954 
+            elif lamps_off and hatch_open:
+                pypeit_type = 'science'                    # line 939
+            elif lamps_off and hatch_closed:
+                pypeit_type = 'dark'                       # line 941
+            elif dome_on and hatch_closed:
+                pypeit_type = 'pixelflat'                  # line 944
+            elif arcs_on and hatch_closed:
+                pypeit_type = 'arc'                        # line 951
+            else:
+                pypeit_type = 'unknown'
+
+        self.update_koa_status('pypeit_type', pypeit_type)
+        return True
 
     def set_filter(self):
         '''

@@ -28,6 +28,7 @@ class Nires(instrument.Instrument):
             {'name':'set_telnr',       'crit': True},
             {'name':'set_elaptime',    'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
+            {'name':'add_pypeit_type', 'crit': True}, # new 
             {'name':'set_ut',          'crit': True},
             {'name':'set_frameno',     'crit': True},
             {'name':'set_ofName',      'crit': True},
@@ -222,6 +223,40 @@ class Nires(instrument.Instrument):
 
         #update keyword
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
+        return True
+
+    def add_pypeit_type(self): # new
+        '''
+        Add Pypeit image type to koa_status
+        Source file: pypeit/spectrographs/keck_nires.py 
+        '''
+        pypeit_type = ''
+
+        idname = self.get_keyword('OBSTYPE',  default='')
+        target = self.get_keyword('TARGNAME', default='')
+
+        is_object  = idname in ('object', 'Object')
+        is_cal     = idname in ('standard', 'telluric')
+        is_dome    = target == 'DOME PHLAT'
+
+        # lines 457 - 465
+        if idname in ('dark', 'Dark'):
+            pypeit_type = 'lampoffflats'
+        # line 467
+        elif idname in ('domeflat', 'DomeFlat'):
+            pypeit_type = 'pixelflat'
+        # lines 461 - 463
+        elif (is_object or is_cal) and not is_dome:
+            pypeit_type = 'standard'
+        # lines 468 - 473
+        # arcs are >= 61 seconds
+        elif is_object and not is_dome:
+            elaptime = self.get_keyword('ELAPTIME', default=0)
+            pypeit_type = 'arc' if elaptime >= 61 else 'science'
+        else:
+            pypeit_type = 'unknown'
+
+        self.update_koa_status('pypeit_type', pypeit_type)
         return True
 
 
