@@ -73,6 +73,7 @@ class Deimos(instrument.Instrument):
             {'name':'set_fcs_date_time','crit': True},
             {'name':'set_ut',           'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
+            {'name':'add_pypeit_type', 'crit': True}, # new 
             {'name':'set_fcskoaid',     'crit': False},
             {'name':'set_ofName',       'crit': True},
             {'name':'set_semester',     'crit': True},
@@ -244,6 +245,50 @@ class Deimos(instrument.Instrument):
             return 'fcscal'
 
         return 'undefined'
+    
+    def add_pypeit_type(self): # new
+        '''
+        Add Pypeit image type to koa_status
+        Source file: pypeit/spectrographs/keck_deimos.py 
+        '''
+        pypeit_type = ''
+
+        # lines 484 - 490
+        idname   = self.get_keyword('OBSTYPE',  default='')          
+        lampstat = self.get_keyword('LAMPS',    default='')          
+        hatch    = self.get_keyword('HATCHPOS', default='').lower()  
+        mode     = self.get_keyword('MOSMODE',  default='')      
+
+        # only applies to Spectral-mode frames, lines 667 – 668
+        if mode != 'Spectral':
+            pypeit_type = 'unknown'   
+        
+        lamps_on = lampstat != 'Off' # reused lamp check
+
+        # lines 669 - 686
+        if idname == 'Object' and not lamps_on and hatch == 'open':   
+            pypeit_type = 'science'
+        if idname == 'Bias' and not lamps_on and hatch == 'closed':   
+            pypeit_type = 'bias'
+        if idname == 'Dark' and not lamps_on and hatch == 'closed':    
+            pypeit_type = 'dark'
+        
+        # lines 675 - 689
+        is_flat = (
+            (idname == 'IntFlat' and hatch == 'closed') or
+            (idname == 'DmFlat'  and hatch == 'open')   or
+            (idname == 'SkyFlat' and hatch == 'open')
+        )
+        if is_flat and lamps_on:
+            pypeit_type = 'pixelflat'
+        if idname == 'Line' and hatch == 'closed' and lamps_on:    
+            pypeit_type = 'arc'
+
+        pypeit_type = 'unknown'
+
+        self.update_koa_status('pypeit_type', pypeit_type)
+
+        return True 
 
 
     def set_camera(self):
