@@ -281,10 +281,11 @@ class Deimos(instrument.Instrument):
         )
         if is_flat and lamps_on:
             pypeit_type = 'pixelflat'
-        if idname == 'Line' and hatch == 'closed' and lamps_on:    
+        elif idname == 'Line' and hatch == 'closed' and lamps_on:
             pypeit_type = 'arc'
 
-        pypeit_type = 'unknown'
+        if not pypeit_type:
+            pypeit_type = 'unknown'
 
         self.update_koa_status('pypeit_type', pypeit_type)
 

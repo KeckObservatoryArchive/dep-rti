@@ -32,6 +32,7 @@ class Esi(instrument.Instrument):
             {'name':'set_telnr',        'crit': True},
             {'name':'set_camera',       'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
+            {'name':'add_pypeit_type', 'crit': True}, # new 
             {'name':'set_ut',           'crit': True},
             {'name':'set_frameno',      'crit': True},
             {'name':'set_ofName',       'crit': True},
@@ -246,6 +247,31 @@ class Esi(instrument.Instrument):
                     return 'object'
 
         return 'undefined'
+    
+    def add_pypeit_type(self): # new
+        '''
+        Add Pypeit image type to koa_status
+        Source file: pypeit/spectrographs/keck_esi.py 
+        '''
+        pypeit_type = ''
+
+        idname = self.get_keyword('OBSTYPE', default='')   # line 172
+
+        # lines 271 - 282
+        if idname == 'Bias':
+            pypeit_type = 'bias'
+        elif idname in ('DmFlat', 'IntFlat', 'SkyFlat'):
+            pypeit_type = 'pixelflat'
+        elif idname == 'Line':
+            pypeit_type = 'arc'
+        elif idname == 'Object':
+            pypeit_type = 'science'
+        else:
+            pypeit_type = 'unknown'
+        
+        self.update_koa_status('pypeit_type', pypeit_type)
+
+        return True 
 
 
     def set_filter(self):
