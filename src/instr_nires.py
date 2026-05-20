@@ -230,31 +230,33 @@ class Nires(instrument.Instrument):
         Add Pypeit image type to koa_status
         Source file: pypeit/spectrographs/keck_nires.py 
         '''
-        pypeit_type = ''
+        pypeit_type = 'unknown'
+        try:
+            idname = self.get_keyword('OBSTYPE',  default='')
+            target = self.get_keyword('TARGNAME', default='')
 
-        idname = self.get_keyword('OBSTYPE',  default='')
-        target = self.get_keyword('TARGNAME', default='')
+            is_object  = idname in ('object', 'Object')
+            is_cal     = idname in ('standard', 'telluric')
+            is_dome    = target == 'DOME PHLAT'
 
-        is_object  = idname in ('object', 'Object')
-        is_cal     = idname in ('standard', 'telluric')
-        is_dome    = target == 'DOME PHLAT'
-
-        # lines 457 - 465
-        if idname in ('dark', 'Dark'):
-            pypeit_type = 'lampoffflats'
-        # line 467
-        elif idname in ('domeflat', 'DomeFlat'):
-            pypeit_type = 'pixelflat'
-        # lines 461 - 463
-        elif (is_object or is_cal) and not is_dome:
-            pypeit_type = 'standard'
-        # lines 468 - 473
-        # arcs are >= 61 seconds
-        elif is_object and not is_dome:
-            elaptime = self.get_keyword('ELAPTIME', default=0)
-            pypeit_type = 'arc' if elaptime >= 61 else 'science'
-        else:
-            pypeit_type = 'unknown'
+            # lines 457 - 465
+            if idname in ('dark', 'Dark'):
+                pypeit_type = 'lampoffflats'
+            # line 467
+            elif idname in ('domeflat', 'DomeFlat'):
+                pypeit_type = 'pixelflat'
+            # lines 461 - 463
+            elif (is_object or is_cal) and not is_dome:
+                pypeit_type = 'standard'
+            # lines 468 - 473
+            # arcs are >= 61 seconds
+            elif is_object and not is_dome:
+                elaptime = self.get_keyword('ELAPTIME', default=0)
+                pypeit_type = 'arc' if elaptime >= 61 else 'science'
+            else:
+                pypeit_type = 'unknown'
+        except Exception:
+            pypeit_type = 'error'
 
         self.update_koa_status('pypeit_type', pypeit_type)
         return True

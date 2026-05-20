@@ -253,21 +253,23 @@ class Esi(instrument.Instrument):
         Add Pypeit image type to koa_status
         Source file: pypeit/spectrographs/keck_esi.py 
         '''
-        pypeit_type = ''
+        pypeit_type = 'unknown'
+        try:
+            idname = self.get_keyword('OBSTYPE', default='')   # line 172
 
-        idname = self.get_keyword('OBSTYPE', default='')   # line 172
-
-        # lines 271 - 282
-        if idname == 'Bias':
-            pypeit_type = 'bias'
-        elif idname in ('DmFlat', 'IntFlat', 'SkyFlat'):
-            pypeit_type = 'pixelflat'
-        elif idname == 'Line':
-            pypeit_type = 'arc'
-        elif idname == 'Object':
-            pypeit_type = 'science'
-        else:
-            pypeit_type = 'unknown'
+            # lines 271 - 282
+            if idname == 'Bias':
+                pypeit_type = 'bias'
+            elif idname in ('DmFlat', 'IntFlat', 'SkyFlat'):
+                pypeit_type = 'pixelflat'
+            elif idname == 'Line':
+                pypeit_type = 'arc'
+            elif idname == 'Object':
+                pypeit_type = 'science'
+            else:
+                pypeit_type = 'unknown'
+        except Exception:
+            pypeit_type = 'error'
         
         self.update_koa_status('pypeit_type', pypeit_type)
 

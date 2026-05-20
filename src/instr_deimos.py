@@ -251,41 +251,43 @@ class Deimos(instrument.Instrument):
         Add Pypeit image type to koa_status
         Source file: pypeit/spectrographs/keck_deimos.py 
         '''
-        pypeit_type = ''
+        pypeit_type = 'unknown'
+        try:
+            # lines 484 - 490
+            idname   = self.get_keyword('OBSTYPE',  default='')
+            lampstat = self.get_keyword('LAMPS',    default='')
+            hatch    = self.get_keyword('HATCHPOS', default='').lower()
+            mode     = self.get_keyword('MOSMODE',  default='')
 
-        # lines 484 - 490
-        idname   = self.get_keyword('OBSTYPE',  default='')          
-        lampstat = self.get_keyword('LAMPS',    default='')          
-        hatch    = self.get_keyword('HATCHPOS', default='').lower()  
-        mode     = self.get_keyword('MOSMODE',  default='')      
+            # only applies to Spectral-mode frames, lines 667 – 668
+            if mode != 'Spectral':
+                pypeit_type = 'unknown'
 
-        # only applies to Spectral-mode frames, lines 667 – 668
-        if mode != 'Spectral':
-            pypeit_type = 'unknown'   
-        
-        lamps_on = lampstat != 'Off' # reused lamp check
+            lamps_on = lampstat != 'Off'
 
-        # lines 669 - 686
-        if idname == 'Object' and not lamps_on and hatch == 'open':   
-            pypeit_type = 'science'
-        if idname == 'Bias' and not lamps_on and hatch == 'closed':   
-            pypeit_type = 'bias'
-        if idname == 'Dark' and not lamps_on and hatch == 'closed':    
-            pypeit_type = 'dark'
-        
-        # lines 675 - 689
-        is_flat = (
-            (idname == 'IntFlat' and hatch == 'closed') or
-            (idname == 'DmFlat'  and hatch == 'open')   or
-            (idname == 'SkyFlat' and hatch == 'open')
-        )
-        if is_flat and lamps_on:
-            pypeit_type = 'pixelflat'
-        elif idname == 'Line' and hatch == 'closed' and lamps_on:
-            pypeit_type = 'arc'
+            # lines 669 - 686
+            if idname == 'Object' and not lamps_on and hatch == 'open':
+                pypeit_type = 'science'
+            if idname == 'Bias' and not lamps_on and hatch == 'closed':
+                pypeit_type = 'bias'
+            if idname == 'Dark' and not lamps_on and hatch == 'closed':
+                pypeit_type = 'dark'
 
-        if not pypeit_type:
-            pypeit_type = 'unknown'
+            # lines 675 - 689
+            is_flat = (
+                (idname == 'IntFlat' and hatch == 'closed') or
+                (idname == 'DmFlat'  and hatch == 'open')   or
+                (idname == 'SkyFlat' and hatch == 'open')
+            )
+            if is_flat and lamps_on:
+                pypeit_type = 'pixelflat'
+            elif idname == 'Line' and hatch == 'closed' and lamps_on:
+                pypeit_type = 'arc'
+
+            if not pypeit_type:
+                pypeit_type = 'unknown'
+        except Exception:
+            pypeit_type = 'error'
 
         self.update_koa_status('pypeit_type', pypeit_type)
 

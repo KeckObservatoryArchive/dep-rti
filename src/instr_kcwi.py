@@ -174,50 +174,52 @@ class Kcwi(instrument.Instrument):
         Add Pypeit image type to koa_status
         Source file: pypeit/spectrographs/keck_kcwi.py 
         '''
-        pypeit_type = ''
+        pypeit_type = 'unknown'
+        try:
+            # lines 81 - 84
+            imtype  = self.get_keyword('IMTYPE',  default='')
+            calpos  = self.get_keyword('CALMNAM', default='')
+            hatch   = self.get_keyword('HATPOS',  default='')
 
-        # lines 81 - 84 
-        imtype  = self.get_keyword('IMTYPE',  default='')
-        calpos  = self.get_keyword('CALMNAM', default='')
-        hatch   = self.get_keyword('HATPOS',  default='')
+            # lines 96 - 107
+            # lamp states — lamps: LMP0=FeAr, LMP1=ThAr, LMP2=Aux, LMP3=Continuum, FLSPECTR=dome
+            lmp0stat = str(self.get_keyword('LMP0STAT', default='0'))
+            lmp1stat = str(self.get_keyword('LMP1STAT', default='0'))
+            lmp2stat = str(self.get_keyword('LMP2STAT', default='0'))
+            lmp3stat = str(self.get_keyword('LMP3STAT', default='0'))
+            lmp0shst = str(self.get_keyword('LMP0SHST', default='1'))
+            lmp1shst = str(self.get_keyword('LMP1SHST', default='1'))
+            flspectr = str(self.get_keyword('FLSPECTR', default='off'))
 
-        # lines 96 - 107
-        # lamp states — lamps: LMP0=FeAr, LMP1=ThAr, LMP2=Aux, LMP3=Continuum, FLSPECTR=dome
-        lmp0stat = str(self.get_keyword('LMP0STAT', default='0'))
-        lmp1stat = str(self.get_keyword('LMP1STAT', default='0'))
-        lmp2stat = str(self.get_keyword('LMP2STAT', default='0'))
-        lmp3stat = str(self.get_keyword('LMP3STAT', default='0'))
-        lmp0shst = str(self.get_keyword('LMP0SHST', default='1'))
-        lmp1shst = str(self.get_keyword('LMP1SHST', default='1'))
-        flspectr = str(self.get_keyword('FLSPECTR', default='off'))
+            # lines 457 - 499
+            lamps_off    = all(v in ('0', 'None', 'off') for v in [lmp0stat, lmp1stat, lmp2stat, lmp3stat, flspectr])
+            arcs         = lmp0stat == '1' and lmp0shst == '1' and lmp3stat == '0'
+            tilts        = lmp1stat == '1' and lmp1shst == '1' and lmp3stat == '0'
+            cont_noarc   = lmp3stat == '1' and lmp0stat == '0' and lmp1stat == '0'
+            cont         = lmp3stat == '1'
+            dome_noarc   = flspectr == 'on' and lmp0stat == '0' and lmp1stat == '0'
 
-        # lines 457 - 499
-        lamps_off    = all(v in ('0', 'None', 'off') for v in [lmp0stat, lmp1stat, lmp2stat, lmp3stat, flspectr])
-        arcs         = lmp0stat == '1' and lmp0shst == '1' and lmp3stat == '0'
-        tilts        = lmp1stat == '1' and lmp1shst == '1' and lmp3stat == '0'
-        cont_noarc   = lmp3stat == '1' and lmp0stat == '0' and lmp1stat == '0'
-        cont         = lmp3stat == '1'
-        dome_noarc   = flspectr == 'on' and lmp0stat == '0' and lmp1stat == '0'
-
-        # lines 393 - 415
-        if imtype == 'BIAS':
-            pypeit_type = 'bias'
-        elif imtype == 'DARK' and lamps_off and hatch == 'Closed':
-            pypeit_type = 'dark'
-        elif imtype == 'OBJECT' and calpos == 'Sky' and lamps_off and hatch == 'Open':
-            pypeit_type = 'science'
-        elif imtype == 'ARCLAMP' and calpos == 'Mirror' and arcs:
-            pypeit_type = 'arc'
-        elif imtype == 'ARCLAMP' and calpos == 'Mirror' and tilts:
-            pypeit_type = 'tilt'
-        elif imtype == 'FLATLAMP' and calpos == 'Mirror' and cont_noarc:
-            pypeit_type = 'pixelflat'
-        elif imtype == 'DOMEFLAT' and calpos == 'Sky' and dome_noarc and hatch == 'Open':
-            pypeit_type = 'illumflat'
-        elif imtype == 'CONTBARS' and calpos == 'Mirror' and cont:
-            pypeit_type = 'align'
-        else:
-            pypeit_type = 'unknown'
+            # lines 393 - 415
+            if imtype == 'BIAS':
+                pypeit_type = 'bias'
+            elif imtype == 'DARK' and lamps_off and hatch == 'Closed':
+                pypeit_type = 'dark'
+            elif imtype == 'OBJECT' and calpos == 'Sky' and lamps_off and hatch == 'Open':
+                pypeit_type = 'science'
+            elif imtype == 'ARCLAMP' and calpos == 'Mirror' and arcs:
+                pypeit_type = 'arc'
+            elif imtype == 'ARCLAMP' and calpos == 'Mirror' and tilts:
+                pypeit_type = 'tilt'
+            elif imtype == 'FLATLAMP' and calpos == 'Mirror' and cont_noarc:
+                pypeit_type = 'pixelflat'
+            elif imtype == 'DOMEFLAT' and calpos == 'Sky' and dome_noarc and hatch == 'Open':
+                pypeit_type = 'illumflat'
+            elif imtype == 'CONTBARS' and calpos == 'Mirror' and cont:
+                pypeit_type = 'align'
+            else:
+                pypeit_type = 'unknown'
+        except Exception:
+            pypeit_type = 'error'
 
         self.update_koa_status('pypeit_type', pypeit_type)
 

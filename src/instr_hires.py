@@ -191,45 +191,44 @@ class Hires(instrument.Instrument):
         Add Pypeit image type to koa_status
         Source file: pypeit/spectrographs/keck_hires.py 
         '''
-        pypeit_type = ''
+        pypeit_type = 'unknown'
+        try:
+            # lines 290 - 318
+            xcovopen  = self.get_keyword('XCOVOPEN',  default=False)
+            xdispers  = self.get_keyword('XDISPERS',  default='')      # (dispname meta, line 256)
+            rccvopen  = self.get_keyword('RCCVOPEN',  default=False)
+            bccvopen  = self.get_keyword('BCCVOPEN',  default=False)
+            hatopen   = self.get_keyword('HATOPEN',   default=False)   # (hatch meta, line 255)
+            autoshut  = self.get_keyword('AUTOSHUT',  default=False)
+            lampcat1  = self.get_keyword('LAMPCAT1',  default=False)
+            lampcat2  = self.get_keyword('LAMPCAT2',  default=False)
+            lampqtz2  = self.get_keyword('LAMPQTZ2',  default=False)
+            lampname  = self.get_keyword('LAMPNAME',  default='')
+            elaptime  = self.get_keyword('ELAPTIME',  default=0)       # (exptime meta, line 251)
 
-        # lines 290 - 318
-        xcovopen  = self.get_keyword('XCOVOPEN',  default=False)  
-        xdispers  = self.get_keyword('XDISPERS',  default='')      # (dispname meta, line 256)
-        rccvopen  = self.get_keyword('RCCVOPEN',  default=False)  
-        bccvopen  = self.get_keyword('BCCVOPEN',  default=False)   
-        hatopen   = self.get_keyword('HATOPEN',   default=False)   # (hatch meta, line 255)
-        autoshut  = self.get_keyword('AUTOSHUT',  default=False)   
-        lampcat1  = self.get_keyword('LAMPCAT1',  default=False)   
-        lampcat2  = self.get_keyword('LAMPCAT2',  default=False)   
-        lampqtz2  = self.get_keyword('LAMPQTZ2',  default=False)  
-        lampname  = self.get_keyword('LAMPNAME',  default='')      
-        elaptime  = self.get_keyword('ELAPTIME',  default=0)       # (exptime meta, line 251)
+            # lines 301 – 302
+            collcoveropen = (xdispers == 'RED' and rccvopen) or (xdispers == 'UV' and bccvopen)
+            # lines 290 – 291, 305, 314
+            arc_on  = lampcat1 or lampcat2
+            # lines 292 – 295, 306, 318
+            flat_on = lampqtz2 or lampname == 'quartz1'
 
-        # lines 301 – 302
-        collcoveropen = (xdispers == 'RED' and rccvopen) or (xdispers == 'UV' and bccvopen)
-        # lines 290 – 291, 305, 314
-        arc_on  = lampcat1 or lampcat2
-        # lines 292 – 295, 306, 318
-        flat_on = lampqtz2 or lampname == 'quartz1'
-
-        # lines 304 – 312
-        if xcovopen and collcoveropen and not arc_on and not flat_on:
-            if hatopen and autoshut:
-                pypeit_type = 'science'  #  lines 425 – 426
-            elif not hatopen:
-                pypeit_type = 'bias' if elaptime < 0.001 else 'dark'  # lines 427 – 430
-
-        # lines 313 – 315 and lines 436 – 438
-        elif xcovopen and collcoveropen and autoshut and arc_on:
-            pypeit_type = 'arc'
-
-        #  lines 316 – 323 and lines 431 – 435
-        elif collcoveropen and autoshut and flat_on and not hatopen:
-            pypeit_type = 'slitless_pixflat' if not xcovopen else 'pixelflat'
-
-        else:
-            pypeit_type = 'unknown'
+            # lines 304 – 312
+            if xcovopen and collcoveropen and not arc_on and not flat_on:
+                if hatopen and autoshut:
+                    pypeit_type = 'science'                                    #  lines 425 – 426
+                elif not hatopen:
+                    pypeit_type = 'bias' if elaptime < 0.001 else 'dark'      # lines 427 – 430
+            # lines 313 – 315 and lines 436 – 438
+            elif xcovopen and collcoveropen and autoshut and arc_on:
+                pypeit_type = 'arc'
+            #  lines 316 – 323 and lines 431 – 435
+            elif collcoveropen and autoshut and flat_on and not hatopen:
+                pypeit_type = 'slitless_pixflat' if not xcovopen else 'pixelflat'
+            else:
+                pypeit_type = 'unknown'
+        except Exception:
+            pypeit_type = 'error'
 
         self.update_koa_status('pypeit_type', pypeit_type)
         return True
