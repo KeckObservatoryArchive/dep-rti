@@ -54,6 +54,7 @@ class Lris(instrument.Instrument):
             {'name':'set_ut',           'crit': True},
             {'name':'set_elaptime',     'crit': True},
             {'name':'set_koaimtyp',     'crit': True},
+            {'name':'add_pypeit_type', 'crit': True}, # new 
             {'name':'set_ofName',       'crit': True},
             {'name':'set_frameno',      'crit': True},
             {'name':'set_semester',     'crit': True},
@@ -262,6 +263,75 @@ class Lris(instrument.Instrument):
 
         #undefined
         return 'undefined'
+    
+    def add_pypeit_type(self): # new
+        '''
+        Add Pypeit image type to koa_status
+        Source file: pypeit/spectrographs/keck_lris.py 
+        '''
+        pypeit_type = ''
+
+        # lines 344 - 415 
+        instrume = self.get_keyword('INSTRUME', default='')
+        # line 180
+        decker   = self.get_keyword('SLITNAME', default='')
+        # line 188
+        hatch    = self.get_keyword('TRAPDOOR', default='').lower()
+
+        # liens 1081 and 1546 
+        if self.is_blue(instrume):
+            dispname = self.get_keyword('GRISNAME', default='').lower()
+        else:
+            dispname = self.get_keyword('GRANAME', default='').lower()
+
+        # lines 263-294
+        lampstat = self.lampstat()
+        lamps_off      = lampstat == 'off'
+        lamps_dome     = lampstat == 'on'                                 
+        lamps_internal = any(l in lampstat for l in ('Halogen', '2H'))   
+        lamps_arcs     = lampstat not in ('Halogen', '2H', 'on', 'off')  # line 494
+
+        # line 364
+        no_focus = decker != 'GOH_LRIS'
+        # line 366
+        no_img   = dispname not in ('mirror', 'clear')
+
+        if not no_focus:
+            pypeit_type = 'unknown (focus frame)'
+        elif not no_img:
+            pypeit_type = 'unknown (imaging mode)'
+        # line 380
+        elif lamps_off and hatch == 'closed':
+            pypeit_type = 'bias'
+        # line 412
+        elif lamps_arcs and hatch == 'closed' and no_img:
+            pypeit_type = 'arc'
+        # line 387
+        elif lamps_dome and hatch == 'open' and no_img:
+            pypeit_type = 'pixelflat'
+        # line 388
+        elif lamps_internal and hatch == 'closed' and no_img:
+            pypeit_type = 'pixelflat'
+        # lines 381 - 384
+        elif lamps_off and hatch == 'open' and no_img and decker == 'direct':
+            pypeit_type = 'slitless_pixflat'
+        # lines 385 - 407
+        elif lamps_off and hatch == 'open' and no_img:
+            sky_words  = ['sky', 'blank', 'twilight', 'twiflat', 'twi flat']
+            object_val = self.get_keyword('OBJECT', default='').lower()
+            target_val = self.get_keyword('TARGET', default='').lower()
+            is_sky = any(w in object_val for w in sky_words) or any(w in target_val for w in sky_words)
+            if is_sky and decker != 'direct':
+                pypeit_type = 'pixelflat'
+            else:
+                pypeit_type = 'science'
+        else:
+            pypeit_type = 'unknown'
+
+        self.update_koa_status('pypeit_type', pypeit_type)
+        return True
+
+    
 
 
     def set_obsmode(self):
