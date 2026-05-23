@@ -53,6 +53,8 @@ class Kcwi(instrument.Instrument):
             {'name':'set_wcs',         'crit': False},
             {'name':'set_dqa_vers',    'crit': False},
             {'name':'set_dqa_date',    'crit': False},
+            {'name':'store_calib_info','crit': False},
+            {'name':'group_files',     'crit': False},
         ]
         return self.run_functions(funcs)
 
@@ -543,3 +545,103 @@ class Kcwi(instrument.Instrument):
             destfile = f'{outdir}/{os.path.basename(srcfile)}'
         return True, destfile
 
+    def store_calib_info(self):
+        ''' Store keywords associated with calibration association'''
+
+        # necessary keywords to group
+        koaid    = self.get_keyword('KOAID')
+        #instrume = self.get_keyword('INSTRUME') # TODO: use keyword or just type KCWI?
+        koaimtyp = self.get_keyword('KOAIMTYP')
+        date_obs = self.get_keyword('DATE-OBS')
+        stateid  = self.get_keyword('STATEID')
+
+        query = (
+            'INSERT INTO koa_calib (koaid, instrume, koaimtyp, date_obs, stateid) '
+            'VALUES (%s, %s, %s, %s, %s) '
+            'ON DUPLICATE KEY UPDATE '
+            '  koaimtyp=%s, stateid=%s'
+        )
+        values = (koaid, 'KCWI', koaimtyp, date_obs, stateid,
+                  koaimtyp, stateid)
+        result = self.db.query('koa', query, values=values)
+        # if result is False:
+        #     self.log_warn('STORE_CALIB_META_ERROR', f'koaid={koaid}')
+        #     return False
+        return True
+    
+    def group_file(self):
+        '''
+        Grouping files by matching on stateid within a +-3 day date window,
+        Source file: KOACalib/KCWICalib.c
+
+        two possibilties: (so table is always most recently updated)
+          1. file is science  -> find all calibs that match it, insert pairs
+          2. file is a calib  -> find all science frames that match it, insert pairs
+
+        INSERT IGNORE prevents duplicates if file is reprocessed
+        '''
+        koaid = self.get_keyword('KOAID')
+
+        # query necessary values koa_calib 
+        row = self.db.query('koa',
+            'SELECT koaimtyp, date_obs, stateid FROM koa_calib WHERE koaid = %s',
+            values=(koaid,), getOne=True)
+        
+        # TODO: error checking? I dont want to break rti
+        # if not row:
+        #     log.info(f'group_file: no calib_meta row found for {koaid}, skipping')
+        #     return True
+        # kcwi needs stateid (instrument config) and date_obs
+        # if not stateid or not date_obs:
+        #     log.info(f'group_file: skipping {koaid} : missing stateid or date_obs')
+        #     return True
+
+        koaimtyp = row['koaimtyp']
+        date_obs = row['date_obs']
+        stateid  = row['stateid']
+
+        # SCIENCE FILE
+        if koaimtyp == 'object':
+        # Find every calib file in koa_calib that:
+        #   - is KCWI, is NOT a science file, same stateid, within -+ 3 days
+        #  write a (this science, that calib) pair into koa_calib_groups
+            query = (
+                'SELECT koaid FROM koa_calib '
+                'WHERE instrume = %s '
+                '  AND koaimtyp != %s '
+                '  AND stateid = %s '
+                '  AND date_obs BETWEEN DATE_SUB(%s, INTERVAL 3 DAY) '
+                '                   AND DATE_ADD(%s, INTERVAL 3 DAY)'
+            )
+            values = ('KCWI', 'object', stateid, date_obs, date_obs)
+            rows = self.db.query('koa', query, values=values)
+            if rows:
+                for row in rows:
+                    self.db.query('koa',
+                        'INSERT IGNORE INTO koa_calib_groups '
+                        '(science_koaid, calib_koaid) VALUES (%s, %s)',
+                        values=(koaid, row['koaid']))
+        # CALIBRATION FILE
+        else:
+            # Find every science frame in koa_calib that:
+            #   - is also KCWI, IS science file, same stateid, within 3 days of this calib
+            #  write a (that science, this calib) pair into koa_calib_groups
+            query = (
+                'SELECT koaid FROM koa_calib '
+                'WHERE instrume = %s '
+                '  AND koaimtyp = %s '
+                '  AND stateid = %s '
+                '  AND date_obs BETWEEN DATE_SUB(%s, INTERVAL 3 DAY) '
+                '                   AND DATE_ADD(%s, INTERVAL 3 DAY)'
+            )
+            values = ('KCWI', 'object', stateid, date_obs, date_obs)
+            rows = self.db.query('koa', query, values=values)
+            if rows:
+                for row in rows:
+                    # science first, calib second
+                    self.db.query('koa',
+                        'INSERT IGNORE INTO koa_calib_groups '
+                        '(science_koaid, calib_koaid) VALUES (%s, %s)',
+                        values=(row['koaid'], koaid))
+
+        return True
