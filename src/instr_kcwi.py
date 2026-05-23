@@ -546,7 +546,7 @@ class Kcwi(instrument.Instrument):
         return True, destfile
 
     def store_calib_info(self):
-        ''' Store keywords associated with calibration association'''
+        ''' Store keywords associated with calibration association in koa_calib table '''
 
         # necessary keywords to group
         koaid    = self.get_keyword('KOAID')
@@ -571,6 +571,7 @@ class Kcwi(instrument.Instrument):
     
     def group_file(self):
         '''
+        Calibration Association: 
         Grouping files by matching on stateid within a +-3 day date window,
         Source file: KOACalib/KCWICalib.c
 

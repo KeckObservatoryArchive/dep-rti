@@ -95,6 +95,8 @@ class Deimos(instrument.Instrument):
             {'name':'set_datlevel',     'crit': False,  'args': {'level':0}},
             {'name':'set_dqa_vers',     'crit': False},
             {'name':'set_dqa_date',     'crit': False},
+            {'name':'store_calib_meta', 'crit': False},
+            {'name':'group_file',       'crit': False},
         ]
         return self.run_functions(funcs)
 
@@ -777,3 +779,81 @@ class Deimos(instrument.Instrument):
             self.xfr_files.append(jpg_file)
         return True
 
+
+    def store_calib_meta(self):
+        ''' Store keywords associated with calibration association in koa_calib table '''
+
+        koaid    = self.get_keyword('KOAID')
+        koaimtyp = self.get_keyword('KOAIMTYP')
+        date_obs = self.get_keyword('DATE-OBS')
+
+        query = (
+            'INSERT INTO koa_calib_meta (koaid, instrume, koaimtyp, date_obs) '
+            'VALUES (%s, %s, %s, %s) '
+            'ON DUPLICATE KEY UPDATE koaimtyp=%s, date_obs=%s'
+        )
+        values = (koaid, 'DEIMOS', koaimtyp, date_obs, koaimtyp, date_obs)
+        result = self.db.query('koa', query, values=values)
+    
+        # TODO: log warnings?
+        # if result is False:
+        #     self.log_warn('STORE_CALIB_META_ERROR', f'koaid={koaid}')
+        #     return False
+        return True
+
+    def group_file(self):
+        '''
+        Calibration Association: 
+        Grouping files by matching on date only
+        Source file: KOACalib/DateCalib.c
+        '''
+        koaid = self.get_keyword('KOAID')
+
+        # query necessary values koa_calib 
+        row = self.db.query('koa',
+            'SELECT koaimtyp, date_obs FROM koa_calib_meta WHERE koaid = %s',
+            values=(koaid,), getOne=True)
+        # if not row:
+        #     log.info(f'group_file: no calib_meta row found for {koaid}, skipping')
+        #     return True
+
+        koaimtyp = row['koaimtyp']
+        date_obs = row['date_obs']
+
+        # if not date_obs:
+        #     log.info(f'group_file: skipping {koaid} : missing date_obs')
+        #     return True
+
+        # SCIENCE FILE
+        if koaimtyp == 'object':
+            # find all calibs taken on the same date
+            rows = self.db.query('koa',
+                'SELECT koaid FROM koa_calib_meta '
+                'WHERE instrume = %s '
+                '  AND koaimtyp != %s '
+                '  AND date_obs = %s',
+                values=('DEIMOS', 'object', date_obs))
+            if rows:
+                for r in rows:
+                    self.db.query('koa',
+                        'INSERT IGNORE INTO koa_calib_groups '
+                        '(science_koaid, calib_koaid) VALUES (%s, %s)',
+                        values=(koaid, r['koaid']))
+                    
+        # CALIBRATION FILE
+        else:
+            # find all science frames taken on the same date
+            rows = self.db.query('koa',
+                'SELECT koaid FROM koa_calib_meta '
+                'WHERE instrume = %s '
+                '  AND koaimtyp = %s '
+                '  AND date_obs = %s',
+                values=('DEIMOS', 'object', date_obs))
+            if rows:
+                for r in rows:
+                    self.db.query('koa',
+                        'INSERT IGNORE INTO koa_calib_groups '
+                        '(science_koaid, calib_koaid) VALUES (%s, %s)',
+                        values=(r['koaid'], koaid))
+
+        return True
