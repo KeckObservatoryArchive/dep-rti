@@ -40,6 +40,7 @@ CREATE TABLE `koa_status_history` like `koa_status`;
 ALTER TABLE  `koa_status_history` drop index `uidx`;
 ALTER TABLE  `koa_status_history` DROP PRIMARY KEY, CHANGE id id int(11);
 
+ALTER TABLE `koa_status` ADD INDEX idx_queue_lookup (level, status, instrument, service, creation_time), ALGORITHM=INPLACE, LOCK=NONE;
 
 CREATE TABLE IF NOT EXISTS `headers` (
   `koaid`         varchar(48)   PRIMARY KEY         COMMENT 'Unique KOA ID',
