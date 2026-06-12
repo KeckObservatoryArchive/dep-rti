@@ -10,8 +10,8 @@ if [ "$#" -eq 0 ]; then
   echo -e "\nUSAGE: Specify space-separated list of services to restart or 'all'"
   echo "SERVICES: ${all_services[*]}"
   echo "EXAMPLES:"
-  echo "  monitor.sh kfcs kbds"
-  echo "  monitor.sh all"
+  echo "  archive.sh kfcs kbds"
+  echo "  archive.sh all"
   echo -e "\n"
   exit 1
 fi
@@ -31,10 +31,10 @@ for service in "${services[@]}"; do
   DEPDIR="$(dirname "$0")"
 #  LOGFILE="/log/dep-rti-${service}-${UT_DATE}.log"
 
-  cmd="$PYTHON $DEPDIR/manager.py monitor_only restart --extra $service"
+  cmd="$PYTHON $DEPDIR/manager.py archive_only restart --extra $service"
   echo "$cmd"
 #  $cmd >> "$LOGFILE" 2>&1
-  $cmd >> /dev/null 2>&1
+  $cmd > /dev/null 2>&1
 
 done
 
