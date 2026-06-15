@@ -31,7 +31,6 @@ class Scales(instrument.Instrument):
 
         # Set any unique keyword index values here
         self.keymap['UTC'] = 'UT'
-        self.keymap['PROGNAME'] = 'PROGNAM'
 
 
     def run_dqa(self):
