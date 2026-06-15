@@ -180,17 +180,14 @@ class Instrument(dep.DEP):
         # Extract the UTC time and date observed from the header
         self.set_utc()
         utc = self.get_keyword('UTC', useMap=False)
-        #if utc == None: return False
         if utc == None:
             return False
         self.set_dateObs()
         dateobs = self.get_keyword('DATE-OBS', useMap=False)
-        #if dateobs == None: return False
         if dateobs == None:
             return False
         # Create a timedate object using the string from the header
         try:    utc = dt.datetime.strptime(utc, '%H:%M:%S.%f')
-        #except: return False
         except:
             return False
 
@@ -211,7 +208,6 @@ class Instrument(dep.DEP):
         """Check for indicators that this is definitely engineering data."""
             
         #keyword values that indicate ENG
-        # 20240719 trust OSIRIS PROGNAME
         keyvals = {
             'PROGNAME': [
                 'eng',
@@ -278,7 +274,7 @@ class Instrument(dep.DEP):
         ok = False
 
         #direct match (or starts with match)?
-        instrume = self.get_keyword('INSTRUME')
+        instrume = self.get_keyword('INSTRUME').upper()
         if instrume and instrume.startswith(self.instr):
             if instrume != self.instr:
                 self.set_keyword('INSTRUME', self.instr, 'KOA: Instrument')
