@@ -46,7 +46,7 @@ class Scales(instrument.Instrument):
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
             {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
-            #{'name':'set_wavelengths', 'crit': False}, # need this, but awaiting info
+            {'name':'set_wavelengths', 'crit': False}, # need this, but awaiting info
             {'name':'set_image_stats', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
