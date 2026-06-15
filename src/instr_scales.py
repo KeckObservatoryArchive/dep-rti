@@ -31,6 +31,7 @@ class Scales(instrument.Instrument):
 
         # Set any unique keyword index values here
         self.keymap['UTC'] = 'UT'
+        self.keymap['PROGNAME'] = 'PROGNAM'
 
 
     def run_dqa(self):
@@ -39,13 +40,13 @@ class Scales(instrument.Instrument):
         funcs = [
             {'name':'set_telnr',       'crit': True},
             {'name':'set_ut',          'crit': True},
+            {'name':'set_semester',    'crit': True},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
             {'name':'set_prog_info',   'crit': True},
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
             {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
-            #{'name':'set_filter',      'crit': False}, # need this, but awaiting info
             #{'name':'set_wavelengths', 'crit': False}, # need this, but awaiting info
             {'name':'set_image_stats', 'crit': False},
             {'name':'set_weather',     'crit': False},
@@ -57,33 +58,10 @@ class Scales(instrument.Instrument):
         return self.run_functions(funcs)
 
 
-    def get_dir_list(self):
-        '''
-        Function to generate the paths to all the SCALES accounts, including engineering
-        Returns the list of paths
-        '''
-        dirs = []
-        path = '/s/sdata1800/scales'
-        for i in range(1,10):
-            joinSeq = (path, str(i))
-            path2 = ''.join(joinSeq)
-            dirs.append(path2)
-
-        # handle the utility accounts
-        path = '/s/sdata1800/sca'
-        joinSeq = (path, 'dev')
-        path2 = ''.join(joinSeq)
-        dirs.append(path2)
-        joinSeq = (path, 'eng')
-        path2 = ''.join(joinSeq)
-        dirs.append(path2)
-        return dirs
-
-
     def get_prefix(self):
         instr = self.get_instr()
         prefix = ''
-        if instr == 'scales':
+        if instr.lower() == 'scales':
             camera = self.get_keyword('CAMERA', default='').lower()
             allowed = {'ifs':'SS', 'im':'SI', 'dichroic':'SD'}
             prefix = allowed.get(camera, '')
@@ -177,7 +155,6 @@ class Scales(instrument.Instrument):
         koaimtyp = self.get_koaimtyp()
         
         # warn if undefined
-        #if (koaimtyp == 'undefined'):
         if koaimtyp == 'undefined':
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
             self.log_warn("KOAIMTYP_UDF")
@@ -208,7 +185,6 @@ class Scales(instrument.Instrument):
         '''
 
         if self.get_keyword('ELAPTIME') is None:
-            log.info('set_elaptime: ELAPTIME keyword missing, attempting to set from other keywords')
             exptime = self.get_keyword('EXPTIME')
             if exptime is not None:
                 self.set_keyword('ELAPTIME', exptime, 'KOA: Total integration time set from EXPTIME')
@@ -218,36 +194,6 @@ class Scales(instrument.Instrument):
                 self.log_warn('SET_ELAPTIME_ERROR')
                 return False
 
-        return True
-
-
-    # added - what if no FILTER keyword? - changed to instr_nirspec
-    def set_filter(self):
-        '''
-        If FILTER keyword doesn't exist, create from SCIFILT1 and 2
-              (Also referred to as FILTER0 and FILTER1)
-        NOTE: Filter Wheel Keywords IFSFW[1|2], IMGFW[1|2]
-                  or IFS-FW-[1|2], IM-FW-[1|2]
-              IFSFWNAM and IMGFWNAM shows the combination position for the imager
-        '''
-        if self.get_keyword('FILTER', False) != None: return True
-
-        scifilt1 = self.get_keyword('SCIFILT1', default='')
-        scifilt2 = self.get_keyword('SCIFILT2', default='')
-
-        skip = ['thick', 'thin', 'open']           # need this?
-        if scifilt1.lower() in skip: scifilt1 = ''
-        if scifilt2.lower() in skip: scifilt2 = ''
-
-        if scifilt1 == '' and scifilt2 == '':
-            filterName = 'blank'
-        else:
-            filterName = '+'.join(filter(None,(scifilt1, scifilt2)))    # from nirspec
-            #filter = ''.join((scifilt1, scifilt2))                     # from kcwi
-
-        #update keyword
-        self.set_keyword('FILTER', filterName, 'KOA: set from SCIFILT1 and SCIFILT2')
-        #self.set_keyword('FILTER', filter, 'KOA: set from SCIFILT1 and SCIFILT2')
         return True
 
 
@@ -331,12 +277,14 @@ class Scales(instrument.Instrument):
         wavemin = wavemax = 'null'
         for filt, waves in filters.items():
             if filt in filterSource.upper():
-                wavemin = waves['min']
-                wavemax  = waves['max']
+                waveblue = waves['min']
+                wavered  = waves['max']
+                wavecntr = round((wavered - waveblue)/2, 2)
                 break
 
-        self.set_keyword('WAVEMIN', wavemin, 'KOA: Approximate min wavelength (in microns)')
-        self.set_keyword('WAVEMAX', wavemax, 'KOA: Approximate max wavelength (in microns)')
+        self.set_keyword('WAVEBLUE',waveblue,'KOA: Approximate blue end wavelength (microns)')
+        self.set_keyword('WAVECNTR',wavecntr,'KOA: Approximate central wavelength (microns)')
+        self.set_keyword('WAVERED',wavered,'KOA: Approximate red end wavelength (microns)')
 
         return True
 
@@ -385,47 +333,47 @@ class Scales(instrument.Instrument):
         #    slitlen = 108
 
         # get wavelengths from configuration dictionary
-        if gratname in configurations.keys() and slicer in slits.keys():                 # remove?
-            if cwave > 0:                                                                # remove?
-                #wavecntr = round(cwave)
-                #wavemin = round(wavecntr - configurations.get(gratname)['waves']/2)     # remove?
-                #wavemax   = round(wavecntr + configurations.get(gratname)['waves']/2)   # remove?
-            #specres = configurations.get(gratname)[slicer]                              # remove?
-            if nodmask == "mask":                                                        # remove?
-                diff = int((wavemax - wavemin)/3)
-                diff = int(math.ceil(diff/100.0)*100)
-                wavemin = wavecntr - diff                                               # remove?
-                wavemax = wavecntr + diff                                               # remove? 
-        
-        # camera plate scale, arcsec/pixel unbinned
-        #TODO verify pscale for red, svc
-        pscale = {'imager':0.06, 'small':0.02, 'medium': 0.02}
-        if camera in pscale.keys():
-            try:
-                dispscal = pscale.get(camera) * binning                                 # remove?
-            except:
-                dispscal = pscale.get(camera) * int(binning.split(',')[0])              # remove?
-            spatscal = dispscal
-            if camera == 'fpc':
-                wavemin = 3700
-                #wavecntr = 6850
-                wavemax = 10000
-        
-        #try:
-        #    slitwidt = float(slitwidt)
-        #except:
-        #    pass
-
-        #set slit dimensions and wavelengths
-        self.set_keyword('WAVEMIN',waveblue,'KOA: Min wavelength')
-        self.set_keyword('WAVEMAX',wavered,'KOA: Max wavelength')
-        self.set_keyword('SPECRES',specres,'KOA: Nominal spectral resolution')
-        self.set_keyword('SPATSCAL',spatscal,'KOA: CCD pixel scale, spatial')
-        self.set_keyword('DISPSCAL',dispscal,'KOA: CCD pixel scale, dispersion')
-        #self.set_keyword('SLITWIDT',slitwidt,'KOA: Slit width on sky')          # remove n/a
-        #self.set_keyword('SLITLEN',slitlen,'KOA: Slit length on sky')           # remove n/a
-
-        # IFSMODSEL low-res, med-res (represents spatial size for reduced cubes for IFS)
+#        if gratname in configurations.keys() and slicer in slits.keys():                 # remove?
+#            if cwave > 0:                                                                # remove?
+#                #wavecntr = round(cwave)
+#                #wavemin = round(wavecntr - configurations.get(gratname)['waves']/2)     # remove?
+#                #wavemax   = round(wavecntr + configurations.get(gratname)['waves']/2)   # remove?
+#            #specres = configurations.get(gratname)[slicer]                              # remove?
+#            if nodmask == "mask":                                                        # remove?
+#                diff = int((wavemax - wavemin)/3)
+#                diff = int(math.ceil(diff/100.0)*100)
+#                wavemin = wavecntr - diff                                               # remove?
+#                wavemax = wavecntr + diff                                               # remove? 
+#        
+#        # camera plate scale, arcsec/pixel unbinned
+#        #TODO verify pscale for red, svc
+#        pscale = {'imager':0.06, 'small':0.02, 'medium': 0.02}
+#        if camera in pscale.keys():
+#            try:
+#                dispscal = pscale.get(camera) * binning                                 # remove?
+#            except:
+#                dispscal = pscale.get(camera) * int(binning.split(',')[0])              # remove?
+#            spatscal = dispscal
+#            if camera == 'fpc':
+#                wavemin = 3700
+#                #wavecntr = 6850
+#                wavemax = 10000
+#        
+#        #try:
+#        #    slitwidt = float(slitwidt)
+#        #except:
+#        #    pass
+#
+#        #set slit dimensions and wavelengths
+#        self.set_keyword('WAVEMIN',waveblue,'KOA: Min wavelength')
+#        self.set_keyword('WAVEMAX',wavered,'KOA: Max wavelength')
+#        self.set_keyword('SPECRES',specres,'KOA: Nominal spectral resolution')
+#        self.set_keyword('SPATSCAL',spatscal,'KOA: CCD pixel scale, spatial')
+#        self.set_keyword('DISPSCAL',dispscal,'KOA: CCD pixel scale, dispersion')
+#        #self.set_keyword('SLITWIDT',slitwidt,'KOA: Slit width on sky')          # remove n/a
+#        #self.set_keyword('SLITLEN',slitlen,'KOA: Slit length on sky')           # remove n/a
+#
+#        # IFSMODSEL low-res, med-res (represents spatial size for reduced cubes for IFS)
 
         return True
 
