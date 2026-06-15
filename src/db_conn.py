@@ -208,13 +208,10 @@ class db_conn(object):
                 self.log.info(f'{msg}')
             elif level == 0:
                 self.log.error(f'{msg}')
-                print
             elif level == 1:
                 self.log.warning(f'{msg}')
             elif level == 2:
                 self.log.debug(f'{msg}')
-        else:
-            print(f'stdout: {msg}')
 
     def clean_up(self, conn, cursor):
         if not self.persist:
@@ -222,4 +219,5 @@ class db_conn(object):
                 cursor.close()
             if conn:
                 conn.close()
+
 
