@@ -208,7 +208,7 @@ class Scales(instrument.Instrument):
         waveblue = wavecntr = wavered = 'null'
         
         all_filters = {
-            "Im" : {
+            "IM" : {
                 'Y':      {'min':0.970, 'max':1.070},
                 'J':      {'min':1.170, 'max':1.330},
                 'H':      {'min':1.490, 'max':1.780},
@@ -238,16 +238,17 @@ class Scales(instrument.Instrument):
         # default filter source to be overwritten when FILTERs are specified
 
         count = 0
-        camname = self.get_keyword('CAMNAME', default='').upper()
-        if camname in all_filters.keys():
-            filters = all_filters[camname]
+        filterList = []
+        camera = self.get_keyword('CAMERA', default='').upper()
+        if camera in all_filters.keys():
+            filters = all_filters[camera]
             filterList = self.get_keyword('FILTER', default='').split('+')
 
             for fitem in filterList:
                 if fitem in filters.keys():
-                    waveblue = filters[fitem]['min']
-                    wavered  = filters[fitem]['max']
-                    wavecntr = round((wavered - waveblue)/2, 2)
+                    waveblue = round(filters[fitem]['min'], 2)
+                    wavered  = round(filters[fitem]['max'], 2)
+                    wavecntr = round((wavered + waveblue)/2, 2)
                     count += 1
 
         if count == 1:
