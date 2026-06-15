@@ -59,6 +59,10 @@ class Scales(instrument.Instrument):
 
 
     def get_prefix(self):
+        '''
+        Returns the KOAID prefix
+        '''
+
         instr = self.get_instr()
         prefix = ''
         if instr.lower() == 'scales':
@@ -197,94 +201,62 @@ class Scales(instrument.Instrument):
         return True
 
 
-    # added - changed to instr_nirspec
     def set_wavelengths(self):
         '''
-        Sets WAVEMIN and WAVEMAX (in microns) based on FILTER value
-            OBSMODE (for CAMERA vaue): imgager, ifs, dichroic
-                IMAGER (IM[G]*) - 12.2 x 12.2" FOV (0.006 x 0.006" pixels)
-                    - Broad-Band Filters (BBFIL*)
-                    - Narrow-Band Filters (NBFIL*)
-                    - Neutral-Density Filters (NDFIL*)
-                INTEGRAL FIELD SPECTROGRPH (IFS) - 2 X 2" FOV, varies with prism (0.02 x 0.02" spaxels)
-                    IFSMODSEL = low-res, med-res (represents spatial size for reduced cubes for IFS) 
-                        - Low-Resolution Prisms (LRPRS*)
-                        - Medium-Resolution Gratings (MRGRA*)
-                DICHROIC (DI*) - captures both imager and spectroscopy data simultaneously (tbd)
-        NOTES:
-        - Keyword Widths: 6 to 10 chars (verify)
-        - Infrared, so blue->min and red->max
+        Sets wavelength values based on filter
         '''
-        filters = {}
 
-        # IMAGER Broad-Band Filters
-        filters['BBFILY']      = {'min':0.970, 'max':1.070}   # Y
-        filters['BBFILJ']      = {'min':1.170, 'max':1.330}   # J
-        filters['BBFILH']      = {'min':1.490, 'max':1.780}   # H
-        filters['BBFILCH4S']   = {'min':1.530, 'max':1.660}   # CH4s
-        filters['BBFILKP']     = {'min':1.950, 'max':2.290}   # Kp
-        filters['BBFILKS']     = {'min':1.990, 'max':2.300}   # Ks
-        filters['BBFILK']      = {'min':2.030, 'max':2.360}   # K
-        filters['BBFILLP']     = {'min':3.430, 'max':4.130}   # Lp
-        filters['BBFILMS']     = {'min':4.550, 'max':4.790}   # Ms
-
-        # IMAGER Narrow-Band Filters
-        filters['NBFILPABETA'] = {'min':1.280, 'max':1.300}   # Pa-Beta
-        filters['NBFILFELL']   = {'min':1.630, 'max':1.660}   # Fell
-        filters['NBFILBRGAM']  = {'min':2.150, 'max':2.190}   # Br-Gam
-        filters['NBFILKCONT']  = {'min':2.260, 'max':2.290}   # K_cont
-
-        # IMAGER Neutral-Density Filters (in combo with Broad-Band)
-        filters['NDFILND1']    = {'min':0.000, 'max':0.000}   # ND1 10x suppression
-        filters['NDFILND2']    = {'min':0.000, 'max':0.000}   # ND2 100x suppression
-        filters['NDFILND3']    = {'min':0.000, 'max':0.000}   # ND3 1000x suppression
-
-        # IFS Low-Resolution Prisms
-        filters['LRPRSK']      = {'min':2.000, 'max':2.400}   # K      (R~150)
-        filters['LRPRSKL']     = {'min':2.000, 'max':4.000}   # KL     (R~50) 
-        filters['LRPRSKLM']    = {'min':2.000, 'max':5.000}   # KLM    (R~35)
-        filters['LRPRSL']      = {'min':2.900, 'max':4.150}   # L      (R~80)
-        filters['LRPRSLS']     = {'min':3.100, 'max':3.500}   # LS     (R~200)
-        filters['LRPRSM']      = {'min':4.500, 'max':5.200}   # M      (R~200)
-        filters['LRPRSKLPOL']  = {'min':2.000, 'max':4.000}   # KL-pol (R~20)
-
-        # IFS Medium-Resolution Gratings
-        filters['MRGRAK']      = {'min':2.000, 'max':2.400}   # K      (R~6,000)
-        filters['MRGRAL']      = {'min':2.900, 'max':4.150}   # L      (R~2,500)
-        filters['MRGRAM']      = {'min':4.500, 'max':5.200}   # M      (R~7,000)
+        waveblue = wavecntr = wavered = 'null'
+        
+        all_filters = {
+            "Im" : {
+                'Y':      {'min':0.970, 'max':1.070},
+                'J':      {'min':1.170, 'max':1.330},
+                'H':      {'min':1.490, 'max':1.780},
+                'CH4s':   {'min':1.530, 'max':1.660},
+                'Kp':     {'min':1.950, 'max':2.290},
+                'Ks':     {'min':1.990, 'max':2.300},
+                'K':      {'min':2.030, 'max':2.360},
+                'Lp':     {'min':3.430, 'max':4.130},
+                'Ms':     {'min':4.550, 'max':4.790},
+                'PaBeta': {'min':1.280, 'max':1.300},
+                'FeII':   {'min':1.630, 'max':1.660},
+                'BrGam':  {'min':2.150, 'max':2.190},
+                'Kcont':  {'min':2.260, 'max':2.290}
+            },
+            "IFS" : {
+                'K':      {'min':2.000, 'max':2.400},
+                'KL':     {'min':2.000, 'max':4.000}, 
+                'KLM':    {'min':2.000, 'max':5.000},
+                'L':      {'min':2.900, 'max':4.150},
+                'Ls':     {'min':3.100, 'max':3.500},
+                'M':      {'min':4.500, 'max':5.200},
+                'KLpol':  {'min':2.000, 'max':4.000}
+            }
+        }
 
         # FILTER[0,1] values may not be available, so CAMNAME is provided as the 
         # default filter source to be overwritten when FILTERs are specified
 
-        filterName = ''
-        filterSource = ''
-
+        count = 0
         camname = self.get_keyword('CAMNAME', default='').upper()
-        if camname in filters.keys():
-            #filterSource = camname
-            filterName = camname
+        if camname in all_filters.keys():
+            filters = all_filters[camname]
+            filterList = self.get_keyword('FILTER', default='').split('+')
 
-        filterList = self.get_keyword('FILTER', default='').upper().split('+')
+            for fitem in filterList:
+                if fitem in filters.keys():
+                    waveblue = filters[fitem]['min']
+                    wavered  = filters[fitem]['max']
+                    wavecntr = round((wavered - waveblue)/2, 2)
+                    count += 1
 
-        for fitem in filterList:
-            if fitem in filters.keys():
-                filterName = fitem
-
-        if filterName in filters.keys():
-            filterSource = filterName
-
-        # set wavelengths
-        wavemin = wavemax = 'null'
-        for filt, waves in filters.items():
-            if filt in filterSource.upper():
-                waveblue = waves['min']
-                wavered  = waves['max']
-                wavecntr = round((wavered - waveblue)/2, 2)
-                break
-
-        self.set_keyword('WAVEBLUE',waveblue,'KOA: Approximate blue end wavelength (microns)')
-        self.set_keyword('WAVECNTR',wavecntr,'KOA: Approximate central wavelength (microns)')
-        self.set_keyword('WAVERED',wavered,'KOA: Approximate red end wavelength (microns)')
+        if count == 1:
+            self.set_keyword('WAVEBLUE',waveblue,'KOA: Approximate blue end wavelength (microns)')
+            self.set_keyword('WAVECNTR',wavecntr,'KOA: Approximate central wavelength (microns)')
+            self.set_keyword('WAVERED',wavered,'KOA: Approximate red end wavelength (microns)')
+        else:
+            log.warn(f'set_wavelengths: error setting wavelengths from FILTER={filterList}')
 
         return True
 
@@ -365,8 +337,6 @@ class Scales(instrument.Instrument):
 #        #    pass
 #
 #        #set slit dimensions and wavelengths
-#        self.set_keyword('WAVEMIN',waveblue,'KOA: Min wavelength')
-#        self.set_keyword('WAVEMAX',wavered,'KOA: Max wavelength')
 #        self.set_keyword('SPECRES',specres,'KOA: Nominal spectral resolution')
 #        self.set_keyword('SPATSCAL',spatscal,'KOA: CCD pixel scale, spatial')
 #        self.set_keyword('DISPSCAL',dispscal,'KOA: CCD pixel scale, dispersion')
@@ -395,88 +365,8 @@ class Scales(instrument.Instrument):
     def get_drp_files_list(self, datadir, koaid, level):
         '''
         Return list of files to archive for DRP specific to SCALES.
-
-        Raw ingest (KOA level 1)
-            icubed.fits files
-            icubes.fits files
-            calibration validation (arc_ and bars_ < FRAMENO)
-
-        Final ingest (KOA level 2)
-            icubes.fits or icubed.fits (if no flux standard)           
-            calibration validation (sky_ and scat_ == FRAMENO)
-            QA (all plots in plots directory from pipeline)
-            scales.proc
-            all logs
-            configuration file
         '''
+
         files = []
 
-        # back out of /redux/ subdir
-        #if level == 1:
-        if datadir.endswith('/'): datadir = datadir[:-1]
-        datadir = os.path.split(datadir)[0]
-
-        # get frameno
-        hdr = None
-        icubed = f"{datadir}/redux/{koaid}_icubed.fits"
-        icubes = f"{datadir}/redux/{koaid}_icubes.fits"
-        if os.path.isfile(icubed):
-            hdr = fits.getheader(icubed)
-        elif os.path.isfile(icubes):
-            hdr = fits.getheader(icubes)
-        if not hdr:
-            return False
-        frameno = hdr['FRAMENO']
-
-        # level 1
-        if level >= 1:
-            searchfiles = [
-                f"{datadir}/redux/{koaid}_rampfit.fits",
-                f"{datadir}/redux/{koaid}_icubed.fits",
-                f"{datadir}/redux/{koaid}_icubes.fits"
-            ]
-            for f in searchfiles:
-                if os.path.isfile(f): files.append(f)
-            for file in glob.glob(f"{datadir}/plots/*"):
-                fparts = os.path.basename(file).split('_')
-                if fparts[0] not in ('arc', 'bars', 'bias','ql'): continue
-                if not fparts[1].isdigit(): continue
-                if int(fparts[1]) >= frameno: continue
-                files.append(file)
-
-        # level 2 (note: includes level 1 stuff, see above)
-        if level == 2:
-            searchfiles = [
-                f"{datadir}/scales.proc",
-                f"/k2drpdata/SCALES_DRP/configs/scales_koarti_lev2.cfg"
-            ]
-            for f in searchfiles:
-                if os.path.isfile(f): files.append(f)
-            for file in glob.glob(f"{datadir}/plots/*"):
-                fparts = os.path.basename(file).split('_')
-                if fparts[0] not in ('sky', 'scat', 'std'): continue
-                if not fparts[1].isdigit(): continue
-                if int(fparts[1]) != frameno: continue
-                files.append(file)
-            for file in glob.glob(f"{datadir}/logs/*"):
-                files.append(file)
-
         return files
-
-
-    def get_unique_koaids_in_dir(self, datadir):
-        '''
-        Get a list of unique koaids by looking at all filenames in directory 
-        and regex matching a KOAID pattern.
-        '''
-        koaids = []
-        for path in Path(datadir).rglob('*'):
-            path = str(path)
-            fname = os.path.basename(path)
-            if not any(x in fname for x in ('_icubes', '_icubed')): continue
-            match = re.search(r'^(\D{2}\.\d{8}\.\d{5}\.\d{2})', fname)
-            if not match: continue
-            koaids.append(match.groups(1)[0])
-        koaids = list(set(koaids))
-        return koaids
-
