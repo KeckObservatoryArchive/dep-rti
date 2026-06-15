@@ -198,7 +198,7 @@ instr_keymap = {
         'transfer'      : 1
     },
     'scales_img' : {
-        'ktl_service'   : 'koa',
+        'ktl_service'   : 'scimager',
         'ktl_uniquename': 'scales_img',
         'instr'         : 'SCALES',
         'trigger'       : 'LASTFILE',
@@ -207,7 +207,7 @@ instr_keymap = {
         'transfer'      : 0
     },
     'scales_spec' : {
-        'ktl_service'   : 'koa',
+        'ktl_service'   : 'scifu',
         'ktl_uniquename': 'scales_spec',
         'instr'         : 'SCALES',
         'trigger'       : 'LASTFILE',
