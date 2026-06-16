@@ -304,7 +304,7 @@ class Scales(instrument.Instrument):
             self.set_keyword('WAVECNTR',wavecntr,'KOA: Approximate central wavelength (microns)')
             self.set_keyword('WAVERED',wavered,'KOA: Approximate red end wavelength (microns)')
         else:
-            self.log_warn(f'set_wavelengths: error setting wavelengths from FILTER={filterList}')
+            log.info(f'set_wavelengths: error setting wavelengths from FILTER={filterList}')
 
         return True
 
@@ -333,7 +333,7 @@ class Scales(instrument.Instrument):
         if count == 1:
             self.set_keyword('SPECRES',resolution,'KOA: Approximate spectral resolution')
         else:
-            self.log_warn('set_resolution: error setting SPECRES')
+            log.info('set_resolution: error setting SPECRES')
 
         return True
 
