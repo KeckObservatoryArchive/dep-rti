@@ -109,13 +109,13 @@ class Scales(instrument.Instrument):
         return self.run_functions(funcs)
 
 
-    def is_data_cube(self):
+    def is_ramp_fit(self):
         '''
-        Return True/False if image is 3D
+        Return True/False if image is 2D
         '''
 
         shape = self.fits_hdu[0].data.shape
-        return False if len(shape) == 2 else True
+        return True if len(shape) == 2 else False
 
 
     def get_prefix(self):
@@ -131,6 +131,20 @@ class Scales(instrument.Instrument):
             prefix = allowed.get(camera, '')
             
         return prefix
+
+
+    def make_koaid(self):
+        '''
+        Calls the main class make_koaid() and updates koaid,
+        if needed, for raw ramp fit files.
+        '''
+
+        koaid = super().make_koaid()
+        if koaid:
+            if self.is_ramp_fit():
+                koaid += '_qramp'
+
+        return koaid
 
 
     def create_jpg_from_fits(self, fits_filepath, outdir_path):
