@@ -60,6 +60,24 @@ class Scales(instrument.Instrument):
             }
         }
 
+        # Set spectral resolution list
+        self.specres = {
+            "LOWRES" : {
+                'K':     150,
+                'KL':    50, 
+                'KLM':   35,
+                'L':     80,
+                'Ls':    200,
+                'M':     200,
+                'KLpol': 20
+            },
+            "MEDRES" : {
+                'K':     6000,
+                'L':     2500,
+                'M':     7000
+            }
+        }
+
 
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
@@ -74,7 +92,8 @@ class Scales(instrument.Instrument):
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
             {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
-            {'name':'set_wavelengths', 'crit': False}, # need this, but awaiting info
+            {'name':'set_wavelengths', 'crit': False},
+            {'name':'set_resolution',  'crit': False},
             {'name':'set_image_stats', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
@@ -258,6 +277,34 @@ class Scales(instrument.Instrument):
             self.set_keyword('WAVERED',wavered,'KOA: Approximate red end wavelength (microns)')
         else:
             self.log_warn(f'set_wavelengths: error setting wavelengths from FILTER={filterList}')
+
+        return True
+
+
+    def set_resolution(self):
+        '''
+        Using FILTER and MODSLNAM, determine spectral resolution.
+        the filter and SI.20260605.62983.38.fits: MODSLNAM = MedRes
+        '''
+
+        if self.get_keyword('CAMERA', default='').upper() != "IFS":
+            return True
+
+        count = 0
+        mode = self.get_keyword('MODSLNAM', default='').upper()
+        if mode in self.specres.keys():
+            specres = self.specres[mode]
+            filterList = self.get_keyword('FILTER', default='').split('+')
+
+            for fitem in filterList:
+                if fitem in specres.keys():
+                    resolution = specres[fitem]
+                    count += 1
+
+        if count == 1:
+            self.set_keyword('SPECRES',resolution,'KOA: Approximate spectral resolution')
+        else:
+            self.log_warn('set_resolution: error setting SPECRES')
 
         return True
 
