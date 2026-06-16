@@ -109,6 +109,15 @@ class Scales(instrument.Instrument):
         return self.run_functions(funcs)
 
 
+    def is_data_cube(self):
+        '''
+        Return True/False if image is 3D
+        '''
+
+        shape = self.fits_hdu[0].data.shape
+        return False if len(shape) == 2 else True
+
+
     def get_prefix(self):
         '''
         Returns the KOAID prefix
