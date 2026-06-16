@@ -155,7 +155,6 @@ class Scales(instrument.Instrument):
         Basic convert fits primary data to jpg. overrides super class function
         '''
 
-        print(dt.datetime.now())
         data = self.fits_hdu[0].data
 
         if data is None:
@@ -217,7 +216,6 @@ class Scales(instrument.Instrument):
         im = Image.fromarray(img8)
         im.thumbnail((1024, 1024))
         im.save(jpg_filepath, quality=85)
-        print(dt.datetime.now())
 
 
     def set_koaimtyp(self):
