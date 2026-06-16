@@ -152,20 +152,14 @@ class Scales(instrument.Instrument):
         Basic convert fits primary data to jpg. overrides super class function
         '''
 
-        try:
-            with fits.open(fits_filepath, ignore_missing_end=True) as hdul:
-                data = hdul[0].data
-                hdr = hdul[0].header
-        except Exception as e:
-            logger.warning(f"Problem with FITS file {fits_filepath}: {e}")
-            return None
+        data = self.fits_hdu[0].data
 
         if data is None:
-            raise ValueError(f"No data in primary HDU of {fits_filepath}")
+            log.info(f"No data in primary HDU of {fits_filepath}")
             return None
 
         # NAXIS dimensionality from header, fall back to ndim if missing
-        naxis = hdr.get("NAXIS", data.ndim)
+        naxis = self.get_keyword('NAXIS', default=data.ndim) #hdr.get("NAXIS", data.ndim)
 
         # FITS convention: NAXIS1 = x, NAXIS2 = y single slice, NAXIS3 = number of slices
         if naxis == 3:     # flattens 3D cube -> 2D "dirty FITS"
@@ -202,25 +196,18 @@ class Scales(instrument.Instrument):
         if (not np.isfinite(vmin)) or (not np.isfinite(vmax)) or (vmax <= vmin):
             norm_arr = np.zeros_like(result, dtype=np.float32)
         else:
-            # swap SqrtStretch() or SinhStretch() for AsinhStretch() if preferred
             norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=SqrtStretch())
-            #norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=AsinhStretch())
-            #norm = ImageNormalize(vmin=vmin, vmax=vmax, stretch=SinhStretch())  # may sinh error
             norm_arr = scaled = norm(result)    # float array in [0, 1]   # norm_arr
     
         # 2b- stretch ~0...1 ensures values are in [0, 1]
         norm_arr = np.clip(norm_arr, 0.0, 1.0)
     
-        # 3-optional forensic mode: histogram equalization on normalized data to increase contrast
-        #image_eq = exposure.equalize_hist(scaled)
-
         # builds output filepath
         basename = os.path.basename(fits_filepath).replace('.fits', '')
         jpg_filepath = f'{outdir_path}/{basename}.jpg'
 
         # option 1: saves faster version, no fig necessary
         # image_eq or norm_arr is final 0-1 float array
-        #final_img = image_eq 
         final_img = norm_arr 
         plt.imsave(jpg_filepath, final_img, cmap="gray", format="jpg")
 
