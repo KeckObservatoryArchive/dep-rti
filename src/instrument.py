@@ -700,9 +700,12 @@ class Instrument(dep.DEP):
         """
 
         image = self.fits_hdu[0].data     
-        imageStd    = float("%0.2f" % np.std(image))
-        imageMean   = float("%0.2f" % np.mean(image))
-        imageMedian = float("%0.2f" % np.median(image))
+
+        # ravel() returns a 1D view of array if possible
+        sample = image.ravel()[::100]
+        imageStd    = float("%0.2f" % sample.std())
+        imageMean   = float("%0.2f" % sample.mean())
+        imageMedian = float("%0.2f" % np.median(sample))
 
         self.set_keyword('IMAGEMN' ,  imageMean,   'KOA: Image data mean')
         self.set_keyword('IMAGESD' ,  imageStd,    'KOA: Image data standard deviation')
