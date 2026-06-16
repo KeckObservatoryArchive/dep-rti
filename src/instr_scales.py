@@ -21,6 +21,7 @@ from astropy.visualization import ZScaleInterval, SqrtStretch
 #from astropy.visualization import ZScaleInterval, AsinhStretch, SinhStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 #import pdb
+from PIL import Image
 
 
 class Scales(instrument.Instrument):
@@ -31,6 +32,7 @@ class Scales(instrument.Instrument):
 
         # Set any unique keyword index values here
         self.keymap['UTC'] = 'UT'
+        self.keymap['PROGNAME'] = 'PROGNAM'
         
         # Set filter list
         self.all_filters = {
@@ -153,6 +155,7 @@ class Scales(instrument.Instrument):
         Basic convert fits primary data to jpg. overrides super class function
         '''
 
+        print(dt.datetime.now())
         data = self.fits_hdu[0].data
 
         if data is None:
@@ -209,8 +212,12 @@ class Scales(instrument.Instrument):
 
         # option 1: saves faster version, no fig necessary
         # image_eq or norm_arr is final 0-1 float array
-        final_img = norm_arr 
-        plt.imsave(jpg_filepath, final_img, cmap="gray", format="jpg")
+#        plt.imsave(jpg_filepath, norm_arr, cmap="gray", format="jpg")
+        img8 = (norm_arr * 255).astype(np.uint8)
+        im = Image.fromarray(img8)
+        im.thumbnail((1024, 1024))
+        im.save(jpg_filepath, quality=85)
+        print(dt.datetime.now())
 
 
     def set_koaimtyp(self):
