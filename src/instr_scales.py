@@ -78,6 +78,11 @@ class Scales(instrument.Instrument):
             }
         }
 
+        # Set pixel scale
+        self.pixelscale = {
+            "IM": 0.006, # arcsec/pixel
+            "IFS": 0.02  # arcsec/spaxel
+        }
 
     def run_dqa(self):
         '''Run all DQA checks unique to this instrument.'''
@@ -94,10 +99,10 @@ class Scales(instrument.Instrument):
             {'name':'set_datlevel',    'crit': False,  'args': {'level':0}},
             {'name':'set_wavelengths', 'crit': False},
             {'name':'set_resolution',  'crit': False},
+            {'name':'set_pixelscale',  'crit': False},
             {'name':'set_image_stats', 'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
-            #{'name':'set_slitdims',    'crit': False}, # camera='fpc' but need 'fcs'
             {'name':'set_dqa_vers',    'crit': False},
             {'name':'set_dqa_date',    'crit': False},
         ]
@@ -290,6 +295,7 @@ class Scales(instrument.Instrument):
         if self.get_keyword('CAMERA', default='').upper() != "IFS":
             return True
 
+        resolution = 'null'
         count = 0
         mode = self.get_keyword('MODSLNAM', default='').upper()
         if mode in self.specres.keys():
@@ -309,87 +315,21 @@ class Scales(instrument.Instrument):
         return True
 
 
-    def set_slitdims(self):
+    def set_pixelscale(self):
         '''
-        Set slit dimensions and wavelengths
-        NOTE: will need subpixel region size x and y, infrared detector keywords like
-              - SAMPMODE 
-              - NREAD
-              - NRESET
-              - NGROUP
-              - NDROP
-              - others
-        NOTE: No CAMERA keyword, use OBSMODE to get camera value
-              IFSMODSEL low-res, med-res (represents spatial size for reduced cubes for IFS)
+        Set pixel scales
         '''
-        specres  = 'null'
+
         dispscal = 'null'
-        #slitwidt = 'null'
-        #slitlen  = 'null'
         spatscal = 'null'
 
-        #slicer = self.get_keyword('IFUNAM').lower()     # remove
-        camera = self.get_keyword('CAMERA')
-        # binning = self.get_keyword('BINNING')          # remove
-        # lowercase camera if not None
-        camera = camera.lower() if camera is not None else camera
-
-        prefix = "R" if camera=="red" else "B"
-        #cwave = self.get_keyword(prefix+'CWAVE', default=0)     # remove?
-        #gratname = self.get_keyword(prefix+'GRATNAM').lower()   # remove?
-        #nodmask = self.get_keyword(prefix+'NASNAM').lower()     # remove?
-        # confirm configuration for SCALES?
-        configurations = {
-                          'bl'  : {'waves':2000, 'large':900, 'medium':1800, 'small':3600},
-                          }
+        camera = self.get_keyword('CAMERA', default='').upper()
+        if camera in self.pixelscale.keys():
+            dispscal = self.pixelscale[camera]
+            spatscal = dispscal
+            self.set_keyword('DISPSCAL',dispscal,'KOA: CCD pixel scale, dispersion')
+            self.set_keyword('SPATSCAL',spatscal,'KOA: CCD pixel scale, spatial')
         
-        # slit width by slicer, slit length is always 20.4"
-        #slits = {'large':'1.35', 'medium':'0.69', 'small':'0.35'}
-        #if slicer in slits.keys():
-        #    slitwidt = slits[slicer]
-        #    slitlen = 108
-
-        # get wavelengths from configuration dictionary
-#        if gratname in configurations.keys() and slicer in slits.keys():                 # remove?
-#            if cwave > 0:                                                                # remove?
-#                #wavecntr = round(cwave)
-#                #wavemin = round(wavecntr - configurations.get(gratname)['waves']/2)     # remove?
-#                #wavemax   = round(wavecntr + configurations.get(gratname)['waves']/2)   # remove?
-#            #specres = configurations.get(gratname)[slicer]                              # remove?
-#            if nodmask == "mask":                                                        # remove?
-#                diff = int((wavemax - wavemin)/3)
-#                diff = int(math.ceil(diff/100.0)*100)
-#                wavemin = wavecntr - diff                                               # remove?
-#                wavemax = wavecntr + diff                                               # remove? 
-#        
-#        # camera plate scale, arcsec/pixel unbinned
-#        #TODO verify pscale for red, svc
-#        pscale = {'imager':0.06, 'small':0.02, 'medium': 0.02}
-#        if camera in pscale.keys():
-#            try:
-#                dispscal = pscale.get(camera) * binning                                 # remove?
-#            except:
-#                dispscal = pscale.get(camera) * int(binning.split(',')[0])              # remove?
-#            spatscal = dispscal
-#            if camera == 'fpc':
-#                wavemin = 3700
-#                #wavecntr = 6850
-#                wavemax = 10000
-#        
-#        #try:
-#        #    slitwidt = float(slitwidt)
-#        #except:
-#        #    pass
-#
-#        #set slit dimensions and wavelengths
-#        self.set_keyword('SPECRES',specres,'KOA: Nominal spectral resolution')
-#        self.set_keyword('SPATSCAL',spatscal,'KOA: CCD pixel scale, spatial')
-#        self.set_keyword('DISPSCAL',dispscal,'KOA: CCD pixel scale, dispersion')
-#        #self.set_keyword('SLITWIDT',slitwidt,'KOA: Slit width on sky')          # remove n/a
-#        #self.set_keyword('SLITLEN',slitlen,'KOA: Slit length on sky')           # remove n/a
-#
-#        # IFSMODSEL low-res, med-res (represents spatial size for reduced cubes for IFS)
-
         return True
 
 
