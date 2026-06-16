@@ -31,6 +31,34 @@ class Scales(instrument.Instrument):
 
         # Set any unique keyword index values here
         self.keymap['UTC'] = 'UT'
+        
+        # Set filter list
+        self.all_filters = {
+            "IM" : {
+                'Y':      {'min':0.970, 'max':1.070},
+                'J':      {'min':1.170, 'max':1.330},
+                'H':      {'min':1.490, 'max':1.780},
+                'CH4s':   {'min':1.530, 'max':1.660},
+                'Kp':     {'min':1.950, 'max':2.290},
+                'Ks':     {'min':1.990, 'max':2.300},
+                'K':      {'min':2.030, 'max':2.360},
+                'Lp':     {'min':3.430, 'max':4.130},
+                'Ms':     {'min':4.550, 'max':4.790},
+                'PaBeta': {'min':1.280, 'max':1.300},
+                'FeII':   {'min':1.630, 'max':1.660},
+                'BrGam':  {'min':2.150, 'max':2.190},
+                'Kcont':  {'min':2.260, 'max':2.290}
+            },
+            "IFS" : {
+                'K':      {'min':2.000, 'max':2.400},
+                'KL':     {'min':2.000, 'max':4.000}, 
+                'KLM':    {'min':2.000, 'max':5.000},
+                'L':      {'min':2.900, 'max':4.150},
+                'Ls':     {'min':3.100, 'max':3.500},
+                'M':      {'min':4.500, 'max':5.200},
+                'KLpol':  {'min':2.000, 'max':4.000}
+            }
+        }
 
 
     def run_dqa(self):
@@ -207,41 +235,14 @@ class Scales(instrument.Instrument):
 
         waveblue = wavecntr = wavered = 'null'
         
-        all_filters = {
-            "IM" : {
-                'Y':      {'min':0.970, 'max':1.070},
-                'J':      {'min':1.170, 'max':1.330},
-                'H':      {'min':1.490, 'max':1.780},
-                'CH4s':   {'min':1.530, 'max':1.660},
-                'Kp':     {'min':1.950, 'max':2.290},
-                'Ks':     {'min':1.990, 'max':2.300},
-                'K':      {'min':2.030, 'max':2.360},
-                'Lp':     {'min':3.430, 'max':4.130},
-                'Ms':     {'min':4.550, 'max':4.790},
-                'PaBeta': {'min':1.280, 'max':1.300},
-                'FeII':   {'min':1.630, 'max':1.660},
-                'BrGam':  {'min':2.150, 'max':2.190},
-                'Kcont':  {'min':2.260, 'max':2.290}
-            },
-            "IFS" : {
-                'K':      {'min':2.000, 'max':2.400},
-                'KL':     {'min':2.000, 'max':4.000}, 
-                'KLM':    {'min':2.000, 'max':5.000},
-                'L':      {'min':2.900, 'max':4.150},
-                'Ls':     {'min':3.100, 'max':3.500},
-                'M':      {'min':4.500, 'max':5.200},
-                'KLpol':  {'min':2.000, 'max':4.000}
-            }
-        }
-
         # FILTER[0,1] values may not be available, so CAMNAME is provided as the 
         # default filter source to be overwritten when FILTERs are specified
 
         count = 0
         filterList = []
         camera = self.get_keyword('CAMERA', default='').upper()
-        if camera in all_filters.keys():
-            filters = all_filters[camera]
+        if camera in self.all_filters.keys():
+            filters = self.all_filters[camera]
             filterList = self.get_keyword('FILTER', default='').split('+')
 
             for fitem in filterList:
@@ -274,9 +275,6 @@ class Scales(instrument.Instrument):
         NOTE: No CAMERA keyword, use OBSMODE to get camera value
               IFSMODSEL low-res, med-res (represents spatial size for reduced cubes for IFS)
         '''
-        wavemin = 'null'
-        #wavecntr = 'null'
-        wavemax  = 'null'
         specres  = 'null'
         dispscal = 'null'
         #slitwidt = 'null'
