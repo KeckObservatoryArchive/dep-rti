@@ -1280,6 +1280,10 @@ class DEP:
         if not self.update_koa_status('xfr_end_time', utstring): return False
         if not self.update_koa_status('status', 'TRANSFERRED'): return False
 
+# Temporary for testing 20260613
+        return True
+#
+
         # Send API request to archive the data set
         if not api and not self.dev:
             self.log_error('IPAC_API_UNDEFINED')
