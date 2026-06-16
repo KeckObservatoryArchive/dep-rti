@@ -256,7 +256,7 @@ class Scales(instrument.Instrument):
             self.set_keyword('WAVECNTR',wavecntr,'KOA: Approximate central wavelength (microns)')
             self.set_keyword('WAVERED',wavered,'KOA: Approximate red end wavelength (microns)')
         else:
-            log.warn(f'set_wavelengths: error setting wavelengths from FILTER={filterList}')
+            self.log_warn(f'set_wavelengths: error setting wavelengths from FILTER={filterList}')
 
         return True
 
