@@ -350,13 +350,6 @@ class Scales(instrument.Instrument):
         return False
 
 
-#    def make_jpg(self):
-#        # Skip if this an image cube
-#        if self.isImageCube:
-#            return True
-#        return super().make_jpg()
-
-
     def get_drp_files_list(self, datadir, koaid, level):
         '''
         Return list of files to archive for DRP specific to SCALES.
