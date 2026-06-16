@@ -101,7 +101,7 @@ class Scales(instrument.Instrument):
             {'name':'set_resolution',  'crit': False},
             {'name':'set_pixelscale',  'crit': False},
             {'name':'set_image_stats', 'crit': False},
-            {'name':'set_npixsat',     'crit': False},
+            #{'name':'set_npixsat',     'crit': False},
             {'name':'set_weather',     'crit': False},
             {'name':'set_oa',          'crit': False},
             {'name':'set_dqa_vers',    'crit': False},
