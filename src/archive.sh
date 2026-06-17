@@ -7,7 +7,9 @@ source "$HOME/.bashrc"
 all_services=("kfcs" "kblue" "kred" "deimos" "deifcs" "hrs" "kpf")
 
 if [ "$#" -eq 0 ]; then
-  echo -e "\nUSAGE: Specify space-separated list of services to restart or 'all'"
+ 
+  # echo -e "\nUSAGE: Specify space-separated list of services to restart or 'all'"
+  echo -e "\nUSAGE: Specify space-separated list of services to restart"
   # echo "SERVICES: ${all_services[*]}"
   echo "EXAMPLES:"
   echo "  archive.sh kfcs kbds"
