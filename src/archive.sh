@@ -8,10 +8,10 @@ all_services=("kfcs" "kblue" "kred" "deimos" "deifcs" "hrs" "kpf")
 
 if [ "$#" -eq 0 ]; then
   echo -e "\nUSAGE: Specify space-separated list of services to restart or 'all'"
-  echo "SERVICES: ${all_services[*]}"
+  # echo "SERVICES: ${all_services[*]}"
   echo "EXAMPLES:"
   echo "  archive.sh kfcs kbds"
-  echo "  archive.sh all"
+  # echo "  archive.sh all"
   echo -e "\n"
   exit 1
 fi
