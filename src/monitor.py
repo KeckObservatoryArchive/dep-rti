@@ -192,8 +192,8 @@ class Monitor:
                 self.handle_error('DATABASE_ERROR', query)
                 return
 
-        # check queue - disabled to allow queue_monitor() to handle this
-        # self.check_queue()
+        # check queue
+        #self.check_queue()
 
     def is_duplicate_file(self, filepath, retry=True):
         """
@@ -261,22 +261,44 @@ class Monitor:
                  f" and status='QUEUED' "
                  f" and instrument='{self.instr}' "
                  f" and service='{self.service_uniquename}' "
-                 f" order by creation_time asc limit 1 ")
+                 f" order by creation_time asc limit 1")
 
-        row = self._get_db_result('koa', query, get_one=False)
+        row = self._get_db_result('koa', query, get_one=True)
+
         if row is False:
             self.log.debug(f'row is False, query: {query}, row: {row}')
             return False
 
         if len(row) == 0:
-            self.log.debug(f'rows == 0, query: {query}, row: {row}')
+            self.log.debug(f'row == 0, query: {query}, row: {row}')
+            return False 
+
+        # check that we have not exceeded max num procs
+        if len(self.procs) >= self.max_procs:
+            self.handle_error('MAX_PROCESSES', self.max_procs)
             return False
 
-        available_slots = self.max_procs - len(self.procs)
-        if available_slots <= 0:
-            self.handle_error('MAX_PROCESSES', str(self.max_procs))
-            return False
+        # set status to PROCESSING
+        query = f"update koa_status set status='PROCESSING' where id={row['id']}"
 
+        result = self._get_db_result('koa', query)
+        if result is False:
+            if retry:
+                self.log.warning(f'DATABASE_ERROR,  retrying query: {query}')
+                return self.check_queue(retry=False)
+            if not retry:
+                self.handle_error('DATABASE_ERROR', query)
+                return False
+
+        # pop from queue and process it
+        self.log.info(f"Processing DB record ID={row['id']}, "
+                      f"filepath={row['ofname']}")
+        try:
+            self.process_file(self.instr, row['id'])
+        except Exception as e:
+            self.handle_error('PROCESS_ERROR',
+                              f"ID={row['id']}, filepath={row['ofname']}\n, {e}"
+                              f"{traceback.format_exc()}")
 
     def queue_monitor(self):
         """
