@@ -106,7 +106,7 @@ class QueueMonitor:
 
         # create logger first
         self.utd = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
-        self.log = self.create_logger(self.instr, self.service_uniquename)
+        self.log = self.create_logger(self.config[self.instr]['ROOTDIR'], self.instr, self.service_uniquename)
         self.log.info(f"Starting RTI Queue Monitor for {self.instr} "
                       f"{self.service_uniquename}")
 
@@ -203,18 +203,18 @@ class QueueMonitor:
 
         if diff >= QUEUE_CHECK_SEC or not self.last_queue_check:
 
-            # check if the ut date changed
-            current_date = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
-            if self.utd != current_date:
-                # clear logs
-                for handler in self.log.handlers[:]:
-                    self.log.removeHandler(handler)
-
-                self.utd = current_date
-                self.log = self.create_logger(
-                    self.config[self.instr]['ROOTDIR'],
-                    self.instr,  self.service_name
-                )
+#            # check if the ut date changed
+#            current_date = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
+#            if self.utd != current_date:
+#                # clear logs
+#                for handler in self.log.handlers[:]:
+#                    self.log.removeHandler(handler)
+#
+#                self.utd = current_date
+#                self.log = self.create_logger(
+#                    self.config[self.instr]['ROOTDIR'],
+#                    self.instr,  self.service_name
+#                )
 
             self.check_queue()
 
@@ -240,7 +240,7 @@ class QueueMonitor:
         """Call archiving for a single file by DB ID."""
         obj = Archive(self.instr, dbid=dbid, transfer=self.transfer)
 
-    def create_logger(self, instr, service):
+    def create_logger(self, rootdir, instr, service):
         """Creates a logger based on instr, service name and date"""
         log_level_map = {
             'DEBUG': logging.DEBUG,
@@ -258,11 +258,11 @@ class QueueMonitor:
         log.setLevel(log_level)
 
         # paths
-        logFile = f'/log/{instr}/{name}_{self.utd}.log'
+        logFile = f'{rootdir}/log/{instr}/{name}_{self.utd}.log'
 
         # create directory if it does not exist
         try:
-            Path(f'/log/{instr}').mkdir(parents=True, exist_ok=True)
+            Path(f'{rootdir}/log/{instr}').mkdir(parents=True, exist_ok=True)
 
             # check that the file exists, if not create it.
             if not Path(logFile).is_file():

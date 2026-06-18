@@ -191,10 +191,10 @@ class Monitor:
         log = logging.getLogger(name)
         log.setLevel(log_level)
 
-        log_file = f'/log/{instr}/{name}_{self.utd}.log'
+        log_file = f'{rootdir}/log/{instr}/{name}_{self.utd}.log'
 
         try:
-            Path(f'/log/{instr}').mkdir(parents=True, exist_ok=True)
+            Path(f'{rootdir}/log/{instr}').mkdir(parents=True, exist_ok=True)
             if not Path(log_file).is_file():
                 with open(log_file, 'w') as file:
                     file.write('Log file created.')
