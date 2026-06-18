@@ -62,7 +62,6 @@ class Monitor:
     """Monitor KTL and insert new file rows into koa_status."""
 
     def __init__(self, inst_mode_name):
-        self.last_email_times = {}
         self.db = None
 
         os.chdir(sys.path[0])
@@ -192,18 +191,16 @@ class Monitor:
         log = logging.getLogger(name)
         log.setLevel(log_level)
 
-        process_dir = f'{rootdir}/log/{instr.upper()}'
-        log_file = f'{process_dir}/{name}_{self.utd}.log'
+        log_file = f'/log/{instr}/{name}_{self.utd}.log'
 
         try:
-            Path(process_dir).mkdir(parents=True, exist_ok=True)
+            Path(f'/log/{instr}').mkdir(parents=True, exist_ok=True)
             if not Path(log_file).is_file():
                 with open(log_file, 'w') as file:
                     file.write('Log file created.')
         except Exception as err:
-            raise RuntimeError(
-                f"Unable to create logger at {log_file}. Error: {err}"
-            ) from err
+            print(f"ERROR: Unable to create logger at {log_file}.  Error: {str(err)}")
+            return False
 
         handle = logging.FileHandler(log_file)
         handle.setLevel(logging.DEBUG)
@@ -212,6 +209,7 @@ class Monitor:
         log.addHandler(handle)
 
         stdout_level = log_level_map[self.config['MISC']['STD_OUT_LOG_LEVEL']]
+
         sh = logging.StreamHandler(sys.stdout)
         sh.setLevel(stdout_level)
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s - %(message)s')
