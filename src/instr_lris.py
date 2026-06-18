@@ -230,7 +230,7 @@ class Lris(instrument.Instrument):
                         if self._is_red(instrume):
                             if graname != 'mirror':
                                 return 'arclamp'
-                        elif self.is_blue(instrume):
+                        elif self._is_blue(instrume):
                             if grisname != 'clear':
                                 return 'arclamp'
                 else:
@@ -1187,6 +1187,10 @@ class Lris(instrument.Instrument):
         api_base = self.config.get('API', {}).get('SLITMASKAPI')
         api_url = f'{api_base}?gui-name={guiname}'
         resp = requests.get(api_url)
+
+        if resp.status_code == 422:
+            log.warning(f"No mask exists in db for {guiname}")
+            return False
 
         try:
             resp.raise_for_status()
