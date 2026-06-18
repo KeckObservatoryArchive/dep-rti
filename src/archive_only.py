@@ -1,11 +1,17 @@
 #!/kroot/rel/default/bin/kpython3
 """
-Desc: Daemon to poll koa_status for queued entries and archive them.
-Handles only DB queue polling and archive processing. Does not monitor KTL.
+Desc: Daemon to monitor for new FITS files and send to DEP for archiving.
+Monitors KTL keywords to find new files for archiving.  Uses the database as its queue 
+so the queue is not in memory.  Keeps a list of spawned processes to manage how many 
+concurrent processes can run at once.  Run per instrument service.
 
-Usage:
-    python archive_only.py [service name]
-    python archive_only.py kfcs
+Usage: 
+    python monitor.py [service name]
+    python monitor.py kfcs
+
+Reference:
+    http://spg.ucolick.org/KTLPython/index.html
+
 """
 import sys
 import argparse
@@ -25,57 +31,68 @@ from archive import Archive
 import monitor_config
 import db_conn
 
-
+# module globals
 last_email_times = None
 PROC_CHECK_SEC = 1.0
-QUEUE_CHECK_SEC = 5.0
+QUEUE_CHECK_SEC = 2.0
 EMAIL_INTERVAL_MINUTES = 60
-
+MAX_PROCS = 10
 
 def main():
-    """Handle command line args and create archive worker for service."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('mode', help='The name of the instrument mode to process.')
-    args = parser.parse_args()
+    """Handle command line args and create monitor object for service."""
 
+    # Arg parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', help='The name of the instrument mode to monitor.')
+    args = parser.parse_args()    
+
+    # run monitors and catch any unhandled error for email to admin
     try:
-        worker = ArchiveQueueWorker(args.mode)
-    except Exception:
-        handle_error('ARCHIVE_ONLY_ERROR', traceback.format_exc(), service=args.mode)
+        monitor = QueueMonitor(args.mode)
+    except Exception as err:
+        handle_error('QUEUE_MONITOR_ERROR: {err}', traceback.format_exc(), 
+                     service=args.mode)
         sys.exit(1)
 
+    # stay alive until control-C to exit
     while True:
         try:
             time.sleep(300)
-            worker.log.info(f'Archive worker saying hi every 5 minutes ('
-                            f'{worker.instr} {worker.service_uniquename})')
+            monitor.log.info(f'Queue monitor saying hi every 5 minutes ('
+                              f'{monitor.instr} {monitor.service_uniquename})')
         except Exception as err:
-            worker.log.error(f'Error waking up {err}.')
+            monitor.log.error(f'Error waking up {err}.')
             break
-    worker.log.info(f'Exiting {__file__}')
+    monitor.log.info(f'Exiting {__file__}')
 
 
-class ArchiveQueueWorker:
-    """Poll koa_status for QUEUED entries and process them."""
-
+class QueueMonitor:
+    """
+    Monitors DB queue and spawns new DEP archive processes per datafile.
+    """
     def __init__(self, inst_mode_name):
+
+        # init other vars
+        self.queue = []
         self.procs = []
-        self.max_procs = 10
         self.last_queue_check = None
         self.last_email_times = {}
         self.db = None
 
+        # cd to script dir so relative paths work
         os.chdir(sys.path[0])
 
-        with open('config.live.ini') as f:
+        # load config file
+        with open('config.live.ini') as f: 
             self.config = yaml.safe_load(f)
 
+        # get ktl-service-name and instrument from the name of instrument + mode
         try:
             self.keys = monitor_config.instr_keymap[inst_mode_name]
             self.service_name = self.keys['ktl_service']
             try:
                 self.service_uniquename = self.keys['ktl_uniquename']
-            except Exception:
+            except:
                 self.service_uniquename = self.service_name
             self.instr = self.keys['instr']
         except KeyError:
@@ -87,184 +104,203 @@ class ArchiveQueueWorker:
 
         self.transfer = self.keys.get('transfer', False)
 
+        # create logger first
         self.utd = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
-        self.log = self.create_logger(self.config[self.instr]['ROOTDIR'],
-                                      self.instr, self.service_uniquename)
-        self.log.info(f"Starting KOA Archive Only for {self.instr} "
-                      f"{self.service_name}")
+        self.log = self.create_logger(self.instr, self.service_uniquename)
+        self.log.info(f"Starting RTI Queue Monitor for {self.instr} "
+                      f"{self.service_uniquename}")
 
+        # Establish database connection
         self._connect_db()
-        self.worker_start()
+
+        self.monitor_start()
 
     def _connect_db(self):
         self.db = db_conn.db_conn('config.live.ini', configKey='DATABASE',
                                   persist=True, log_obj=self.log)
 
     def __del__(self):
+
+        # Close the database connection
         if self.db:
             self.db.close()
 
-    def worker_start(self):
+    def monitor_start(self):
+        # start interval to monitor DEP processes for completion
         self.process_monitor()
         self.queue_monitor()
 
     def process_monitor(self):
         """Remove any processes from list that are complete."""
-        removed_procs = [proc for proc in self.procs if not proc.is_alive()]
-        self.procs = [proc for proc in self.procs if proc.is_alive()]
 
-        for proc in removed_procs:
-            self.log.info(f'Removed completed process ID={proc.pid}, '
-                          f'exitcode={proc.exitcode}')
+        # Loop procs and remove from list if complete
+        # NOTE: looping in reverse so we can delete without messing up looping
+        removed_procs = [p for p in self.procs if not p.is_alive()]
+        self.procs = [p for p in self.procs if p.is_alive()]
 
+        for p in removed_procs:
+            self.log.info(f'Removed completed process ID={p.pid}, '
+                          f'exitcode={p.exitcode}')
+
+        # call this function every N seconds
         threading.Timer(PROC_CHECK_SEC, self.process_monitor).start()
 
     def check_queue(self, retry=True):
-        """Check koa_status for queued jobs that need to be spawned."""
+        """Check queue for jobs that need to be spawned."""
         self.last_queue_check = time.time()
 
         query = (f"select * from koa_status where level=0 "
                  f" and status='QUEUED' "
                  f" and instrument='{self.instr}' "
                  f" and service='{self.service_uniquename}' "
-                 f" order by creation_time asc")                 # jph: removed 'limit 1' to allow multi rows per call
+                 f" order by creation_time asc limit 5")
 
-        rows = self._get_db_result('koa', query, get_one=False)  # jph: get_one=False to allow multi rows per call
-                                                                 # jph: row -> rows, not row -> change all row to rows and handle multiple rows in loop
-        if rows is False:
-            self.log.debug(f'rows is False, query: {query}, row: {rows}')
+#        row = self._get_db_result('koa', query, get_one=True)
+        row = self._get_db_result('koa', query)
+
+        if row is False:
+            self.log.debug(f'row is False, query: {query}, row: {row}')
             return False
 
-        if len(rows) == 0:
-            self.log.debug(f'rows == 0, query: {query}, row: {rows}')
-            return False
+        if len(row) == 0:
+            self.log.debug(f'row == 0, query: {query}, row: {row}')
+            return False 
 
-        # if len(self.procs) >= self.max_procs:
-        #     self.handle_error('MAX_PROCESSES', str(self.max_procs))
-        #     return False
+        for r in row:
+            # check that we have not exceeded max num procs
+            if len(self.procs) >= MAX_PROCS:
+                self.handle_error('MAX_PROCESSES', MAX_PROCS)
+                return False
 
-        available_slots = self.max_procs - len(self.procs)
-        if available_slots <= 0:
-            self.handle_error('MAX_PROCESSES', str(self.max_procs))
-            return False
-
-        rows_to_process = rows[:available_slots]
-        if len(rows) > available_slots:
-            self.log.info(f"Queue has {len(rows)} rows, processing {available_slots} this cycle due to max_procs={self.max_procs}.")
-
-        for row in rows_to_process:
             # set status to PROCESSING
-            update_query = f"update koa_status set status='PROCESSING' where id={row['id']}"
-            result = self._get_db_result('koa', update_query)
+            query = f"update koa_status set status='PROCESSING' where id={r['id']}"
 
-            if result is False and retry:
-                self.log.warning(f'DATABASE_ERROR,  retrying query: {update_query}')
-                result = self._get_db_result('koa', update_query, retry=False)
-
+            result = self._get_db_result('koa', query)
             if result is False:
-                self.handle_error('DATABASE_ERROR', update_query)
-                continue
+                if retry:
+                    self.log.warning(f'DATABASE_ERROR,  retrying query: {query}')
+                    return self.check_queue(retry=False)
+                if not retry:
+                    self.handle_error('DATABASE_ERROR', query)
+                    return False
 
-            # process row
-            self.log.info(f"Processing DB record ID={row['id']}, "
-                          f"filepath={row['ofname']}")
-
-        query = f"update koa_status set status='PROCESSING' where id={row['id']}"
-        result = self._get_db_result('koa', query)
-        if result is False:
-            if retry:
-                self.log.warning(f'DATABASE_ERROR, retrying query: {query}')
-                return self.check_queue(retry=False)
-            self.handle_error('DATABASE_ERROR', query)
-            return False
-
-        self.log.info(f"Processing DB record ID={row['id']}, filepath={row['ofname']}")
-        try:
-            self.process_file(self.instr, row['id'])
-        except Exception as err:
-            self.handle_error('PROCESS_ERROR',
-                              f"ID={row['id']}, filepath={row['ofname']}\n, {err}"
-                              f"{traceback.format_exc()}")
+            # pop from queue and process it
+            self.log.info(f"Processing DB record ID={r['id']}, "
+                          f"filepath={r['ofname']}")
+            try:
+                self.process_file(self.instr, r['id'])
+            except Exception as e:
+                self.handle_error('PROCESS_ERROR',
+                                  f"ID={r['id']}, filepath={r['ofname']}\n, {e}"
+                                  f"{traceback.format_exc()}")
 
     def queue_monitor(self):
-        """Periodically check the queue when idle."""
+        """
+        Periodically check the queue when idle.
+        """
         now = time.time()
         diff = int(now - self.last_queue_check) if self.last_queue_check else 0
 
         if diff >= QUEUE_CHECK_SEC or not self.last_queue_check:
+
+            # check if the ut date changed
             current_date = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
             if self.utd != current_date:
+                # clear logs
                 for handler in self.log.handlers[:]:
                     self.log.removeHandler(handler)
 
                 self.utd = current_date
                 self.log = self.create_logger(
                     self.config[self.instr]['ROOTDIR'],
-                    self.instr, self.uniqueservice_name
+                    self.instr,  self.service_name
                 )
 
             self.check_queue()
 
+        # call this function every N seconds
         threading.Timer(QUEUE_CHECK_SEC, self.queue_monitor).start()
 
-    def process_file(self, instr, dbid):
-        """Spawn archiving for a single file by database ID."""
+    def process_file(self, instr, id):
+        """
+        Spawn archiving for a single file by database ID.
+
+        # NOTE: Using multiprocessing instead of subprocess so we can spawn 
+        # loaded functions as a separate process which saves us the ~0.5 second
+        # overhead of launching python.
+        """
+
         proc = multiprocessing.Process(target=self.spawn_processing,
-                                       args=(self.instr, dbid))
+                                       args=(self.instr, id))
         proc.start()
         self.procs.append(proc)
         self.log.info(f'DEP started as system process ID: {proc.pid}')
 
     def spawn_processing(self, instr, dbid):
         """Call archiving for a single file by DB ID."""
-        Archive(self.instr, dbid=dbid, transfer=self.transfer)
+        obj = Archive(self.instr, dbid=dbid, transfer=self.transfer)
 
-    def create_logger(self, rootdir, instr, service):
-        """Create logger based on rootdir, instr, service name and date."""
+    def create_logger(self, instr, service):
+        """Creates a logger based on instr, service name and date"""
         log_level_map = {
             'DEBUG': logging.DEBUG,
             'INFO': logging.INFO,
             'WARNING': logging.WARNING,
             'ERROR': logging.ERROR,
-            'CRITICAL': logging.CRITICAL,
+            'CRITICAL': logging.CRITICAL
         }
         log_level = log_level_map[self.config['MISC']['LOG_LEVEL']]
 
-        name = f'rti_archive_{instr}_{service}'
+        # Create logger object
+        name = f'rti_queue_monitor_{instr}_{service}'
         log = logging.getLogger(name)
+
         log.setLevel(log_level)
 
-        process_dir = f'{rootdir}/log/{instr.upper()}'
-        log_file = f'{process_dir}/{name}_{self.utd}.log'
+        # paths
+        logFile = f'/log/{instr}/{name}_{self.utd}.log'
 
+        # create directory if it does not exist
         try:
-            Path(process_dir).mkdir(parents=True, exist_ok=True)
-            if not Path(log_file).is_file():
-                with open(log_file, 'w') as file:
-                    file.write('Log file created.')
-        except Exception as err:
-            raise RuntimeError(
-                f"Unable to create logger at {log_file}. Error: {err}"
-            ) from err
+            Path(f'/log/{instr}').mkdir(parents=True, exist_ok=True)
 
-        handle = logging.FileHandler(log_file)
+            # check that the file exists, if not create it.
+            if not Path(logFile).is_file():
+                with open(logFile, 'w') as file:
+                    file.write('Log file created.')
+        except Exception as e:
+            print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
+            return False
+
+        # Create a file handler
+        handle = logging.FileHandler(logFile)
         handle.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s: %(message)s')
         handle.setFormatter(formatter)
         log.addHandler(handle)
 
-        stdout_level = log_level_map[self.config['MISC']['STD_OUT_LOG_LEVEL']]
+        # add stdout to output so we don't need both log and print statements
+        # (>= warning only)
+        log_level = log_level_map[self.config['MISC']['STD_OUT_LOG_LEVEL']]
+
         sh = logging.StreamHandler(sys.stdout)
-        sh.setLevel(stdout_level)
+        sh.setLevel(log_level)
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s - %(message)s')
         sh.setFormatter(formatter)
         log.addHandler(sh)
+        
+        # init message and return
+        log.info(f'logger created for {instr} {service} at {logFile}')
 
-        log.info(f'logger created for {instr} {service} at {log_file}')
-        print(f'logger created for {instr} {service} at {log_file}')
+        # add to the std out log the location of the log
+        print(f'logger created for {instr} {service} at {logFile}')
+
         return log
 
     def handle_error(self, errcode, text='', check_time=True):
+        """Email admins the error but only if we haven't sent one recently."""
+
+        # always log/print
         self.log.error(f'{errcode}: {text}')
         handle_error(errcode, text, self.instr, self.service_uniquename, check_time)
 
@@ -273,41 +309,51 @@ class ArchiveQueueWorker:
                        f'{get_one}, {retry}, {filepath}')
         result = self.db.query(db_name, query, getOne=get_one)
         if result is False and retry:
+            if filepath != None:
+                if self.is_duplicate_file(filepath):
+                    self.log.info(f'Database entry for {filepath} exists')
+                    return True
+
             result = self._get_db_result(db_name, query, get_one=get_one,
                                          retry=False, filepath=filepath)
-        return result
 
+        return result
 
 def handle_error(errcode, text=None, instr=None, service=None, check_time=True):
     """Email admins the error but only if we haven't sent one recently."""
+
+    # always log/print
     print(f'{errcode}: {text}')
 
+    # Only send if we haven't sent one of same errcode recently
     if check_time:
         global last_email_times
-        if not last_email_times:
-            last_email_times = {}
+        if not last_email_times: last_email_times = {}
         last_time = last_email_times.get(errcode)
         now = dt.datetime.now()
         if last_time and last_time + dt.timedelta(minutes=EMAIL_INTERVAL_MINUTES) > now:
             return
         last_email_times[errcode] = now
 
-    with open('config.live.ini') as f:
-        config = yaml.safe_load(f)
-    admin_email = config['REPORT']['ADMIN_EMAIL']
-    if not admin_email:
+    #get admin email.  Return if none.
+    with open('config.live.ini') as f: config = yaml.safe_load(f)
+    adminEmail = config['REPORT']['ADMIN_EMAIL']
+    if not adminEmail:
         return
-
+    
+    # Construct email message
     body = f'{errcode}\n{text}'
-    subj = f'KOA MONITOR ERROR: [{instr} {service}] {errcode}'
+    subj = f'KOA QUEUE MONITOR ERROR: [{instr} {service}] {errcode}'
     msg = MIMEText(body)
     msg['Subject'] = subj
-    msg['To'] = admin_email
-    msg['From'] = admin_email
-    smtp = smtplib.SMTP('localhost')
-    smtp.send_message(msg)
-    smtp.quit()
+    msg['To']      = adminEmail
+    msg['From']    = adminEmail
+    s = smtplib.SMTP('localhost')
+    s.send_message(msg)
+    s.quit()
 
-
-if __name__ == '__main__':
+#--------------------------------------------------------------------------------
+# main command line entry
+#--------------------------------------------------------------------------------
+if __name__ == "__main__":
     main()
