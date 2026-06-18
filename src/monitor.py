@@ -40,7 +40,7 @@ last_email_times = None
 PROC_CHECK_SEC = 1.0
 KTL_START_RETRY_SEC = 60.0
 SERVICE_CHECK_SEC = 60.0
-QUEUE_CHECK_SEC = 5.0
+QUEUE_CHECK_SEC = 3.0
 EMAIL_INTERVAL_MINUTES = 60
 
 
@@ -193,7 +193,7 @@ class Monitor:
                 return
 
         # check queue
-        #self.check_queue()
+#        self.check_queue()
 
     def is_duplicate_file(self, filepath, retry=True):
         """
