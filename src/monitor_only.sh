@@ -8,8 +8,8 @@ source "$HOME/.bashrc"
 if [ "$#" -eq 0 ]; then
   echo -e "\nUSAGE: Specify space-separated list of services to restart"
   echo "EXAMPLES:"
-  echo "  monitor.sh kcwi_blue kcwi_red"
-  echo "  monitor.sh mosfire"
+  echo "  monitor_only.sh kcwi_blue kcwi_red"
+  echo "  monitor_only.sh mosfire"
   echo -e "\n"
   exit 1
 fi
@@ -21,7 +21,7 @@ for service in "${services[@]}"; do
   PYTHON='/usr/local/anaconda/bin/python'
   DEPDIR="$(dirname "$0")"
 
-  cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $service"
+  cmd="$PYTHON $DEPDIR/manager.py monitor_only restart --extra $service"
   echo "$cmd"
   $cmd > /dev/null 2>&1
 
