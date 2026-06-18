@@ -40,7 +40,7 @@ last_email_times = None
 PROC_CHECK_SEC = 1.0
 KTL_START_RETRY_SEC = 60.0
 SERVICE_CHECK_SEC = 60.0
-QUEUE_CHECK_SEC = 5.0        # 3.0 sec
+QUEUE_CHECK_SEC = 5.0
 EMAIL_INTERVAL_MINUTES = 60
 
 
@@ -261,48 +261,22 @@ class Monitor:
                  f" and status='QUEUED' "
                  f" and instrument='{self.instr}' "
                  f" and service='{self.service_uniquename}' "
-                 f" order by creation_time asc")
+                 f" order by creation_time asc limit 1 ")
 
-        rows = self._get_db_result('koa', query, get_one=False)
-
-        if rows is False:
-            self.log.debug(f'rows is False, query: {query}, rows: {rows}')
+        row = self._get_db_result('koa', query, get_one=False)
+        if row is False:
+            self.log.debug(f'row is False, query: {query}, row: {row}')
             return False
 
-        if len(rows) == 0:
-            self.log.debug(f'rows == 0, query: {query}, rows: {rows}')
+        if len(row) == 0:
+            self.log.debug(f'rows == 0, query: {query}, row: {row}')
             return False
 
         available_slots = self.max_procs - len(self.procs)
         if available_slots <= 0:
-            self.handle_error('MAX_PROCESSES', self.max_procs)
+            self.handle_error('MAX_PROCESSES', str(self.max_procs))
             return False
 
-        rows_to_process = rows[:available_slots]
-        if len(rows) > available_slots:
-            self.log.info(f"Queue has {len(rows)} rows, processing {available_slots} this cycle due to max_procs={self.max_procs}.")
-
-        for row in rows_to_process:
-            # set status to PROCESSING
-            update_query = f"update koa_status set status='PROCESSING' where id={row['id']}"
-
-            result = self._get_db_result('koa', update_query)
-            if result is False and retry:
-                self.log.warning(f'DATABASE_ERROR,  retrying query: {update_query}')
-                result = self._get_db_result('koa', update_query, retry=False)
-            if result is False:
-                self.handle_error('DATABASE_ERROR', update_query)
-                continue
-
-            # process row
-            self.log.info(f"Processing DB record ID={row['id']}, "
-                          f"filepath={row['ofname']}")
-            try:
-                self.process_file(self.instr, row['id'])
-            except Exception as e:
-                self.handle_error('PROCESS_ERROR',
-                                  f"ID={row['id']}, filepath={row['ofname']}\n, {e}"
-                                  f"{traceback.format_exc()}")
 
     def queue_monitor(self):
         """
