@@ -127,21 +127,47 @@ class ArchiveQueueWorker:
                  f" and status='QUEUED' "
                  f" and instrument='{self.instr}' "
                  f" and service='{self.service_uniquename}' "
-                 f" order by creation_time asc limit 1")
+                 f" order by creation_time asc")                 # jph: removed 'limit 1' to allow multi rows per call
 
-        row = self._get_db_result('koa', query, get_one=True)
-
-        if row is False:
-            self.log.debug(f'row is False, query: {query}, row: {row}')
+        rows = self._get_db_result('koa', query, get_one=False)  # jph: get_one=False to allow multi rows per call
+                                                                 # jph: row -> rows, not row -> change all row to rows and handle multiple rows in loop
+        if rows is False:
+            self.log.debug(f'rows is False, query: {query}, row: {rows}')
             return False
 
-        if len(row) == 0:
-            self.log.debug(f'row == 0, query: {query}, row: {row}')
+        if len(rows) == 0:
+            self.log.debug(f'rows == 0, query: {query}, row: {rows}')
             return False
 
-        if len(self.procs) >= self.max_procs:
+        # if len(self.procs) >= self.max_procs:
+        #     self.handle_error('MAX_PROCESSES', str(self.max_procs))
+        #     return False
+
+        available_slots = self.max_procs - len(self.procs)
+        if available_slots <= 0:
             self.handle_error('MAX_PROCESSES', str(self.max_procs))
             return False
+
+        rows_to_process = rows[:available_slots]
+        if len(rows) > available_slots:
+            self.log.info(f"Queue has {len(rows)} rows, processing {available_slots} this cycle due to max_procs={self.max_procs}.")
+
+        for row in rows_to_process:
+            # set status to PROCESSING
+            update_query = f"update koa_status set status='PROCESSING' where id={row['id']}"
+            result = self._get_db_result('koa', update_query)
+
+            if result is False and retry:
+                self.log.warning(f'DATABASE_ERROR,  retrying query: {update_query}')
+                result = self._get_db_result('koa', update_query, retry=False)
+
+            if result is False:
+                self.handle_error('DATABASE_ERROR', update_query)
+                continue
+
+            # process row
+            self.log.info(f"Processing DB record ID={row['id']}, "
+                          f"filepath={row['ofname']}")
 
         query = f"update koa_status set status='PROCESSING' where id={row['id']}"
         result = self._get_db_result('koa', query)
