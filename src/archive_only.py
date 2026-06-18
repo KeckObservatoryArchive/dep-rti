@@ -34,7 +34,6 @@ import db_conn
 # module globals
 last_email_times = None
 PROC_CHECK_SEC = 1.0
-QUEUE_CHECK_SEC = 2.0
 EMAIL_INTERVAL_MINUTES = 60
 MAX_PROCS = 10
 
@@ -94,6 +93,10 @@ class QueueMonitor:
                 self.service_uniquename = self.keys['ktl_uniquename']
             except:
                 self.service_uniquename = self.service_name
+            try:
+                self.queue_check_sec = self.keys['queue_check_sec']
+            except:
+                self.queue_check_sec = 10
             self.instr = self.keys['instr']
         except KeyError:
             err = f"Instrument name: {inst_mode_name}, " \
@@ -201,7 +204,7 @@ class QueueMonitor:
         now = time.time()
         diff = int(now - self.last_queue_check) if self.last_queue_check else 0
 
-        if diff >= QUEUE_CHECK_SEC or not self.last_queue_check:
+        if diff >= self.queue_check_sec or not self.last_queue_check:
 
 #            # check if the ut date changed
 #            current_date = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
@@ -219,7 +222,7 @@ class QueueMonitor:
             self.check_queue()
 
         # call this function every N seconds
-        threading.Timer(QUEUE_CHECK_SEC, self.queue_monitor).start()
+        threading.Timer(self.queue_check_sec, self.queue_monitor).start()
 
     def process_file(self, instr, id):
         """
