@@ -151,6 +151,11 @@ class Monitor:
         stage_file = row['stage_file']
         status = row['status']
 
+        if status == 'COMPLETE':
+            self.log.warning(f"Filepath '{filepath}' duplicate "
+                             f"broadcast same as {row['id']}. Skipping.")
+            return True
+
         if not stage_file:
             if status in ('QUEUED', 'PROCESSING', 'TRANSFERRING', 'TRANSFERRED'):
                 self.log.warning(f"Filepath '{filepath}' duplicate "
