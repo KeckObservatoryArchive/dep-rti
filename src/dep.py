@@ -1354,6 +1354,7 @@ class DEP:
                 vals = (json.dumps(d), self.koaid,)
 
         result = self.db.query('koa', query, values=vals)
+
         if not result:
             self.log_warn('HEADER_TABLE_INSERT_FAIL', query)
             return False
