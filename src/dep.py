@@ -734,7 +734,6 @@ class DEP:
         # Make sure constructed filename matches basename.
         basename = os.path.basename(self.filepath)
         basename = basename.replace(".fits.gz", ".fits")
-
         if filename != basename:
             self.log_invalid('MISMATCHED_FILENAME', f"{filename} != {basename}")
             return False
