@@ -4,6 +4,7 @@ Contains basic keyword values common across all the instruments
 Children will contain the instrument specific values
 """
 
+import pdb
 import os
 from common import *
 from astropy.io import fits
@@ -179,15 +180,16 @@ class Instrument(dep.DEP):
         # Extract the UTC time and date observed from the header
         self.set_utc()
         utc = self.get_keyword('UTC', useMap=False)
-        if utc == None: return False
-
+        if utc == None:
+            return False
         self.set_dateObs()
         dateobs = self.get_keyword('DATE-OBS', useMap=False)
-        if dateobs == None: return False
-
+        if dateobs == None:
+            return False
         # Create a timedate object using the string from the header
         try:    utc = dt.datetime.strptime(utc, '%H:%M:%S.%f')
-        except: return False
+        except:
+            return False
 
         # Get total seconds and hundredths
         totalSeconds = str((utc.hour * 3600) + (utc.minute * 60) + utc.second)
@@ -206,7 +208,6 @@ class Instrument(dep.DEP):
         """Check for indicators that this is definitely engineering data."""
             
         #keyword values that indicate ENG
-        # 20240719 trust OSIRIS PROGNAME
         keyvals = {
             'PROGNAME': [
                 'eng',
@@ -273,7 +274,7 @@ class Instrument(dep.DEP):
         ok = False
 
         #direct match (or starts with match)?
-        instrume = self.get_keyword('INSTRUME')
+        instrume = self.get_keyword('INSTRUME').upper()
         if instrume and instrume.startswith(self.instr):
             if instrume != self.instr:
                 self.set_keyword('INSTRUME', self.instr, 'KOA: Instrument')
@@ -699,9 +700,12 @@ class Instrument(dep.DEP):
         """
 
         image = self.fits_hdu[0].data     
-        imageStd    = float("%0.2f" % np.std(image))
-        imageMean   = float("%0.2f" % np.mean(image))
-        imageMedian = float("%0.2f" % np.median(image))
+
+        # ravel() returns a 1D view of array if possible
+        sample = image.ravel()[::100]
+        imageStd    = float("%0.2f" % sample.std())
+        imageMean   = float("%0.2f" % sample.mean())
+        imageMedian = float("%0.2f" % np.median(sample))
 
         self.set_keyword('IMAGEMN' ,  imageMean,   'KOA: Image data mean')
         self.set_keyword('IMAGESD' ,  imageStd,    'KOA: Image data standard deviation')
@@ -918,16 +922,16 @@ class Instrument(dep.DEP):
         if self.get_keyword('FRAMENO', False) != None: return True
 
         #get value
-        #NOTE: If FRAMENO doesn't exist, derive from DATAFILE
+        #NOTE: If FRAMENO doesn't exist, derive from OBSNUM (or DATAFILE?)
         frameno = self.get_keyword('FRAMENUM')
         if (frameno == None): 
 
-            datafile = self.get_keyword('DATAFILE')
-            if (datafile == None): 
+            obsnum = self.get_keyword('OBSNUM')
+            if (obsnum == None): 
                 self.log_warn("SET_FRAMENO_ERROR")
                 return False
 
-            frameno = datafile.replace('.fits', '')
+            frameno = obsnum.replace('.fits', '')
             num = frameno.rfind('_') + 1
             frameno = frameno[num:]
             frameno = int(frameno)

@@ -197,6 +197,24 @@ instr_keymap = {
         'heartbeat'     : ['ITERATION', 1],
         'transfer'      : 1
     },
+    'scales_img' : {
+        'ktl_service'   : 'scimager',
+        'ktl_uniquename': 'scales_img',
+        'instr'         : 'SCALES',
+        'trigger'       : 'LASTFILE',
+        'val'           : None,
+        'heartbeat'     : ['DISPCLK', 1],
+        'transfer'      : 0
+    },
+    'scales_spec' : {
+        'ktl_service'   : 'scifu',
+        'ktl_uniquename': 'scales_spec',
+        'instr'         : 'SCALES',
+        'trigger'       : 'LASTFILE',
+        'val'           : None,
+        'heartbeat'     : ['DISPCLK', 1],
+        'transfer'      : 0
+    },
     'guiderk1': {
         'ktl_service':  'koa',
         'instr'      :  'GUIDER',
