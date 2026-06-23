@@ -29,7 +29,7 @@ def main():
     parser.add_argument('instr', help='Keck Instrument')
     parser.add_argument('--filepath', type=str, default=None, help='Filepath to FITS file to archive.')
     parser.add_argument('--files', type=str, default=None, help='Directory path to FITS files.  Can use "glob" pattern match.')
-    parser.add_argument('--dbid', type=str, default=None, help='Database ID record to archive.')
+    parser.add_argument('--dbid', type=int, default=None, help='Database ID record to archive.')
     parser.add_argument('--reprocess', dest="reprocess", default=False, action="store_true", help='Replace DB record and files and rearchive')
     parser.add_argument('--starttime', type=str, default=None, help='Start time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
     parser.add_argument('--endtime', type=str, default=None, help='End time to query for reprocessing. Format yyyy-mm-ddTHH:ii:ss.dd')
@@ -42,11 +42,15 @@ def main():
     parser.add_argument('--level', type=int, default=0, help='Data reduction level. Only needed if reprocessing by query search.')
     args = parser.parse_args()    
 
+
     #run it 
-    archive = Archive(args.instr, filepath=args.filepath, files=args.files, dbid=args.dbid, 
-              reprocess=args.reprocess, starttime=args.starttime, endtime=args.endtime,
-              status=args.status, statuscode=args.statuscode, ofname=args.ofname,
-              progid=args.progid, confirm=args.confirm, transfer=args.transfer, level=args.level)
+    archive = Archive(
+        args.instr, filepath=args.filepath, files=args.files, dbid=str(args.dbid),
+        reprocess=args.reprocess, starttime=args.starttime, endtime=args.endtime,
+        status=args.status, statuscode=args.statuscode, ofname=args.ofname,
+        progid=args.progid, confirm=args.confirm, transfer=args.transfer,
+        level=args.level
+    )
 
 
 class Archive():

@@ -147,7 +147,7 @@ instr_keymap = {
         'trigger'      : 'FITSFILE',
         'val'           : None,
         'heartbeat'    : ['DISP1CLK', 1],
-#        'delay'        : 1.0,
+        'queue_check_sec': 2,
         'transfer'      : 1
     },
 
@@ -158,7 +158,7 @@ instr_keymap = {
         'trigger'      : 'RAWFITSFILE',
         'val'           : None,
         'heartbeat'    : ['DISP1CLK', 1],
-#        'delay'        : 1.0,
+        'queue_check_sec': 2,
         'transfer'      : 1
     },
 

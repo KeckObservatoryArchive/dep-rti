@@ -4,25 +4,21 @@
 source "$HOME/.bashrc"
 
 # Usage
-
 if [ "$#" -eq 0 ]; then
-  echo -e "\nUSAGE: Specify space-separated list of services to restart"
+  echo -e "\nUSAGE: Specify service to restart"
   echo "EXAMPLES:"
-  echo "  monitor.sh kcwi_blue kcwi_red"
-  echo "  monitor.sh mosfire"
+  echo "  archive.sh kcwi_blue kcwi_red"
+  echo "  archive.sh mosfire"
   echo -e "\n"
   exit 1
 fi
 
-services=("$@")
-
 # Loop through services
+services=("$@")
 for service in "${services[@]}"; do
   PYTHON='/usr/local/anaconda/bin/python'
   DEPDIR="$(dirname "$0")"
-
-  cmd="$PYTHON $DEPDIR/manager.py monitor restart --extra $service"
+  cmd="$PYTHON $DEPDIR/manager.py archive_only restart --extra $service"
   echo "$cmd"
   $cmd > /dev/null 2>&1
-
 done
