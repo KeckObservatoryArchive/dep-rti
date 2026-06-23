@@ -305,7 +305,6 @@ class Scales(instrument.Instrument):
     def set_resolution(self):
         '''
         Using FILTER and MODSLNAM, determine spectral resolution.
-        the filter and SI.20260605.62983.38.fits: MODSLNAM = MedRes
         '''
 
         if self.get_keyword('CAMERA', default='').upper() != "IFS":
