@@ -15,7 +15,7 @@ class TarFun:
 
         self.retry = False
         self.max_pkg_size = ctx.cfg[ctx.inst]['max_pkg_size']
-        self.time_limit = timedelta(minutes=ctx.cfg['FDT_PROCESS']['pkg_timeout'])
+        self.time_limit = timedelta(minutes=ctx.cfg['FDT_PKG']['pkg_timeout'])
 
 
     def add_obs(self, koaid, pkg_id, obs_path, tar_full_path):
@@ -122,7 +122,7 @@ class TarFun:
         return
 
 
-    def chk_finalize(self, filepath_obj):
+    def need_close(self, filepath_obj):
         """
         Check if the tar needs to be closed.  If it meets the full criteria,
         finalize it by (1) updating the DB status (2)
@@ -143,7 +143,6 @@ class TarFun:
         create_time = result['creation_time']
         size_mb = result['filesize_mb']
 
-        # TODO confirm the database size is correct
         tar_mb = self.get_file_size(filepath_obj)
 
         if tar_mb > size_mb:
@@ -152,23 +151,14 @@ class TarFun:
 
         now = datetime.now()
 
-        # close_requested used by CLI
-        # check size limit (TODO could minus tar packaging,  but seems minimal)
-        # check temporal limit (TODO could include the 5s check period)
-        rules = [
+        # (1) CLI close, (2) check size limit, (3) check temporal limit
+        broken_rules = [
             result['status'] == 'CLOSE_REQUESTED',
             size_mb >= self.max_pkg_size,
             now - create_time >= self.time_limit
         ]
 
-        self.log.debug(f"rule1: {result['status'] == 'CLOSE_REQUESTED'}")
-        self.log.debug(
-            f"rule2: {size_mb >= self.max_pkg_size}, {size_mb}, "
-            f"{self.max_pkg_size}"
-        )
-        self.log.debug(f"rule3: {now - create_time >= self.time_limit}")
-
-        if not any(rules):
+        if not any(broken_rules):
             return False
 
         self.close_file(pkg_id, filepath_obj)
@@ -215,9 +205,6 @@ class TarFun:
         return <str> fullpath
         return <int> pkg_id
         """
-        tar_file = None
-        pkg_id = None
-
         # pkg_id, filename
         results = self.ctx.db_pkg.select_by_status("OPEN")
 
@@ -227,12 +214,14 @@ class TarFun:
         if num_open == 0:
             tar_file, pkg_id = self.add_new(koaid)
         #  should always be only one
-        elif num_open == 1:
+        else:
             pkg_id = results[0]['pkg_id']
             tar_file = f"{results[0]['filepath']}/{results[0]['filename']}"
-        else:
-            # TODO email warning / handle
-            self.log.error('WARNING,  more than one OPEN package found')
+            if num_open > 1:
+                # TODO email warning / handle
+                self.log.error(
+                    f'WARNING,  more than one OPEN package found, '
+                    f'using pkg_id: {pkg_id}, tar_file: {tar_file}')
 
         return tar_file, pkg_id
 
@@ -252,3 +241,30 @@ class TarFun:
 
         return f"{self.ctx.tar_path}/{filename}", pkg_id
 
+
+    def remove_file(self, tmp_filepath):
+        """
+        Remove the file from the tar file.
+
+        tmp_filepath <Path> - the Path object of the tar file
+        """
+        if tmp_filepath.is_file():
+            tmp_filepath.unlink(missing_ok=True)
+
+    def included_koaids(self, tar_path):
+        """
+        Determine the KOAIDS
+
+        return <set> koaids
+        """
+
+        koaids = set()
+
+        with tarfile.open(tar_path) as tar:
+            for member in tar.getmembers():
+                if member.isfile():
+                    filename = Path(member.name).name
+                    koaid = filename.rsplit(".", 1)[0]
+                    koaids.add(koaid)
+
+        return koaids

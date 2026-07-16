@@ -6,9 +6,10 @@ from .fdt_database import DatabaseConnect
 from .fdt_lock import FdtLock
 from .fdt_database_fun import PkgTable, ObsTable
 from .fdt_xfr_fun import FdtXfrFun
+from .fdt_tar_fun import TarFun
 
 
-class FdtPkgContext:
+class FdtXfrContext:
     def __init__(self, inst, lev, cfg_file, log):
 
         self.log = log
@@ -33,4 +34,5 @@ class FdtPkgContext:
         self.db_pkg = PkgTable(inst, lev, self.proc_conn, log)
         self.db_obs = ObsTable(inst, lev, self.proc_conn, log)
 
+        self.tar_fun = TarFun(self)
         self.xfr_fun = FdtXfrFun(self)

@@ -7,18 +7,6 @@ from fdt import fdt_utils
 from fdt.fdt_pkg_monitor import FdtPkgMonitor
 from fdt.fdt_pkg_context import FdtPkgContext
 
-# log_date = datetime.now().strftime("%Y%m%d")
-#
-# logging.basicConfig(
-#     filename=f"fdt_pkg_{args.inst}_lev{args.lev}_{log_date}.log",
-#     # level=logging.INFO,
-#     level=logging.DEBUG,
-#     format=(
-#         "%(asctime)s %(levelname)-8s "
-#         "%(filename)s:%(funcName)s:%(lineno)d - %(message)s"
-#     ),
-#     datefmt="%Y-%m-%d %H:%M:%S",
-# )
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +51,7 @@ if __name__ == '__main__':
     cfg = fdt_utils.read_config(cfg_file)
 
     log_date = datetime.now().strftime("%Y%m%d")
-    log_dir = cfg['FDT_PROCESS']['log_dir']
+    log_dir = cfg['GENERAL']['log_dir']
     logging.basicConfig(
         filename=f"{log_dir}/fdt_pkg_{args.inst}_lev{args.lev}_{log_date}.log",
         # level=logging.INFO,
@@ -87,10 +75,10 @@ if __name__ == '__main__':
     ctx.lock.acquire()
 
     # infinite loop to monitor the database for new pending observations
-    fdt_obs_monitor = FdtPkgMonitor(ctx)
+    fdt_pkg_monitor = FdtPkgMonitor(ctx)
 
     # start the loop
-    fdt_obs_monitor.run()
+    fdt_pkg_monitor.run()
 
 
 

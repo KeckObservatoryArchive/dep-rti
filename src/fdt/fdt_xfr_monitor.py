@@ -2,38 +2,57 @@
 The monitor of the package table to start transfers
 """
 
+import signal
 from time import sleep
 
-
-class FdtPkgMonitor(object):
+class FdtXfrMonitor(object):
     def __init__(self, ctx):
+        self.ctx = ctx
+        self.cfg = ctx.cfg
         self.log = ctx.log
-        self.xfr_fun = ctx.xfr_functions
+        self.xfr = ctx.xfr_fun
+
+        self.db_pkg = ctx.db_pkg
+        self.monitor_period = self.cfg['FDT_XFR']['monitor_period']
+
+        self.stop_requested = False
+
+        # handle cntrl-c, kill <pid>
+        signal.signal(signal.SIGINT, self.stop_handle)
+        signal.signal(signal.SIGTERM, self.stop_handle)
+
+    def stop_handle(self, signum, frame):
+        """
+        exit the process cleanly
+        """
+        self.log.info(f"Exiting, received signal {signum}.")
+        self.stop_requested = True
 
 
     def run(self):
-        # get pkg_to_transfer
         """
-        select * from pkg_observations where status="CLOSED" AND source_deleted=0
-        AND instrument=%s and level=%s
+        Monitor the fdt_packages database table for any packages that are closed.
         """
 
-        open_procs = set()
+        # check on startup for TRANSFERRING packages
+        self.xfr.chk_on_startup()
+
         while not self.stop_requested:
 
-            open_procs = self.chk_open_procs(open_procs)
-            sleep(self.pkg_watch_period)
+            # check the open processes
+            self.xfr.chk_open_xfr()
 
-            # TODO need to implement still
-            get_ready_pkgs = self.db_pkg.ready_to_tansfer()
+            sleep(self.monitor_period)
 
-            if not get_ready_pkgs:
+            # find CLOSED packages
+            ready_pkgs = self.db_pkg.ready_to_transfer()
+
+            if not ready_pkgs:
                 continue
 
-            for pkg in get_ready_pkgs:
-                proc = self.transfer(pkg)
-                if not proc:
-                    continue
-                open_procs.add(proc)
+            for pkg in ready_pkgs:
+                self.xfr.start_transfer(pkg)
 
-        return
+            # check for processes finished
+            self.xfr.chk_open_xfr()
+

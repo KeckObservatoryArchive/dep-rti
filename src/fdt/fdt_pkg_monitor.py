@@ -19,11 +19,13 @@ class FdtPkgMonitor(object):
         self.stop_requested = False
 
         # limit constants
-        cfg_fdt = self.cfg['FDT_PROCESS']
-        self.max_errors = cfg_fdt['max_errors']
-        self.max_lock_retries = cfg_fdt['max_lock_retries']
-        self.lock_chk_period = cfg_fdt['lock_chk_period']
-        self.obs_watch_period = cfg_fdt['obs_watch_period']
+        cfg_general = self.cfg['GENERAL']
+        self.max_errors = cfg_general['max_errors']
+        self.max_lock_retries = cfg_general['max_lock_retries']
+        self.lock_chk_period = cfg_general['lock_chk_period']
+
+        cfg_fdt = self.cfg['FDT_PKG']
+        self.monitor_period = cfg_fdt['monitor_period']
 
         # handle cntrl-c, kill <pid>
         signal.signal(signal.SIGINT, self.stop_handle)
@@ -41,22 +43,20 @@ class FdtPkgMonitor(object):
         Run the infinite loop until SIGINT or SIGTERM is received
         or the process is terminated.
         """
-        last_lock_chk = None
 
-        # check for open packages and files left in processing state
         self.log.info("Starting FDT Package monitor.")
 
         err_retry = 0
         open_tarfiles = set()
         own_lock = False
-        lock_retries = self.max_lock_retries
         last_lock_chk = 0
+        lock_retries = self.max_lock_retries
         my_id = None
         cleaned_up = False
 
         while not self.stop_requested:
 
-            sleep(self.obs_watch_period)
+            sleep(self.monitor_period)
 
             # Every period (seconds), verify the lock connection
             elapsed = time.monotonic() - last_lock_chk
@@ -78,6 +78,7 @@ class FdtPkgMonitor(object):
                 )
                 lock_retries -= 1
                 if lock_retries <= 0:
+                    print('Could not obtain lock,  is another process running?.')
                     sys.exit(0)
                 continue
 
@@ -106,6 +107,7 @@ class FdtPkgMonitor(object):
         self.ctx.lock.release()
         self.ctx.proc_conn.close()
         self.ctx.lock_conn.close()
+
 
     def process_observations(self, open_tarfiles):
         """
@@ -162,7 +164,7 @@ class FdtPkgMonitor(object):
         remove_files = set()
         for open_file in tarfile_set:
             tar_path = Path(open_file)
-            if self.ctx.tar_fun.chk_finalize(tar_path):
+            if self.ctx.tar_fun.need_close(tar_path):
                 # tar was closed
                 remove_files.add(open_file)
 

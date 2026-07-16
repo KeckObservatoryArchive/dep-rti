@@ -17,11 +17,16 @@ def validate_cfg(cfg_dict):
 
     Raises:
         ValueError: If required configuration is missing or invalid.
-    """
 
+    """
     required = {
         "DATABASE": ["host", "user", "pwd", "db", ],
-        "FDT_PROCESS": ["koa_base_path", "pkg_timeout", ],
+        "GENERAL": [
+            "max_errors", "max_lock_retries", "lock_chk_period",
+            "koa_base_path", "log_dir"
+        ],
+        "FDT_PKG": ["koa_base_path", "pkg_timeout", "monitor_period"],
+        # FDT_XFR....
         "SCALES": ["max_pkg_size", "inst_prefixes"]
     }
 
@@ -46,16 +51,16 @@ def validate_cfg(cfg_dict):
             raise ValueError(f"Missing '{inst}.max_pkg_size'.")
 
     # Type/range checks
-    timeout = cfg_dict["FDT_PROCESS"]["pkg_timeout"]
+    timeout = cfg_dict["FDT_PKG"]["pkg_timeout"]
     if not isinstance(timeout, int) or timeout <= 0:
-        raise ValueError("FDT_PROCESS.pkg_timeout must be a positive integer.")
+        raise ValueError("FDT_PKG.pkg_timeout must be a positive integer.")
 
 
 def define_data_path(ctx, filepath):
     if filepath:
         return Path(filepath)
 
-    return Path(f"{ctx.cfg['FDT_PROCESS']['koa_base_path']}/"
+    return Path(f"{ctx.cfg['FDT_PKG']['koa_base_path']}/"
                 f"{ctx.inst}/{ctx.lev}/")
 
 
@@ -63,6 +68,6 @@ def define_tar_path(ctx, tar_path):
     if tar_path:
         return Path(tar_path)
 
-    return Path(f"{ctx.cfg['FDT_PROCESS']['koa_base_path']}/"
+    return Path(f"{ctx.cfg['FDT_PKG']['koa_base_path']}/"
                 f"{ctx.inst}/tarfiles/{ctx.lev_str}/")
 

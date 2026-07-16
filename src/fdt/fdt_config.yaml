@@ -1,20 +1,27 @@
 
 DATABASE:
-    host : "vm-koartibuild"
-    db     : "koa"
-    user   : ""
-    pwd    : ""
+    host :
+    db     :
+    user   :
+    pwd    :
 
+GENERAL:
+    koa_base_path :
+    max_errors: 10
+    max_lock_retries: 20 # cycles
+    lock_chk_period: 60 # seconds
+    log_dir: .
 
-FDT_PROCESS:
-    koa_base_path : "/koadata/"
+FDT_PKG:
     pkg_timeout: 60 # minutes
-    max_errors : 10
-    max_lock_retries : 20 # cycles
-    lock_chk_period : 60 # seconds
-    obs_watch_period : 5 # seconds
+    monitor_period: 5 # seconds
+
+FDT_XFR:
+    xfr_timeout: 120 # minutes
+    monitor_period: 5 # seconds
 
 SCALES:
-    max_pkg_size : 250 #GB
-    inst_prefix: [SS, SI]
+    # 250 GB = 256000 MB
+    max_pkg_size : 256000 # MB
+    inst_prefixes: [SS, SI]
 
