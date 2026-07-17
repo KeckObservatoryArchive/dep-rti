@@ -95,6 +95,7 @@ class Scales(instrument.Instrument):
             {'name':'set_semester',    'crit': True},
             {'name':'set_ofName',      'crit': True},
             {'name':'set_koaimtyp',    'crit': True},
+            {'name':'set_frameno',     'crit': True},
             {'name':'set_prog_info',   'crit': True},
             {'name':'set_propint',     'crit': True},
             {'name':'set_elaptime',    'crit': False},
@@ -248,6 +249,19 @@ class Scales(instrument.Instrument):
             return 'undefined'
 
         return imtype
+
+
+    def set_frameno(self):
+        """
+        Adds FRAMENO keyword to header if it doesn't exist
+        """
+        obsnum = self.get_keyword('OBSNUM')
+        if (obsnum == None):
+            self.log_warn("SET_FRAMENO_ERROR")
+            return False
+
+        self.set_keyword('FRAMENO', obsnum, 'KOA: Image frame number')
+        return True
 
 
     def set_elaptime(self):
