@@ -926,8 +926,8 @@ class Instrument(dep.DEP):
         frameno = self.get_keyword('FRAMENUM')
         if (frameno == None): 
 
-            obsnum = self.get_keyword('OBSNUM')
-            if (obsnum == None): 
+            datafile = self.get_keyword('DATAFILE')
+            if (datafile == None): 
                 self.log_warn("SET_FRAMENO_ERROR")
                 return False
 
