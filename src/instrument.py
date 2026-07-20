@@ -4,6 +4,16 @@ Contains basic keyword values common across all the instruments
 Children will contain the instrument specific values
 """
 
+'''
+dep-rti Issue #220
+validate PROGNAME with approved proposals API
+    if PROGNAME = KTN from approved proposal, use progid
+    else, if proposal not approved, do not use progid
+    if progid is 'NONE', use progid from schedule API
+        otherwise, construct the prog* values
+'''
+
+
 import pdb
 import os
 from common import *
@@ -465,8 +475,58 @@ class Instrument(dep.DEP):
             return True
 
 
+    def get_progid_from_proposals(self, hdr_progid):
+        """Validate PROGID=PROGNAME from the information in the proposals API"""
+
+        ## validate progid parameter value from FITS header's PROGNAME value
+        valid = self.is_progid_valid(hdr_progid)
+        if not valid:
+            log.info(f'Invalid PROGID from PROGNAME: {hdr_progid} - returning NONE.')
+            return 'NONE'
+
+        semester = self.get_keyword("SEMESTER")
+        print(f'semester: {semester}')
+
+        # get proposal API information - ktn
+        main_url = self.config.get('API', {}).get('MAIN')
+        prop_api = "proposals/isApproved"
+        prop_param = "ktn=" + semester + "_" + hdr_progid
+        prop_url = main_url + "/" + prop_api + "?" + prop_param
+        log.info(f'Checking proposals API for PROGID: {prop_url}')
+        prop_data = self.get_api_data(prop_url)
+        print(f'prop_data: {prop_data}')
+
+        if not prop_data:
+            log.info(f"Invalid proposals API response for 'get_api_data()'")
+            return None
+
+        if not isinstance(prop_data, dict):
+            log.info("Unexpected API response type: %s", type(prop_data).__name__)
+            return None
+
+        approved = prop_data.get("is_approved")
+        print(f'is_approved: {approved}')
+
+        if approved != 1:
+            log.info("PROGID from FITS header's PROGNAME {hdr_progid} is not approved, default to Schedule API.")
+            return 'NONE'   # do not use hdr_progid since proposal is not approved
+
+        # approved proposal ???
+        prop_ktn = str(prop_data['ktn'])
+        valid = self.is_progid_valid(prop_ktn)
+        if not valid:
+            log.info(f'Invalid KTN in proposals: {prop_ktn} - so approval is irrelevant.')
+            return hdr_progid
+
+        # use ktn from approved proposal instead of PROGNAME header if they differ
+        if hdr_progid != prop_ktn:
+            return prop_ktn
+
+        return hdr_progid   # progids match, so return original
+
+
     def get_progid_from_schedule(self):
-        """Try to set PROGID from the information in the telescope scheduel"""
+        """Try to set PROGID from the information in the telescope schedule"""
 
         #requires UTC value
         ut = self.get_keyword('UTC')
@@ -522,12 +582,20 @@ class Instrument(dep.DEP):
     def set_prog_info(self):
         """Set PROG* keywords"""
 
-        #Get PROGNAME from header and use for PROGID
-        #If not found, then do simple assignment by time/observer/outdir(eng).
+        # Get PROGNAME from header and use for PROGID
+        # If not found, then do simple assignment by time/observer/outdir(eng)
         too = False
         progid = self.progid
         if not progid:
             progid = self.get_keyword('PROGNAME')
+
+        # added for dep-rti Issue #220
+        # validate PROGNAME value with approved proposal
+        if progid:
+            progid_prop = self.get_progid_from_proposals(progid)
+            if progid_prop:
+                progid = progid_prop   # can be 'NONE'
+
         outdir = self.get_keyword('OUTDIR', default='')
         if '_ToO_' in outdir:
             too = True
