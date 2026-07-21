@@ -538,7 +538,8 @@ class Instrument(dep.DEP):
             log.info(f'Checking proposals API for PROGID: {url}')
             resp = self.get_api_data(url)
             print(f"Proposals API's response: {str(resp)}'")
-            if not resp or not resp.get('success') or resp.get('data') == None:
+            #if not resp or not resp.get('success') or resp.get('data') == None:
+            if not resp or not resp.get('success'):
                 log.info(f"Invalid proposal, default to schedule's entry")
                 progid = None
             if not isinstance(resp, dict):
