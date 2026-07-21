@@ -530,7 +530,7 @@ class Instrument(dep.DEP):
         if not progid:
             progid = self.get_keyword('PROGNAME')
 
-        if progid:
+        if progid and progid!='ENG':
             # validate PROGNAME value with approved proposal (dep-rti Issue #220)
             semester = self.get_keyword('SEMESTER')
             api = self.config.get('API', {}).get('MAIN')
