@@ -534,7 +534,8 @@ class Instrument(dep.DEP):
             # validate PROGNAME value with approved proposal (dep-rti Issue #220)
             semester = self.get_keyword('SEMESTER')
             api = self.config.get('API', {}).get('MAIN')
-            url = api + '/proposals/isApproved?ktn=' + semester + "_" + progid
+            #url = api + '/proposals/isApproved?ktn=' + semester + "_" + progid
+            url = api + '/proposals/getTitle?ktn=' + semester + "_" + progid
             log.info(f'Checking proposals API for PROGID: {url}')
             resp = self.get_api_data(url)
             print(f"Proposals API's response: {str(resp)}'")
