@@ -530,23 +530,7 @@ class Instrument(dep.DEP):
         if not progid:
             progid = self.get_keyword('PROGNAME')
 
-#        if progid and progid!='ENG':
-#            # validate PROGNAME value with approved proposal (dep-rti Issue #220)
-#            semester = self.get_keyword('SEMESTER')
-#            api = self.config.get('API', {}).get('MAIN')
-#            #url = api + '/proposals/isApproved?ktn=' + semester + "_" + progid
-#            url = api + '/proposals/getTitle?ktn=' + semester + "_" + progid
-#            log.info(f'Checking proposals API for PROGID: {url}')
-#            resp = self.get_api_data(url)
-#            print(f"Proposals API's response: {str(resp)}'")
-#            #if not resp or not resp.get('success') or resp.get('data') == None:
-#            if not resp or not resp.get('success'):
-#                log.info(f"Invalid proposal, default to schedule's entry")
-#                progid = None
-#            if not isinstance(resp, dict):
-#                log.info("Unexpected API response type: %s", type(resp).__name__)
-#                progid = None
-
+        # first check if ToO and get progid from dir name
         outdir = self.get_keyword('OUTDIR', default='')
         if '_ToO_' in outdir:
             too = True
@@ -556,29 +540,24 @@ class Instrument(dep.DEP):
                 progid = outdir.split('_')[-1]
                 too = True
 
-        if progid and progid!='ENG':
-            # validate PROGNAME value with approved proposal (dep-rti Issue #220)
+        # verify PROGNAME exists in proposals or default to schedule if not found
+        if progid and progid.strip()!='ENG':
             semester = self.get_keyword('SEMESTER')
             api = self.config.get('API', {}).get('MAIN')
-            #url = api + '/proposals/isApproved?ktn=' + semester + "_" + progid
             url = api + '/proposals/getTitle?ktn=' + semester + "_" + progid
             log.info(f'Checking proposals API for PROGID: {url}')
             resp = self.get_api_data(url)
-            print(f"Proposals API's response: {str(resp)}'")
-            #if not resp or not resp.get('success') or resp.get('data') == None:
             if not resp or not resp.get('success'):
                 log.info(f"Invalid proposal, default to schedule's entry")
-                progid = None
-            if not isinstance(resp, dict):
-                log.info("Unexpected API response type: %s", type(resp).__name__)
                 progid = None
 
         if not progid:
             progid = self.get_progid_from_schedule()
 
-        #valid progname?
-        valid = self.is_progid_valid(progid)
+        #final check if PROGNAME is ENG
+        valid = self.is_progid_valid(progid)   #valid progname format?
         if self.is_engineering() and too == False:
+            log.info(f"Valid PROGNAME format for ENG")
             progid = 'ENG'
             valid = True
         if not valid:
