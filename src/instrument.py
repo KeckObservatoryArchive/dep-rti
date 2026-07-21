@@ -529,22 +529,21 @@ class Instrument(dep.DEP):
         progid = self.progid
         if not progid:
             progid = self.get_keyword('PROGNAME')
-        if not progid:
-            progid = None
 
-        # validate PROGNAME value with approved proposal (dep-rti Issue #220)
-        semester = self.get_keyword('SEMESTER')
-        api = self.config.get('API', {}).get('MAIN')
-        url = api + '/proposals/isApproved?ktn=' + semester + "_" + progid
-        log.info(f'Checking proposals API for PROGID: {url}')
-        resp = self.get_api_data(url)
-        print(f"Proposals API's response: {str(resp)}'")
-        if not resp or not resp.get('success') or resp.get('data') == None:
-            log.info(f"Invalid proposal, default to schedule's entry")
-            progid = None
-        if not isinstance(resp, dict):
-            log.info("Unexpected API response type: %s", type(resp).__name__)
-            progid = None
+        if progid:
+            # validate PROGNAME value with approved proposal (dep-rti Issue #220)
+            semester = self.get_keyword('SEMESTER')
+            api = self.config.get('API', {}).get('MAIN')
+            url = api + '/proposals/isApproved?ktn=' + semester + "_" + progid
+            log.info(f'Checking proposals API for PROGID: {url}')
+            resp = self.get_api_data(url)
+            print(f"Proposals API's response: {str(resp)}'")
+            if not resp or not resp.get('success') or resp.get('data') == None:
+                log.info(f"Invalid proposal, default to schedule's entry")
+                progid = None
+            if not isinstance(resp, dict):
+                log.info("Unexpected API response type: %s", type(resp).__name__)
+                progid = None
 
         outdir = self.get_keyword('OUTDIR', default='')
         if '_ToO_' in outdir:
