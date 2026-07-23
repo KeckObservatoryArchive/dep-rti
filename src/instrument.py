@@ -30,9 +30,9 @@ log = logging.getLogger('koa_dep')
 
 class Instrument(dep.DEP):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, **kwargs):
 
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, **kwargs)
 
         # Common keywords used in code that can be mapped to actual keyword per instrument 
         # so a call to get_keyword can be used generically.  Overwrite values in instr_[instr].py
