@@ -78,7 +78,7 @@ class Archive():
         self.fdt_mode = fdt_mode
         if self.fdt_mode == True:
             self.transfer = False
-            
+
         #other class vars
         self.db = None
 
@@ -130,8 +130,8 @@ class Archive():
         module = importlib.import_module('instr_' + self.instr.lower())
         instr_class = getattr(module, self.instr.capitalize())
         instr_obj = instr_class(self.instr, filepath, self.reprocess,
-                                self.transfer, self.fdt_mode, 
-                                self.progid, dbid=dbid)
+                                self.transfer, fdt_mode=self.fdt_mode, 
+                                progid=self.progid, dbid=dbid)
 
         ok = instr_obj.process()
         if not ok:
