@@ -21,9 +21,9 @@ log = logging.getLogger('koa_dep')
 
 class Hires(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, **kwargs):
 
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+        super().__init__(instr, filepath, reprocess, transfer, **kwargs)
 
         # Set any unique keyword index values here
         self.keymap['OFNAME']   = 'OUTFILE'
