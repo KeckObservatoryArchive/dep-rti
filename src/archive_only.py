@@ -94,10 +94,6 @@ class QueueMonitor:
                 self.service_uniquename = self.keys['ktl_uniquename']
             except:
                 self.service_uniquename = self.service_name
-            try:
-                self.queue_check_sec = self.keys['queue_check_sec']
-            except:
-                self.queue_check_sec = 10
             self.instr = self.keys['instr']
         except KeyError:
             err = f"Instrument name: {inst_mode_name}, " \
@@ -106,6 +102,7 @@ class QueueMonitor:
             handle_error('CONFIG_ERROR', text=err)
             sys.exit(1)
 
+        self.queue_check_sec = self.keys.get('queue_check_sec', 2)
         self.transfer = self.keys.get('transfer', False)
         self.fdt_mode = self.keys.get('fdt_mode', False)
 
