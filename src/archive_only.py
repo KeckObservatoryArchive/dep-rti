@@ -76,6 +76,7 @@ class QueueMonitor:
         self.procs = []
         self.last_queue_check = None
         self.last_email_times = {}
+        self.fdt_mode = 0
         self.db = None
 
         # cd to script dir so relative paths work
@@ -97,6 +98,10 @@ class QueueMonitor:
                 self.queue_check_sec = self.keys['queue_check_sec']
             except:
                 self.queue_check_sec = 10
+            try:
+                self.fdt_mode = self.keys['fdt_mode']
+            except:
+                self.fdt_mode = 0
             self.instr = self.keys['instr']
         except KeyError:
             err = f"Instrument name: {inst_mode_name}, " \
@@ -112,7 +117,9 @@ class QueueMonitor:
         self.log = self.create_logger(self.config[self.instr]['ROOTDIR'], self.instr, self.service_uniquename)
         self.log.info(f"Starting RTI Queue Monitor for {self.instr} "
                       f"{self.service_uniquename}")
-
+        if self.fdt_mode == 1:
+            self.log.info("FDT mode is ON")
+        
         # Establish database connection
         self._connect_db()
 
@@ -241,7 +248,10 @@ class QueueMonitor:
 
     def spawn_processing(self, instr, dbid):
         """Call archiving for a single file by DB ID."""
-        obj = Archive(self.instr, dbid=dbid, transfer=self.transfer)
+        obj = Archive(self.instr, 
+                      dbid=dbid, 
+                      transfer=self.transfer, 
+                      fdt_mode=self.fdt_mode)
 
     def create_logger(self, rootdir, instr, service):
         """Creates a logger based on instr, service name and date"""
