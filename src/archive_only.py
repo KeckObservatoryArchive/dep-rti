@@ -98,10 +98,6 @@ class QueueMonitor:
                 self.queue_check_sec = self.keys['queue_check_sec']
             except:
                 self.queue_check_sec = 10
-            try:
-                self.fdt_mode = self.keys['fdt_mode']
-            except:
-                self.fdt_mode = 0
             self.instr = self.keys['instr']
         except KeyError:
             err = f"Instrument name: {inst_mode_name}, " \
@@ -111,6 +107,7 @@ class QueueMonitor:
             sys.exit(1)
 
         self.transfer = self.keys.get('transfer', False)
+        self.fdt_mode = self.keys.get('fdt_mode', False)
 
         # create logger first
         self.utd = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
