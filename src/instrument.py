@@ -4,6 +4,7 @@ Contains basic keyword values common across all the instruments
 Children will contain the instrument specific values
 """
 
+
 import pdb
 import os
 from common import *
@@ -466,7 +467,7 @@ class Instrument(dep.DEP):
 
 
     def get_progid_from_schedule(self):
-        """Try to set PROGID from the information in the telescope scheduel"""
+        """Try to set PROGID from the information in the telescope schedule"""
 
         #requires UTC value
         ut = self.get_keyword('UTC')
@@ -522,12 +523,14 @@ class Instrument(dep.DEP):
     def set_prog_info(self):
         """Set PROG* keywords"""
 
-        #Get PROGNAME from header and use for PROGID
-        #If not found, then do simple assignment by time/observer/outdir(eng).
+        # Get PROGNAME from header and use for PROGID
+        # If not found, then do simple assignment by time/observer/outdir(eng)
         too = False
         progid = self.progid
         if not progid:
             progid = self.get_keyword('PROGNAME')
+
+        # first check if ToO and get progid from dir name
         outdir = self.get_keyword('OUTDIR', default='')
         if '_ToO_' in outdir:
             too = True
@@ -536,26 +539,39 @@ class Instrument(dep.DEP):
                 if outdir.endswith('/'): outdir = outdir[:-1]
                 progid = outdir.split('_')[-1]
                 too = True
+
+        # verify PROGNAME exists in proposals or default to schedule if not found
+        if progid and progid.strip()!='ENG':
+            semester = self.get_keyword('SEMESTER')
+            api = self.config.get('API', {}).get('MAIN')
+            url = api + '/proposals/getTitle?ktn=' + semester + "_" + progid
+            log.info(f'Checking proposals API for PROGID: {url}')
+            resp = self.get_api_data(url)
+            if not resp or not resp.get('success'):
+                log.info(f"Invalid proposal, default to schedule's entry")
+                progid = None
+
         if not progid:
             progid = self.get_progid_from_schedule()
 
-        #valid progname?
-        valid = self.is_progid_valid(progid)
+        # final check if PROGNAME is ENG
+        valid = self.is_progid_valid(progid)   #valid progname format?
         if self.is_engineering() and too == False:
+            log.info(f"Valid PROGNAME format for ENG")
             progid = 'ENG'
             valid = True
         if not valid:
             self.log_warn('INVALID_PROGID_WARN', str(progid))
         progid = progid.strip().upper()
 
-        #add semester?
+        # append semester
         if '_' in progid: 
             sem, prog = progid.split('_')
         else:
             sem = self.get_keyword('SEMESTER')
             prog = progid
 
-        #try to assign PROG* keywords from progname
+        # try to assign PROG* keywords from PROGNAME
         if not valid:
             progid   = 'NONE'
             progpi   = 'NONE'
