@@ -554,7 +554,7 @@ class Instrument(dep.DEP):
         if not progid:
             progid = self.get_progid_from_schedule()
 
-        #final check if PROGNAME is ENG
+        # final check if PROGNAME is ENG
         valid = self.is_progid_valid(progid)   #valid progname format?
         if self.is_engineering() and too == False:
             log.info(f"Valid PROGNAME format for ENG")
@@ -564,14 +564,14 @@ class Instrument(dep.DEP):
             self.log_warn('INVALID_PROGID_WARN', str(progid))
         progid = progid.strip().upper()
 
-        #add semester?
+        # append semester
         if '_' in progid: 
             sem, prog = progid.split('_')
         else:
             sem = self.get_keyword('SEMESTER')
             prog = progid
 
-        #try to assign PROG* keywords from progname
+        # try to assign PROG* keywords from PROGNAME
         if not valid:
             progid   = 'NONE'
             progpi   = 'NONE'
