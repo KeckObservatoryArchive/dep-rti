@@ -1208,6 +1208,17 @@ class DEP:
         if self.fdt_mode:
             if not self.update_koa_status('status', 'FDT_READY'):
                 return False
+            query = ("insert into fdt_observations set "
+                    f"koaid='{self.koaid}', "
+                    f"instrument='{self.instr}', "
+                    f"level={self.level}, "
+                    f"filepath='{self.levdir}/{self.koaid}.fits', "
+                    f"status='PENDING'")
+            log.info(query)
+            result = self.db.query('koa', query)
+            if result is False: 
+                self.log_error('QUERY_ERROR', query)
+                return False
             return True
         
         if not self.transfer:
