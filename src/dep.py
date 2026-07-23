@@ -1205,6 +1205,11 @@ class DEP:
 #            except:
 #                print(f"Unable to add {self.filepath} to odap_queue")
 
+        if self.fdt_mode:
+            if not self.update_koa_status('status', 'FDT_READY'):
+                return False
+            return True
+        
         if not self.transfer:
             log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'
                         'transfer to monitor_config.py if using monitor.py.')
