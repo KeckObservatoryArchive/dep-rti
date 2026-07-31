@@ -116,18 +116,19 @@ def parse_args(allowed_insts):
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--inst', help='The name of the instrument to monitor.', required=True,
-        choices=allowed_insts
+        '--inst', help='(Required) The name of the instrument to monitor.',
+        required=True, choices=allowed_insts
     )
     parser.add_argument(
-        '--lev', help='The KOA level to watch (lev0, lev1, lev2).', required=True
+        '--lev', help='(Required) The KOA level to watch lev(0, 1, 2).',
+        required=True, choices=(0, 1, 2)
     )
     parser.add_argument(
-        '--filepath', help='Optional: filepath of files to process.'
+        '--filepath', help='(Optional) Filepath of files to process.'
     )
     parser.add_argument(
         "--date-range", nargs=2, metavar=("START", "END"),
-        help="Optional: Start and end date"
+        help="(Optional) Start and end date"
     )
     parser.add_argument(
         "--include-errors", action="store_true",
