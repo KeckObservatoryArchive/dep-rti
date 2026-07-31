@@ -40,9 +40,9 @@ class FdtDatabaseFun:
 
                 return cur.rowcount
 
-        except Exception:
+        except Exception as err:
             self.log.exception("DB query failed")
-            raise
+            raise Exception(f"DB query failed: {err}")
 
 
 class PkgTable(FdtDatabaseFun):
@@ -65,12 +65,11 @@ class PkgTable(FdtDatabaseFun):
         Get the package ID and filename by package status.
 
         status <str> -- The package status.
-        pkg_id <int> -- The package database ID.
 
         return <list><dict> -- The package ID and filename of matching packages.
         """
         query = (
-            "SELECT pkg_id, filename, filepath, xfr_pid,  xfr_create_time"
+            "SELECT pkg_id, filename, filepath, xfr_pid,  xfr_start_time"
             " FROM fdt_packages "
             " WHERE STATUS=%s AND instrument=%s AND level=%s"
         )
@@ -86,36 +85,19 @@ class PkgTable(FdtDatabaseFun):
 
         return results
 
-    def get_size(self, pkg_id):
+    def find_open_tar(self):
         """
-        Update the size of the package.
-        """
-        query = (
-            "SELECT filesize FROM fdt_packages WHERE pkg_id = %s"
-        )
-
-        params = (pkg_id, )
-
-        num = self._exec_q(query, params=params)
-
-        if num == 0:
-            self.log.warning(f'could not get the size of pkg_id: {pkg_id}.')
-
-        return num
-
-    def find_by_id(self, pkg_id):
-        """
-        Get a package by pkg_id.
+        Get OPEN packages by filename.
         """
         query = (
-            "SELECT filename, status, filesize_mb, creation_time"
+            "SELECT pkg_id, status, filepath, filename"
             " FROM fdt_packages"
-            " WHERE pkg_id=%s "
+            " WHERE status IN ('OPEN', 'CLOSE_REQUESTED')"
         )
 
-        params = (pkg_id,)
+        params = ()
 
-        results = self._exec_q(query, params=params, qtype=self.fetch_one)
+        results = self._exec_q(query, params=params, qtype=self.fetch_all)
 
         return results
 
@@ -135,13 +117,29 @@ class PkgTable(FdtDatabaseFun):
 
         return results
 
+    def find_filename(self, filename):
+        """
+        Get packages by filename.
+        """
+        query = (
+            "SELECT pkg_id, status, filesize_mb, creation_time"
+            " FROM fdt_packages"
+            " WHERE filename=%s"
+        )
+
+        params = (filename,)
+
+        results = self._exec_q(query, params=params, qtype=self.fetch_one)
+
+        return results
+
     def ready_to_transfer(self):
         """
         Find packages that are ready to transfer.
         """
         query = (
             "SELECT pkg_id, filepath, filename "
-            " FROM pkg_observations "
+            " FROM fdt_packages "
             " WHERE status='CLOSED' "
             " AND source_deleted=0 AND instrument=%s and level=%s"
         )
@@ -152,6 +150,44 @@ class PkgTable(FdtDatabaseFun):
 
         return results
 
+    def expired_transfers(self, timeout):
+        """
+        Find packages with transfers that are expired.
+
+        timeout <int> -- The number of minutes to wait for transfers.
+        """
+        query = (
+            "SELECT pkg_id FROM fdt_packages "
+            " WHERE status = 'TRANSFERRING' AND instrument=%s and level=%s "
+            " AND xfr_start_time < (NOW() - INTERVAL %s MINUTE) "
+        )
+
+        params = (self.inst, self.lev, timeout)
+
+        results = self._exec_q(query, params=params, qtype=self.fetch_all)
+
+        return results
+
+    def chk_for_errors(self):
+        """
+        Used to check for any errors in the packages table.  Stuck packages
+        staying as TRANFERRING for >120 minutes are considered to be in error
+        """
+        query = (
+            "SELECT pkg_id, status, error_message "
+            " FROM fdt_packages "
+            " WHERE instrument=%s AND level=%s "
+            " AND (status='ERROR' AND error_reported IS NULL)"
+            " OR (status='TRANSFERRING' "
+            "     AND xfr_start_time < DATE_SUB(NOW(), INTERVAL 120 MINUTE))"
+        )
+
+        params = (self.inst, self.lev)
+
+        results = self._exec_q(query, params=params, qtype=self.fetch_all) or []
+
+        return results
+
     # --------------------------
     # ---- UPDATE Functions ----
     # --------------------------
@@ -159,12 +195,13 @@ class PkgTable(FdtDatabaseFun):
         """
         Update the status of the package.
 
-        status <str> -- The package status.
         pkg_id <int> -- The package database ID.
+        status <str> -- The package status.
+
         """
         query = (
             "UPDATE fdt_packages "
-            " SET STATUS = %s "
+            " SET status = %s, error_message=NULL "
             " WHERE pkg_id = %s"
         )
 
@@ -178,14 +215,14 @@ class PkgTable(FdtDatabaseFun):
         """
         Change the status of the package.
 
-        status_new <str> -- The new status of the package.
         status_old <str> -- The old status of the package.
+        status_new <str> -- The new status of the package.
 
         return <int> -- number of packages updated.
         """
         query = (
             "UPDATE fdt_packages"
-            " SET status = %s "
+            " SET status = %s, error_message=NULL "
             " WHERE status = %s AND instrument=%s AND level=%s"
         )
 
@@ -223,8 +260,8 @@ class PkgTable(FdtDatabaseFun):
 
             query = (
                 "UPDATE fdt_packages "
-                " SET status='OPEN', filesize_mb=0, koaid_count=0, "
-                "     source_deleted=0, creation_time=NOW(), closed_time=NULL, "
+                " SET status='OPEN', filesize_mb=0, source_deleted=0, "
+                "     creation_time=NOW(), closed_time=NULL, "
                 "     xfr_start_time=NULL, xfr_end_time=NULL "
                 " WHERE pkg_id=%s"
             )
@@ -234,58 +271,45 @@ class PkgTable(FdtDatabaseFun):
             return pkg_id
 
         # Create a new package
-
-        # get any packages with the same name,  increment run number
-        query = (
-            "SELECT COALESCE(MAX(run_number), 0) + 1 AS next_run "
-            " FROM fdt_packages "
-            " WHERE filename LIKE %s"
-        )
-        basename = filename.removesuffix(".tmp").removesuffix(".tar")
-        params = f"{basename}%"
-
-        result = self._exec_q(query, params=params, qtype=self.fetch_one)
-
-        run_number = result["next_run"]
-
         query = (
             "INSERT INTO fdt_packages (filename, filepath, level, "
-            "                          instrument, status, run_number)"
-            " VALUES (%s, %s, %s, %s, 'OPEN', %s)"
+            "                          instrument, status)"
+            " VALUES (%s, %s, %s, %s, 'OPEN')"
         )
 
-        params = (filename, filepath, self.lev, self.inst, run_number)
+        params = (filename, filepath, self.lev, self.inst)
 
         return self._exec_q(query, params=params, qtype=self.last_row_id)
 
-    def update_size(self, pkg_id, size, update_cnt=0):
+    def update_size(self, pkg_id, size):
         """
         Update the size of the package.
         """
-        try:
-            int(update_cnt)
-        except ValueError:
-            update_cnt = 0
 
         query = (
             "UPDATE fdt_packages "
-            "SET filesize_mb = %s, koaid_count = koaid_count + %s "
-            "WHERE pkg_id = %s"
+            " SET filesize_mb = %s "
+            " WHERE pkg_id = %s"
         )
 
-        params = (size, update_cnt, pkg_id)
+        params = (size, pkg_id)
 
         num = self._exec_q(query, params=params)
 
         if num == 0:
-            self.log.warning(f'could not update package size for pkg_id: {pkg_id}.')
+            self.log.warning(
+                f'could not update package size for pkg_id: {pkg_id}.'
+            )
 
         return num
 
     def closing_time(self, pkg_id):
+        """
+        Close the package.
+        """
         query = (
             "UPDATE fdt_packages"
-            " SET status='CLOSED', closed_time = NOW() "
+            " SET status='CLOSED', closed_time = NOW(), error_message=NULL "
             " WHERE pkg_id=%s AND status != 'CLOSED'"
         )
         params = (pkg_id,)
@@ -297,26 +321,14 @@ class PkgTable(FdtDatabaseFun):
 
         return num
 
-    def mark_prev_deleted(self, pkg_id):
-        """
-        Mark all other packages as deleted.  The mv from tar.tmp to .tar
-        overwrites any packages with .tar
-        """
-        query = (
-            "UPDATE fdt_packages p"
-            " JOIN fdt_packages cur"
-            " ON REPLACE(p.filename, '.tmp', '') = "
-            "    REPLACE(cur.filename, '.tmp', '')"
-            " SET p.source_deleted = 1 "
-            " WHERE cur.pkg_id = %s"
-            " AND p.pkg_id <> cur.pkg_id"
-        )
-
-        num = self._exec_q(query, params=(pkg_id, ))
-
-        return num
-
     def update_filename(self, pkg_id, filename):
+        """
+        Update the filename of the package.
+
+        pkg_id <int> -- The package database ID.
+        filename <str> -- The new filename.
+
+        """
         query = (
             "UPDATE fdt_packages"
             " SET filename=%s "
@@ -331,7 +343,7 @@ class PkgTable(FdtDatabaseFun):
 
         return num
 
-    def update_transferring(self, pkg_id, xfr_start_time):
+    def update_transferred(self, pkg_id, xfr_end_time):
         """
         Update the status of the package.
 
@@ -340,28 +352,86 @@ class PkgTable(FdtDatabaseFun):
         """
         query = (
             "UPDATE fdt_packages "
-            " SET STATUS = 'TRANSFERING', xfr_start_time=%s "
+            " SET status = 'TRANSFERRED', xfr_end_time=%s, error_message=NULL "
             " WHERE pkg_id = %s"
         )
 
-        params = (pkg_id, xfr_start_time, )
+        params = (xfr_end_time, pkg_id, )
 
         num = self._exec_q(query, params=params)
         if num > 0:
-            self.log.debug(f"updated pkg id {pkg_id} to TRANSFERING.")
+            self.log.debug(f"updated pkg id {pkg_id} to TRANSFERRED.")
 
-    def update_pid(self, pkg_id, pid, xfr_start_time):
+    def update_error(self, pkg_id, status, err_msg):
+        """
+        Update the status of the package.
+
+        status <str> -- The package status.
+        pkg_id <int> -- The package database ID.
+        """
         query = (
             "UPDATE fdt_packages "
-            " SET pid=%s, xfr_start_time=%s "
+            " SET status = %s, error_message=%s "
+            " WHERE pkg_id = %s"
+        )
+
+        params = (status, err_msg, pkg_id, )
+
+        num = self._exec_q(query, params=params)
+        if num > 0:
+            self.log.debug(f"updated pkg id {pkg_id} to ERROR.")
+
+    def update_pid(self, pkg_id, pid, xfr_start_time):
+        """
+        Update the package transfer process id (xfr_pid) and set the status
+        to transferring.
+
+        pkg_id <int> -- The package database ID.
+        pid <int> -- transfer process id.
+        xfr_start_time <datetime> -- process creation time.
+
+        """
+        query = (
+            "UPDATE fdt_packages "
+            " SET xfr_pid=%s, xfr_start_time=%s, "
+            "     status='TRANSFERRING', error_message=NULL  "
             " WHERE pkg_id=%s"
         )
 
-        params = (pid, pkg_id, xfr_start_time, )
+        params = (pid, xfr_start_time, pkg_id)
         num = self._exec_q(query, params=params)
 
         if num == 0:
             self.log.warning("Error updating package pid.")
+
+        return num
+
+    def reset_status_by_daterange(self, start, end, add=None):
+        """
+        Used to re-transfer a package,  generally in ERROR state.
+
+        start <str> -- The start date packages to re-transfer.
+        end <str> -- The end date packages to re-transfer.
+        """
+        query = (
+            "UPDATE fdt_packages "
+            " SET status='CLOSED',  xfr_start_time=NULL, xfr_end_time=NULL,"
+            "     error_message=NULL "
+            " WHERE closed_time "
+            " BETWEEN %s AND %s AND level=%s AND instrument=%s"
+        )
+
+        params = (start, end, self.lev, self.inst)
+
+        if add:
+            query += add
+
+        num = self._exec_q(query, params=params)
+        if num == 0:
+            self.log.error(
+                f"could not update package status for date range "
+                f"{start} to {end}."
+            )
 
         return num
 
@@ -378,7 +448,6 @@ class ObsTable(FdtDatabaseFun):
         self.lev = lev
         self.inst = inst
 
-
     # --------------------------
     # ---- SELECT Functions ----
     # --------------------------
@@ -389,7 +458,7 @@ class ObsTable(FdtDatabaseFun):
         status <str> -- The package status.
         """
         query = (
-            "SELECT koaid, filepath, pkg_id "
+            "SELECT koaid, filepath, koaid, pkg_id "
             " FROM fdt_observations "
             " WHERE STATUS = %s AND level=%s AND instrument=%s"
             " ORDER BY inserted_time"
@@ -423,8 +492,8 @@ class ObsTable(FdtDatabaseFun):
         """
         Update the package observation status.
 
-        status <str> -- The package observation status.
         pkg_id <int> -- The package database ID.
+        status <str> -- The package observation status.
 
         return <int> -- number of packages updated.
 
@@ -468,6 +537,11 @@ class ObsTable(FdtDatabaseFun):
         return results['filepath']
 
     def search_koaids(self, koaids):
+        """
+        Find observations by a list of koaids.
+
+        koaids <list><str> -- The list of koaids.
+        """
 
         koaid_str = ", ".join(["%s"] * len(koaids))
 
@@ -491,6 +565,27 @@ class ObsTable(FdtDatabaseFun):
         params = (pkg_id,)
 
         results = self._exec_q(query, params=params, qtype=self.fetch_all)
+
+        return results
+
+    def chk_for_errors(self):
+        """
+        Checks for both errors and stalled observations.
+        """
+        query = (
+            "SELECT obsid, koaid, status, error_message"
+            " FROM fdt_observations "
+            " WHERE instrument=%s AND level=%s "
+            " AND ("
+            "   (status='ERROR' AND error_reported IS NULL) "
+            "   OR (status IN ('PENDING','PACKAGING','TRANSFERRING') "
+            "   AND last_mod < DATE_SUB(NOW(), INTERVAL 120 MINUTE))"
+            " )"
+        )
+
+        params = (self.inst, self.lev)
+
+        results = self._exec_q(query, params=params, qtype=self.fetch_all) or []
 
         return results
 
@@ -522,7 +617,32 @@ class ObsTable(FdtDatabaseFun):
 
         return num
 
-    def reset_by_pkg(self, pkg_id):
+    def set_unknown(self, pkg_id, match_status):
+        """
+        Update the package observation status.
+
+        match_status <str> -- The observation status to change from.
+        pkg_id <int> -- The package database ID.
+
+        return <int> -- number of packages updated.
+
+        """
+        query = (
+            "UPDATE fdt_observations "
+            " SET STATUS='UNKNOWN' "
+            " WHERE pkg_id = %s and STATUS = %s"
+        )
+
+        params = (pkg_id, match_status)
+        num = self._exec_q(query, params=params)
+        if num > 0:
+            self.log.debug(
+                f"updated {num} observations in pkg_id: {pkg_id} to UNKNOWN."
+            )
+
+        return num
+
+    def reset_by_pkg(self, pkg_id, err_msg):
         """
         Update the package observation status,  update the package to IGNORE.
 
@@ -533,10 +653,10 @@ class ObsTable(FdtDatabaseFun):
         """
         query = (
             "UPDATE fdt_packages "
-            " SET STATUS = 'IGNORE' "
+            " SET STATUS = 'IGNORE', error_message=%s "
             " WHERE pkg_id = %s"
         )
-        num = self._exec_q(query, params=(pkg_id,))
+        num = self._exec_q(query, params=(err_msg, pkg_id,))
         if num == 0:
             self.log.warning(f'Reset package,  pkg_id {pkg_id} not found.')
 
@@ -556,7 +676,12 @@ class ObsTable(FdtDatabaseFun):
         return num
 
     def update_pkg_id(self, pkg_id, koaid):
+        """
+        Update a set of observations by pkg_id.
 
+        pkg_id <int> -- The package database ID.
+        koaid <str> -- The koaid.
+        """
         query = (
             "UPDATE fdt_observations "
             " SET pkg_id=%s "
@@ -573,6 +698,11 @@ class ObsTable(FdtDatabaseFun):
         return num
 
     def set_pkgd(self, koaid):
+        """
+        Update an observation status to packaged by the koaid.
+
+        koaid <str> -- The koaid.
+        """
         query = (
             "UPDATE fdt_observations "
             " SET status = 'PACKAGED', filepath_replacement = NULL "
@@ -585,7 +715,14 @@ class ObsTable(FdtDatabaseFun):
 
         return num
 
-    def update_status_by_daterange(self, start, end, add=None):
+    def repackage_by_daterange(self, start, end, add=None):
+        """
+        Used by the CLI to re-package observations.
+
+        start <str> -- The start date of observations to reprocess.
+        end <str> -- The end date (inclusive) of observations to reprocess.
+        add <str> -- add to the end of the query.
+        """
         query = (
             "UPDATE fdt_observations "
             " SET status='PENDING', pkg_id=NULL "
@@ -607,6 +744,12 @@ class ObsTable(FdtDatabaseFun):
         return num
 
     def change_status(self, status_old, status_new):
+        """
+        Change the status of the observations.  Matches on old status.
+
+        status_old <str> -- The old status.
+        status_new <str> -- The new status.
+        """
         query = (
             "UPDATE fdt_observations "
             " SET status=%s "
@@ -623,6 +766,11 @@ class ObsTable(FdtDatabaseFun):
         return num
 
     def update_start_time(self, koaid):
+        """
+        Update the package start time of the observations by koaid.
+
+        koaid <str> -- The koaid.
+        """
         query = (
             "UPDATE fdt_observations "
             " SET pkg_start_time=NOW() "
@@ -653,6 +801,11 @@ class ObsTable(FdtDatabaseFun):
         return num
 
     def set_replacement_path(self, koaid, filepath):
+        """
+        Add a second path for re-processing via a path.
+
+        The status becomes PENDING,  thus triggering a package / transfer
+        """
         query = (
             "UPDATE fdt_observations "
             " SET pkg_start_time=NULL, pkg_end_time=NULL, status='PENDING',"
@@ -660,8 +813,6 @@ class ObsTable(FdtDatabaseFun):
             " WHERE koaid=%s"
         )
         params = (filepath, koaid)
-
-        print(query, params)
 
         num = self._exec_q(query, params=params)
         if num == 0:
@@ -684,6 +835,26 @@ class ObsTable(FdtDatabaseFun):
         params = (koaid, filepath, status, self.lev, self.inst)
 
         return self._exec_q(query, params=params, qtype=self.last_row_id)
+
+
+    def update_transferred(self, pkg_id, xfr_end_time):
+        """
+        Update the status of the package.
+
+        status <str> -- The package status.
+        pkg_id <int> -- The package database ID.
+        """
+        query = ("UPDATE fdt_observations "
+                 " SET STATUS = 'TRANSFERRED', xfr_end_time=%s "
+                 " WHERE pkg_id = %s")
+
+        params = (pkg_id, xfr_end_time)
+
+        num = self._exec_q(query, params=params)
+        if num > 0:
+            self.log.debug(f"updated pkg id {pkg_id} to TRANSFERRED.")
+
+
 
 
 

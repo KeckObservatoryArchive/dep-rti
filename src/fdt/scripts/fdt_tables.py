@@ -21,24 +21,29 @@ class Tables:
         return """
         CREATE TABLE fdt_packages (
             pkg_id          BIGINT AUTO_INCREMENT PRIMARY KEY,
-            run_number      BIGINT NOT NULL DEFAULT 1,
             filename        VARCHAR(255) NOT NULL,
             filepath        VARCHAR(255) NOT NULL,
             instrument      VARCHAR(255) NOT NULL,
             level           INT NOT NULL,
-            status          ENUM('OPEN','CLOSED','TRANSFERRING', 
+            status          ENUM('OPEN','CLOSED','TRANSFERRING', 'TRANSFERRED',
                                  'COMPLETE','ERROR', 'CLOSE_REQUESTED',
-                                 'IGNORE') NOT NULL,
+                                 'IGNORE', 'UNKNOWN') NOT NULL,
             xfr_pid         BIGINT,
             creation_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             closed_time     DATETIME NULL,
             xfr_start_time  DATETIME NULL,
             xfr_end_time    DATETIME NULL,
             filesize_mb     DOUBLE NOT NULL DEFAULT 0,
-            koaid_count       INT NOT NULL DEFAULT 0,
             source_deleted  TINYINT(1) NOT NULL DEFAULT 0,
             last_mod        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-                            ON UPDATE CURRENT_TIMESTAMP
+                            ON UPDATE CURRENT_TIMESTAMP,
+            error_message   TEXT NULL,
+            error_reported  DATETIME NULL,
+            
+            INDEX idx_inst_level_status (instrument, level, status),
+            INDEX idx_inst_level_closed (instrument, level, closed_time),
+            INDEX idx_filename (filename),
+            INDEX idx_xfr_pid (xfr_pid)
         );
         """
 
@@ -55,12 +60,20 @@ class Tables:
             pkg_id           BIGINT,
             pkg_start_time   DATETIME NULL,
             pkg_end_time     DATETIME NULL,
-            status            ENUM('PENDING','PACKAGING','PACKAGED','IGNORE',
-                                   'TRANSFERRING','COMPLETE','ERROR') NOT NULL,
+            status           ENUM('PENDING','PACKAGING','PACKAGED','IGNORE',
+                                   'TRANSFERRING','TRANSFERRED','COMPLETE',
+                                   'ERROR', 'UNKNOWN') NOT NULL,
             last_mod          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                               ON UPDATE CURRENT_TIMESTAMP,
-                              
-            UNIQUE KEY unique_koaid_level (koaid, level)
+            error_message   TEXT NULL,
+            error_reported  DATETIME NULL,
+            
+            UNIQUE KEY unique_koaid_level (koaid, level),
+            
+            INDEX idx_inst_level_status_inserted
+            (instrument, level, status, inserted_time),
+            
+            INDEX idx_pkg_status (pkg_id, status)
         );
         """
 

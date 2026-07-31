@@ -1,3 +1,7 @@
+"""
+FDT Database Connection Class
+"""
+
 import pymysql
 from pymysql.constants import CLIENT
 

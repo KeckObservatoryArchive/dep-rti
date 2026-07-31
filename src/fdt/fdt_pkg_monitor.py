@@ -7,7 +7,6 @@ import time
 import signal
 
 from time import sleep
-from pathlib import Path
 
 
 class FdtPkgMonitor(object):
@@ -24,8 +23,17 @@ class FdtPkgMonitor(object):
         self.max_lock_retries = cfg_general['max_lock_retries']
         self.lock_chk_period = cfg_general['lock_chk_period']
 
+        # monitor period
         cfg_fdt = self.cfg['FDT_PKG']
         self.monitor_period = cfg_fdt['monitor_period']
+
+        # lock
+        self.last_lock_chk = 0
+        self.own_lock = False
+        self.lock_retries = self.max_lock_retries
+
+        # errors
+        self.err_retry = 0
 
         # handle cntrl-c, kill <pid>
         signal.signal(signal.SIGINT, self.stop_handle)
@@ -46,40 +54,13 @@ class FdtPkgMonitor(object):
 
         self.log.info("Starting FDT Package monitor.")
 
-        err_retry = 0
-        open_tarfiles = set()
-        own_lock = False
-        last_lock_chk = 0
-        lock_retries = self.max_lock_retries
-        my_id = None
         cleaned_up = False
 
         while not self.stop_requested:
 
             sleep(self.monitor_period)
 
-            # Every period (seconds), verify the lock connection
-            elapsed = time.monotonic() - last_lock_chk
-
-            if not own_lock or elapsed >= self.lock_chk_period:
-                own_lock, my_id = self.ctx.lock.check()
-                last_lock_chk = time.time()
-
-                # reset the error retry count at same interval,  used by max_errors
-                err_retry = 0
-
-                if own_lock:
-                    self.log.info(f"Lock connected for {my_id}, pid: {self.pid} ")
-
-            # allow max_lock_retries,  then exit
-            if not own_lock:
-                self.log.warning(
-                    f"Lock not connected for {my_id}, pid: {self.pid}. "
-                )
-                lock_retries -= 1
-                if lock_retries <= 0:
-                    print('Could not obtain lock,  is another process running?.')
-                    sys.exit(0)
+            if not self.chk_lock():
                 continue
 
             # cleanup on the first startup,  but after the lock is acquired
@@ -87,45 +68,76 @@ class FdtPkgMonitor(object):
                 self.ctx.pkg_fun.startup_clean()
                 cleaned_up = True
 
-            # reset if the lock was obtained
-            lock_retries = self.max_lock_retries
+            # check the tar file for size and temporal limits
+            self.ctx.pkg_fun.chk_finalize_tars()
 
-            self.log.info(f'Checking for PENDING Observations, pid {self.pid}.')
+            # check for new observations
+            self.log.debug(f'Checking for PENDING Observations, pid {self.pid}.')
             try:
-                open_tarfiles = self.process_observations(open_tarfiles)
+                self.process_observations()
             except Exception as err:
                 # allow to continue but log the exception,  max errors = 5
                 self.log.exception("Could not process observations.")
-                if err_retry > self.max_errors:
-                    # TODO should this send an alarm email?
+                if self.err_retry >= self.max_errors:
                     self.stop_requested = True
                     self.log.error(f"Exiting,  max errors={self.max_errors}.")
-                err_retry += 1
+                self.err_retry += 1
 
-        # TODO on exit,  close tar files?
         # cleanup,  release lock,  close db connections
         self.ctx.lock.release()
         self.ctx.proc_conn.close()
         self.ctx.lock_conn.close()
 
+    def chk_lock(self):
+        """
+        Connect and check if the lock is owned by current process.
 
-    def process_observations(self, open_tarfiles):
+        Retry if lock not owned.
+        """
+        my_id = None
+
+        # Every period (seconds), verify the lock connection
+        elapsed = time.time() - self.last_lock_chk
+
+        if not self.own_lock or elapsed >= self.lock_chk_period:
+            self.own_lock, my_id = self.ctx.lock.check()
+            self.last_lock_chk = time.time()
+
+            # reset the error retry count at same interval,  used by max_errors
+            self.err_retry = 0
+
+            if self.own_lock:
+                self.log.info(f"Lock connected for {my_id}, pid: {self.pid} ")
+
+            # check for errors at same frequency (does not check stalled)
+            self.ctx.utils.chk_for_errors(self.ctx, self.ctx.db_obs)
+
+        # allow max_lock_retries,  then exit
+        if not self.own_lock:
+            self.log.warning(f"Lock not connected for {my_id}, pid: {self.pid}. ")
+            self.lock_retries -= 1
+            if self.lock_retries <= 0:
+                print('Packaging Monitor is locked,  '
+                      'is another process running?.')
+                sys.exit(0)
+            return False
+
+        # reset if the lock was obtained
+        self.lock_retries = self.max_lock_retries
+
+        return True
+
+    def process_observations(self):
         """
         Worker to do the packaging
-
-        open_tarfiles <set><Path>: the open tarfile PATHs to check
         """
 
         observations = self.ctx.pkg_fun.chk_for_new_files()
 
-        # check the tar file for size and temporal limits
-        if open_tarfiles:
-            open_tarfiles = self.chk_finalize_tarfiles(open_tarfiles)
-
         if not observations:
-            return open_tarfiles
+            return
 
-        already_checked = True
+        tar_checked = True
 
         for obs in observations:
             if self.stop_requested:
@@ -138,36 +150,15 @@ class FdtPkgMonitor(object):
             # update the start time for metrics
             _ = self.ctx.db_obs.update_start_time(koaid)
 
-            if not already_checked:
-                open_tarfiles = self.chk_finalize_tarfiles(open_tarfiles)
+            if not tar_checked:
+                self.ctx.pkg_fun.chk_finalize_tars()
 
-            tarfile = self.ctx.pkg_fun.proc_obs(koaid)
-            if tarfile:
-                open_tarfiles.add(tarfile)
+            self.ctx.pkg_fun.proc_obs(koaid)
 
             # hasn't been checked since add
-            already_checked = False
+            tar_checked = False
 
             # update the end time for metrics
             _ = self.ctx.db_obs.update_end_time(koaid)
 
-        return open_tarfiles
 
-    def chk_finalize_tarfiles(self, tarfile_set):
-        """
-        Only one tarfile within the instrument and level should only be open
-        at one time.
-
-
-        tarfile_set <set>: the tarfile PATHs to check
-        """
-        remove_files = set()
-        for open_file in tarfile_set:
-            tar_path = Path(open_file)
-            if self.ctx.tar_fun.need_close(tar_path):
-                # tar was closed
-                remove_files.add(open_file)
-
-        tarfile_set -= remove_files
-
-        return tarfile_set

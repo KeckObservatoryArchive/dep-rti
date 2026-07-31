@@ -20,6 +20,9 @@ class FdtPkgContext:
         self.cfg = fdt_utils.read_config(cfg_file)
         fdt_utils.validate_cfg(self.cfg)
 
+        self.dev = self.cfg['GENERAL']['dev']
+        self.admin_email = self.cfg['GENERAL']['admin_email']
+
         self.proc_conn = DatabaseConnect(self.cfg["DATABASE"])
         self.proc_conn.connect()
 
@@ -27,7 +30,7 @@ class FdtPkgContext:
         self.lock_conn.connect()
         self.lock = FdtLock(
             self.lock_conn,
-            f"fdt_watch_{inst}_{self.lev_str}_lock",
+            f"fdt_pkg_{inst}_{self.lev_str}_lock",
             log
         )
 
@@ -39,3 +42,4 @@ class FdtPkgContext:
 
         self.tar_fun = TarFun(self)
         self.pkg_fun = FdtPkgFun(self)
+        self.utils = fdt_utils

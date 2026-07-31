@@ -1,3 +1,6 @@
+
+import re
+
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -35,16 +38,24 @@ def main():
             (%s, %s, %s, %s, %s)
     """
 
+    koaids = set()
+    for path in observations:
+        m = re.match(r"^([A-Z]{2}\.\d{8}\.\d{5}\.\d{2})", path.stem)
+        if not m:
+            print(f"Couldn't parse KOAID from {path.name}")
+            continue
+
+        koaids.add((m.group(1), str(path)))
+
     cnt = 0
     with conn.db.cursor() as cursor:
-        for path in observations:
-            params = (path.stem, 0, str(path), "PENDING", args.inst)
+        for koaid in koaids:
+            params = (koaid[0], 0, koaid[1], "PENDING", args.inst)
             try:
                 cursor.execute(query, params)
                 cnt += 1
             except Exception as err:
                 print(f"Failed to insert observation: {err}")
-
 
     print(f"Inserted {cnt} observations.")
 

@@ -1,6 +1,9 @@
 import yaml
 from pathlib import Path
 
+# error reporting via slack / email
+import check_dep_status_errors
+
 def read_config(cfg_file):
     """
     Read YAML configuration file.
@@ -17,20 +20,23 @@ def validate_cfg(cfg_dict):
 
     Raises:
         ValueError: If required configuration is missing or invalid.
-
     """
     required = {
         "DATABASE": ["host", "user", "pwd", "db", ],
         "GENERAL": [
-            "max_errors", "max_lock_retries", "lock_chk_period",
-            "koa_base_path", "log_dir"
+            "koa_base_path", "max_errors", "max_lock_retries",
+            "lock_chk_period", "dev", "admin_email"
         ],
-        "FDT_PKG": ["koa_base_path", "pkg_timeout", "monitor_period"],
-        # FDT_XFR....
+        "LOGGING": ["log_dir", "xfr_level", "pkg_level"],
+        "FDT_PKG": ["pkg_timeout", "monitor_period"],
+        "FDT_XFR": [
+            "xfr_timeout", "monitor_period",
+            "dtn_jar", "dtn_server", "dtn_port"
+        ],
         "SCALES": ["max_pkg_size", "inst_prefixes"]
     }
 
-    fdt_instruments = {'SCALES'}
+    fdt_instruments = cfg_dict.get("GENERAL", {}).get("instruments", [])
 
     # Required sections and parameters
     for section, keys in required.items():
@@ -47,9 +53,6 @@ def validate_cfg(cfg_dict):
         if inst not in cfg_dict:
             continue
 
-        if "max_pkg_size" not in cfg_dict[inst]:
-            raise ValueError(f"Missing '{inst}.max_pkg_size'.")
-
     # Type/range checks
     timeout = cfg_dict["FDT_PKG"]["pkg_timeout"]
     if not isinstance(timeout, int) or timeout <= 0:
@@ -57,17 +60,47 @@ def validate_cfg(cfg_dict):
 
 
 def define_data_path(ctx, filepath):
+    """
+    Define the data path to be used for the monitor session.
+
+    The data path can be defined on the command line at startup.
+    """
     if filepath:
         return Path(filepath)
 
-    return Path(f"{ctx.cfg['FDT_PKG']['koa_base_path']}/"
+    return Path(f"{ctx.cfg['GENERAL']['koa_base_path']}/"
                 f"{ctx.inst}/{ctx.lev}/")
 
 
 def define_tar_path(ctx, tar_path):
+    """
+    Define the tar file path to be used for the monitor session.
+
+    The tar path can be defined on the command line at startup.
+    """
     if tar_path:
         return Path(tar_path)
 
-    return Path(f"{ctx.cfg['FDT_PKG']['koa_base_path']}/"
+    return Path(f"{ctx.cfg['GENERAL']['koa_base_path']}/"
                 f"{ctx.inst}/tarfiles/{ctx.lev_str}/")
+
+
+def chk_for_errors(ctx, db_obj):
+    """
+    Used to send an email and slack message when the database status
+    is in ERROR.
+    """
+    errors = db_obj.chk_for_errors()
+
+    # turn off slack when in dev mode
+    if ctx.dev:
+        send_slack = False
+    else:
+        send_slack = True
+
+    if errors:
+        check_dep_status_errors.main(
+            admin_email=ctx.admin_email, slack=send_slack,
+            dev=ctx.dev
+        )
 
