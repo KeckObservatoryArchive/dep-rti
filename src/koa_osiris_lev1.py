@@ -351,7 +351,7 @@ def main():
     try:
         url  = config['API']['MAIN']
         url = f'{url}/schedule/getSchedule?date={tonight}&instr={instrument}'
-        resp = requests.get(url)
+        resp = requests.get(url, verify=False)
         response = json.loads(resp.text)
         if len(response) == 0:
             print(f'{instrument} is not scheduled for {tonight}')
