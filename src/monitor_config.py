@@ -32,6 +32,7 @@ instr_keymap = {
         'trigger'    : 'LASTFILE',
         'val'        : None,
         'heartbeat'  : ['ITERATION', 30],
+        'queue_check_sec': 5,
         'transfer'   : 1
     },
     'kcwi_svs': {
@@ -48,6 +49,7 @@ instr_keymap = {
         'trigger'    : 'LOUTFILE',
         'val'        : None,
         'heartbeat'  : ['ITERATION', 1],
+        'queue_check_sec': 3,
         'transfer'   : 1
     },
     'kcwi_red': {
@@ -56,6 +58,7 @@ instr_keymap = {
         'trigger'    : 'LOUTFILE',
         'val'        : None,
         'heartbeat'  : ['ITERATION', 1],
+        'queue_check_sec': 3,
         'transfer'   : 1
     },
 
@@ -65,6 +68,7 @@ instr_keymap = {
         'trigger'    : 'LASTFILE',
         'val'        : None,
         'heartbeat'  : ['ITERATION', 600],
+        'queue_check_sec': 3,
         'transfer'   : 1
     },
     'nires_spec': {
@@ -82,6 +86,7 @@ instr_keymap = {
         'trigger'    : 'LASTCCD',
         'val'        : None,
         'heartbeat'  : ['UPTIME', 1],
+        'queue_check_sec': 3,
         'transfer'   : 1
     },
     'deimos_fcs': {
@@ -90,9 +95,9 @@ instr_keymap = {
         'trigger'    : 'FCSIMGFI',
         'val'        : None,
         'heartbeat'  : '', # there is no keyword to track that this service is up
+        'queue_check_sec': 10,
         'transfer'   : 1
     },
-
     'esi': {
         'ktl_service': 'esi',
         'instr'      : 'ESI',
@@ -101,9 +106,9 @@ instr_keymap = {
         'format'     : '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'      : {'LFRAMENO'  : 4},
         'heartbeat'  : '', # there is no keyword to track that this service is up
+        'queue_check_sec': 3,
         'transfer'   : 1
     },
-
     'hires': {
         'ktl_service': 'hiccd',
         'instr'      : 'HIRES',
@@ -112,15 +117,16 @@ instr_keymap = {
         'format'     : '{OUTDIR}/{OUTFILE}{LFRAMENO}.fits',
         'zfill'      : {'LFRAMENO'  : 4},
         'heartbeat'  : ['INFOMCLK', 1],
+        'queue_check_sec': 2,
         'transfer'   : 1
     },
-
     'lris_red': {
         'ktl_service': 'lredccd',
         'instr'      : 'LRIS',
         'trigger'    : 'LOUTFILE',
         'val'        : None,
         'heartbeat'  : ['UPTIME', 1],
+        'queue_check_sec': 2,
         'transfer'   : 1
     },
     'lris_blue': {
@@ -129,6 +135,7 @@ instr_keymap = {
         'trigger'    : 'BLUE_LASTFILE',
         'val'        : None,
         'heartbeat'  : ['UPTIME', 1], 
+        'queue_check_sec': 2,
         'transfer'   : 1
     },
     'mosfire': {
@@ -137,9 +144,9 @@ instr_keymap = {
         'trigger'    : 'LASTFILE',
         'val'        : None,
         'heartbeat'  : ['ITERATION', 1],
+        'queue_check_sec': 2,
         'transfer'   : 1
     },
-
     'nirc2': {
         'ktl_service'  : 'alad',
         'ktl_uniquename': 'alad_nirc2',
@@ -150,7 +157,6 @@ instr_keymap = {
         'queue_check_sec': 2,
         'transfer'      : 1
     },
-
     'nirc2_unp': {
         'ktl_service'  : 'alad',
         'ktl_uniquename': 'alad_nirc2_unp',
@@ -161,13 +167,13 @@ instr_keymap = {
         'queue_check_sec': 2,
         'transfer'      : 1
     },
-
     'nirspec_spec': {
         'ktl_service': 'nspec',
         'instr'      : 'NIRSPEC',
         'trigger'    : 'LASTFILE',
         'val'        : None,
         'heartbeat'  : ['UPTIME', 1],
+        'queue_check_sec': 2,
         'transfer'   : 1
     },
     'nirspec_scam': {
@@ -176,9 +182,9 @@ instr_keymap = {
         'trigger'    : 'LASTFILE',
         'val'        : None,
         'heartbeat'  : ['DISP1CLK', 1],
+        'queue_check_sec': 2,
         'transfer'   : 1
     },
-
     'osiris_spec': {
         'ktl_service'   : 'osiris',
         'ktl_uniquename': 'osiris_spec',
@@ -186,6 +192,7 @@ instr_keymap = {
         'trigger'       : 'SLASTFILE',
         'val'           : None,
         'heartbeat'     : ['ITERATION', 1],
+        'queue_check_sec': 2,
         'transfer'      : 1
     },
     'osiris_img': {
@@ -195,6 +202,7 @@ instr_keymap = {
         'trigger'       : 'ILASTFILE',
         'val'           : None,
         'heartbeat'     : ['ITERATION', 1],
+        'queue_check_sec': 2,
         'transfer'      : 1
     },
     'scales_img' : {
@@ -222,9 +230,9 @@ instr_keymap = {
         'trigger'    :  'K1GUIDERFILE',
         'val'        :   None,
         'heartbeat'  :   ['DISPCLK', 5],
+        'queue_check_sec': 2,
         'transfer'   :   1
     },
-
     'guiderk2': {
         'ktl_service':  'koa',
         'instr'      :  'GUIDER',
@@ -232,6 +240,7 @@ instr_keymap = {
         'trigger'    :  'K2GUIDERFILE',
         'val'        :   None,
         'heartbeat'  :   ['DISPCLK', 5],
+        'queue_check_sec': 2,
         'transfer'   :   1
     }
 }
