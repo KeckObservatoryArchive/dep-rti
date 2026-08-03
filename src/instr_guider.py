@@ -158,6 +158,8 @@ class Guider(instrument.Instrument):
         instr_name = self.get_keyword('CURRINST', default=None)
         if instr_name == "LRISADC":
             instr_name = "LRIS"
+        if instr_name == "NIRSPAO+KPIC":
+            instr_name = "NIRC2"
         
         #SSC and PCS do not have ProgIDs in Schedule yet
         if instr_name == "SSC" or instr_name == "PCS":
