@@ -62,7 +62,7 @@ if __name__ == '__main__':
     log_date = datetime.now().strftime("%Y%m%d")
     log_dir = cfg['LOGGING']['log_dir']
     logging.basicConfig(
-        filename=f"{log_dir}/fdt_xfr_{inst}_lev{lev}_{log_date}.log",
+        filename=f"{log_dir}/{inst}/log/fdt_xfr_{inst}_lev{lev}_{log_date}.log",
         level=log_level,
         format=(
             "%(asctime)s %(levelname)-8s "
