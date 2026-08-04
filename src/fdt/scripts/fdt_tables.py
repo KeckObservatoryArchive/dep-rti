@@ -27,7 +27,7 @@ class Tables:
             level           INT NOT NULL,
             status          ENUM('OPEN','CLOSED','TRANSFERRING', 'TRANSFERRED',
                                  'COMPLETE','ERROR', 'CLOSE_REQUESTED',
-                                 'IGNORE', 'UNKNOWN') NOT NULL,
+                                 'IGNORE', 'UNKNOWN', 'RECEIVED') NOT NULL,
             xfr_pid         BIGINT,
             creation_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             closed_time     DATETIME NULL,
