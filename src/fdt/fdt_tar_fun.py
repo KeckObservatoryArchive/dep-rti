@@ -345,12 +345,8 @@ class TarFun:
                     if not filename.endswith(".fits"):
                         continue
 
-                    # used for _qramp or other extension fits
-                    filename = filename.split("_", 1)[0]
-
-                    # koaid is the first 4 when split by .
-                    koaid = ".".join(filename.split(".")[:4])
-                    koaids.add(koaid)
+                    # koaid is XX.YYYYMMDD.SSSSS.SS[_optional] (no .fits)
+                    koaids.add(filename.replace(".fits", ""))
 
         return koaids
 
