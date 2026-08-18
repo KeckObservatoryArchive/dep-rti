@@ -212,6 +212,7 @@ instr_keymap = {
         'trigger'       : 'LASTFILE',
         'val'           : None,
         'heartbeat'     : ['DISPCLK', 1],
+        'fdt_mode'      : 0,
         'transfer'      : 0
     },
     'scales_spec' : {
@@ -221,6 +222,7 @@ instr_keymap = {
         'trigger'       : 'LASTFILE',
         'val'           : None,
         'heartbeat'     : ['DISPCLK', 1],
+        'fdt_mode'      : 0,
         'transfer'      : 0
     },
     'guiderk1': {

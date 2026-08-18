@@ -1,0 +1,37 @@
+
+DATABASE:
+    host :
+    db   :
+    user :
+    pwd  :
+
+GENERAL:
+    dev: # bool - true or false
+    koa_base_path :
+    max_errors:
+    max_lock_retries:  # cycles
+    lock_chk_period:  # seconds
+    admin_email:
+    instruments:
+
+LOGGING:
+    log_dir:
+    pkg_level:
+    xfr_level:
+
+FDT_PKG:
+    pkg_timeout:  # minutes
+    monitor_period:  # seconds
+
+FDT_XFR:
+    xfr_timeout:  # minutes
+    monitor_period:  # seconds
+    dtn_jar:
+    dtn_server:
+    dtn_port:  # string
+
+SCALES:
+    # 250 GB = 256000 MB, 50GB = 51,200
+    max_pkg_size :  # MB
+    inst_prefixes:  # used by CLI
+

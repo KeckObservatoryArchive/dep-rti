@@ -38,15 +38,16 @@ log = logging.getLogger('koa_dep')
 
 class DEP:
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
+    def __init__(self, instr, filepath, reprocess, transfer, **kwargs):
 
         #class inputs
         self.instr     = instr.upper()
         self.filepath  = filepath
         self.reprocess = reprocess
         self.transfer  = transfer
-        self.progid    = progid
-        self.dbid      = dbid
+        self.progid    = kwargs.get('progid', None)
+        self.dbid      = kwargs.get('dbid', None)
+        self.fdt_mode  = kwargs.get('fdt_mode', False)
 
         #init other vars
         self.koaid = ''
@@ -1204,6 +1205,22 @@ class DEP:
 #            except:
 #                print(f"Unable to add {self.filepath} to odap_queue")
 
+        if self.fdt_mode:
+            if not self.update_koa_status('status', 'FDT_READY'):
+                return False
+            query = ("insert into fdt_observations set "
+                    f"koaid='{self.koaid}', "
+                    f"instrument='{self.instr}', "
+                    f"level={self.level}, "
+                    f"filepath='{self.levdir}/{self.koaid}.fits', "
+                    f"status='PENDING'")
+            log.info(query)
+            result = self.db.query('koa', query)
+            if result is False: 
+                self.log_error('QUERY_ERROR', query)
+                return False
+            return True
+        
         if not self.transfer:
             log.warning('NOT TRANSFERRING TO IPAC.  Use --transfer flag or add'
                         'transfer to monitor_config.py if using monitor.py.')

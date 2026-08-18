@@ -43,10 +43,6 @@ def main(dev=False, admin_email=None, slack=False):
                 print("Already sent a recent error email.")
                 return
 
-    #query for last error
-    q = ("select * from koa_status where status='ERROR' and reviewed=0 order by id desc limit 1")
-    lasterror = db.query('koa', q, getOne=True)
-
     #query for all ERRORs
     q = ("select instrument, count(*) as count, status_code, status_code_ipac from koa_status "
          " where status='ERROR' "
@@ -71,20 +67,74 @@ def main(dev=False, admin_email=None, slack=False):
          " group by instrument order by instrument asc")
     stuck = db.query('koa', q)
 
+    # --- FDT Additions
+    # FDT observation errors
+    q = (
+        "select instrument, level, error_message, count(*) as count, status "
+        "from fdt_observations "
+        "where status='ERROR' and error_reported is NULL "
+        "group by instrument, level, status, error_message "
+        "order by instrument asc"
+    )
+    fdt_obs_errors = db.query('koa', q)
+
+    # FDT package errors
+    q = (
+        "select instrument, level, error_message, count(*) as count, status "
+        "from fdt_packages "
+        "where status='ERROR' and error_reported is NULL "
+        "group by instrument, level, status, error_message "
+        "order by instrument asc"
+    )
+    fdt_pkg_errors = db.query('koa', q)
+
+    # FDT observations stuck PENDING, PACKAGING, TRANSFERRING
+    q = (
+        "select instrument, level, error_message, count(*) as count, status "
+        "from fdt_observations "
+        "where status in ('PENDING','PACKAGING','TRANSFERRING') "
+        "and last_mod < (NOW() - INTERVAL 30 MINUTE) "
+        "group by instrument, level, status, error_message "
+        "order by instrument asc"
+    )
+    fdt_obs_stuck = db.query('koa', q)
+
+    # FDT packages stuck TRANSFERRING
+    q = (
+        "select instrument, level, error_message, count(*) as count, status "
+        "from fdt_packages "
+        "where status='TRANSFERRING' "
+        "and xfr_start_time < (NOW() - INTERVAL 120 MINUTE) "
+        "group by instrument, level, status, error_message "
+        "order by instrument asc"
+    )
+    fdt_pkg_stuck = db.query('koa', q)
+
+    all_checks = [
+        errors, warns, stuck, fdt_obs_errors, fdt_pkg_errors,
+        fdt_obs_stuck, fdt_pkg_stuck
+    ]
     #nada?
-    if not errors and not warns and not stuck:
+    # if not errors and not warns and not stuck:
+    if not any(all_checks):
         print("No errors or warnings.")
         return
 
-    #msg
+    # compilation of the reports
+    reports = [
+        ('DEP errors', errors), ('DEP warnings', warns), ('DEP stuck', stuck),
+        ('FDT observation errors', fdt_obs_errors),
+        ('FDT package errors', fdt_pkg_errors),
+        ('FDT observation stuck', fdt_obs_stuck),
+        ('FDT package stuck', fdt_pkg_stuck),
+    ]
+
     msg = ''
-    if errors: 
-        msg += gen_last_error_report(lasterror)
-        msg += gen_table_report('errors', errors)
-    if warns: 
-        msg += gen_table_report('warnings', warns)
-    if stuck: 
-        msg += gen_table_report('stuck', stuck)
+
+    for name, rows in reports:
+        if rows:
+            msg += gen_table_report(name, rows)
+
     msg += ("\n\nReminder: This script runs once per day on cron.  Otherwise, it is triggered "
             "by new DEP errors and will only email once per hour.  You may want to manually run "
             " this script or monitor koa_status for other chronic errors in that hour window.")
@@ -111,6 +161,15 @@ def main(dev=False, admin_email=None, slack=False):
     else:
         print("\nNOT SENDING EMAIL")
 
+    # set the FDT messages to reviewed
+    query = ("UPDATE fdt_packages SET error_reported = NOW() "
+             " WHERE status='ERROR' AND error_reported IS NULL")
+    db.query('koa', query, getOne=True)
+
+    query = ("UPDATE fdt_observations SET error_reported = NOW() "
+             " WHERE status='ERROR' AND error_reported IS NULL")
+    db.query('koa', query, getOne=True)
+
 
 def gen_last_error_report(row):
     if not row: return
@@ -125,7 +184,8 @@ def gen_last_error_report(row):
 
 def gen_table_report(name, rows):
     if not rows: return
-    txt = f"\n===DEP {name} summary:===\n"
+    # txt = f"\n===DEP {name} summary:===\n"
+    txt = f"\n==={name} summary:===\n"
     for row in rows:
         txt += row['instrument'].ljust(12)
         txt += str(row['count']).ljust(6)
@@ -133,6 +193,12 @@ def gen_table_report(name, rows):
         status_code_ipac = row.get('status_code_ipac')
         if status_code:      txt += "\t"+row['status_code']
         if status_code_ipac: txt += "\tIPAC:"+row['status_code_ipac']
+
+        # FDT
+        error_message = row.get('error_message')
+
+        if error_message:      txt += "\t" + error_message
+
         txt += "\n"
     return txt
 

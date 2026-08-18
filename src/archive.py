@@ -40,6 +40,7 @@ def main():
     parser.add_argument('--confirm', dest="confirm", default=False, action="store_true", help='Confirm query results.')
     parser.add_argument('--transfer', default=False, action='store_true', help='Transfer to IPAC and trigger IPAC API.  Else, create files only.')
     parser.add_argument('--level', type=int, default=0, help='Data reduction level. Only needed if reprocessing by query search.')
+    parser.add_argument('--fdt_mode', default=False, action='store_true', help='Fast Data Transfer mode.')
     args = parser.parse_args()    
 
 
@@ -49,7 +50,7 @@ def main():
         reprocess=args.reprocess, starttime=args.starttime, endtime=args.endtime,
         status=args.status, statuscode=args.statuscode, ofname=args.ofname,
         progid=args.progid, confirm=args.confirm, transfer=args.transfer,
-        level=args.level
+        level=args.level, fdt_mode=args.fdt_mode
     )
 
 
@@ -57,7 +58,7 @@ class Archive():
 
     def __init__(self, instr, filepath=None, files=None, dbid=None, reprocess=False, 
                  starttime=None, endtime=None, status=None, statuscode=None,
-                 ofname=None, progid=None, confirm=False, transfer=False, level=0):
+                 ofname=None, progid=None, confirm=False, transfer=False, level=0, fdt_mode=False):
 
         #inputs
         self.instr = instr.upper()
@@ -74,6 +75,9 @@ class Archive():
         self.confirm = confirm
         self.transfer = transfer
         self.level = level
+        self.fdt_mode = fdt_mode
+        if self.fdt_mode == True:
+            self.transfer = False
 
         #other class vars
         self.db = None
@@ -126,7 +130,8 @@ class Archive():
         module = importlib.import_module('instr_' + self.instr.lower())
         instr_class = getattr(module, self.instr.capitalize())
         instr_obj = instr_class(self.instr, filepath, self.reprocess,
-                                self.transfer, self.progid, dbid=dbid)
+                                self.transfer, fdt_mode=self.fdt_mode, 
+                                progid=self.progid, dbid=dbid)
 
         ok = instr_obj.process()
         if not ok:

@@ -18,10 +18,11 @@ log = logging.getLogger('koa_dep')
 
 class Kpf(instrument.Instrument):
 
-    def __init__(self, instr, filepath, reprocess, transfer, progid, dbid=None):
-        self.dev = False
-        self.progid = progid
-        super().__init__(instr, filepath, reprocess, transfer, progid, dbid)
+    def __init__(self, instr, filepath, reprocess, transfer, **kwargs):
+
+        super().__init__(instr, filepath, reprocess, transfer, **kwargs)
+
+        # Set any unique keyword index values here
         self.keymap['UTC'] = 'UT'
 
     def run_dqa(self):
