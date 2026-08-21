@@ -233,7 +233,7 @@ class Kpf(instrument.Instrument):
         koaimtyp = self._get_koaimtype()
         if not koaimtyp:
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
-            self.log_warn("KOAIMTYP_UDF")
+            #self.log_warn("KOAIMTYP_UDF")
             koaimtyp = 'undefined'
 
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type from IMTYPE')

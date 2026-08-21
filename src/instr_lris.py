@@ -156,7 +156,7 @@ class Lris(instrument.Instrument):
         koaimtyp = self.get_koaimtyp()
         if (koaimtyp == 'undefined'):
             log.info('set_koaimtyp: Could not determine KOAIMTYP value')
-            self.log_warn("KOAIMTYP_UDF")
+            #self.log_warn("KOAIMTYP_UDF")
         self.set_keyword('KOAIMTYP', koaimtyp, 'KOA: Image type')
         return True
 
