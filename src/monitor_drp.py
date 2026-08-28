@@ -211,17 +211,17 @@ class Monitor():
         """Creates a logger based on rootdir, instr and date"""
 
         # Create logger object
-        name = f'koa_monitor_drp_{instr}'
+        name = f'rti_monitor_drp_{instr}'
         log = logging.getLogger(name)
         log.setLevel(logging.DEBUG)
 
         #paths
-        processDir = f'{rootdir}/{instr.upper()}'
-        logFile =  f'{processDir}/{name}.log'
+        utd = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d')
+        logFile =  f'{rootdir}/log/{instr.upper()}/{name}_{utd}.log'
 
         #create directory if it does not exist
         try:
-            Path(processDir).mkdir(parents=True, exist_ok=True)
+            Path(f'{rootdir}/log/{instr.upper()}').mkdir(parents=True, exist_ok=True)
         except Exception as e:
             print(f"ERROR: Unable to create logger at {logFile}.  Error: {str(e)}")
             return False
