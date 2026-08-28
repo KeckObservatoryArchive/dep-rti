@@ -1127,9 +1127,6 @@ class Instrument(dep.DEP):
                 f"{os.path.dirname(datadir)}/{maskConfig}.calib",
                 f"{os.path.dirname(datadir)}/{maskConfig}.log",
                 f"{os.path.dirname(datadir)}/{maskConfig}.pypeit"
-#                f"{datadir}/../{maskConfig}.calib",
-#                f"{datadir}/../{maskConfig}.log",
-#                f"{datadir}/../{maskConfig}.pypeit"
             ]
             for f in searchfiles:
                 if os.path.isfile(f): files.append(f)
@@ -1160,4 +1157,3 @@ class Instrument(dep.DEP):
                             files.append(afile)
 
         return files
-
