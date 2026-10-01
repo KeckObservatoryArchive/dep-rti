@@ -5,7 +5,7 @@ import signal
 import psutil
 import subprocess
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dataclasses import dataclass
 
@@ -79,7 +79,7 @@ class FdtXfrFun:
         pid = proc.pid
 
         proc_obj = psutil.Process(proc.pid)
-        xfr_start_time = datetime.fromtimestamp(proc_obj.create_time())
+        xfr_start_time = datetime.fromtimestamp(proc_obj.create_time(), tz=timezone.utc)
 
         # create a new XfrProcess object to track the process
         xfr_obj = XfrProcess(
@@ -232,7 +232,7 @@ class FdtXfrFun:
         """
         self.log.info(f"Transfer complete: {xfr_obj}")
         pkg_id = xfr_obj.pkg_id
-        xfr_end_time = datetime.now()
+        xfr_end_time = datetime.now(timezone.utc)
 
         # update the db_pkg,  set status = TRANSFERRED,  metrics
         self.db_pkg.update_transferred(pkg_id, xfr_end_time)
