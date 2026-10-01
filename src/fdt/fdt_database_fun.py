@@ -159,7 +159,7 @@ class PkgTable(FdtDatabaseFun):
         query = (
             "SELECT pkg_id FROM fdt_packages "
             " WHERE status = 'TRANSFERRING' AND instrument=%s and level=%s "
-            " AND xfr_start_time < (NOW() - INTERVAL %s MINUTE) "
+            " AND xfr_start_time < (UTC_TIMESTAMP() - INTERVAL %s MINUTE) "
         )
 
         params = (self.inst, self.lev, timeout)
@@ -179,7 +179,7 @@ class PkgTable(FdtDatabaseFun):
             " WHERE instrument=%s AND level=%s "
             " AND (status='ERROR' AND error_reported IS NULL)"
             " OR (status='TRANSFERRING' "
-            "     AND xfr_start_time < DATE_SUB(NOW(), INTERVAL 120 MINUTE))"
+            "     AND xfr_start_time < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 120 MINUTE))"
         )
 
         params = (self.inst, self.lev)
@@ -261,7 +261,7 @@ class PkgTable(FdtDatabaseFun):
             query = (
                 "UPDATE fdt_packages "
                 " SET status='OPEN', filesize_mb=0, source_deleted=0, "
-                "     creation_time=NOW(), closed_time=NULL, "
+                "     creation_time=UTC_TIMESTAMP(), closed_time=NULL, "
                 "     xfr_start_time=NULL, xfr_end_time=NULL "
                 " WHERE pkg_id=%s"
             )
@@ -309,7 +309,7 @@ class PkgTable(FdtDatabaseFun):
         """
         query = (
             "UPDATE fdt_packages"
-            " SET status='CLOSED', closed_time = NOW(), error_message=NULL "
+            " SET status='CLOSED', closed_time = UTC_TIMESTAMP(), error_message=NULL "
             " WHERE pkg_id=%s AND status != 'CLOSED'"
         )
         params = (pkg_id,)
@@ -773,7 +773,7 @@ class ObsTable(FdtDatabaseFun):
         """
         query = (
             "UPDATE fdt_observations "
-            " SET pkg_start_time=NOW() "
+            " SET pkg_start_time=UTC_TIMESTAMP() "
             " WHERE koaid=%s"
         )
 
@@ -788,7 +788,7 @@ class ObsTable(FdtDatabaseFun):
     def update_end_time(self, koaid):
         query = (
             "UPDATE fdt_observations "
-            " SET pkg_end_time=NOW() "
+            " SET pkg_end_time=UTC_TIMESTAMP() "
             " WHERE koaid=%s"
         )
 
@@ -845,7 +845,7 @@ class ObsTable(FdtDatabaseFun):
         pkg_id <int> -- The package database ID.
         """
         query = ("UPDATE fdt_observations "
-                 " SET STATUS = 'TRANSFERRED', xfr_end_time=%s "
+                 " SET STATUS = 'TRANSFERRED', xfr_end_time=UTC_TIMESTAMP() "
                  " WHERE pkg_id = %s")
 
         params = (pkg_id, xfr_end_time)
