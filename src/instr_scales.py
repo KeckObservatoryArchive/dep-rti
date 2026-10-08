@@ -369,6 +369,43 @@ class Scales(instrument.Instrument):
         return False
 
 
+    def copy_drp_files(self):
+        '''
+        Override of dep.copy_drp_files().
+        Copy all DRP files that will be archived to levN dir.
+        Store dict of files by koaid in self.drp_files for later use.
+        '''
+
+        # Skip if this entry is not for a DRP
+        if self.status['service'] != 'DRP':
+            return True
+
+        # original and koaid names
+        srcfile = self.status['stage_file']
+        koaid   = self.status['koaid']
+
+        # copy and rename file
+        if not os.path.isfile(srcfile):
+            return False
+        outdir = self.dirs[f'lev{self.level}']
+        destfile = f'{outdir}/{koaid}_L(self.level).fits'
+        log.info(f"Copying {srcfile} to {destfile}")
+        os.makedirs(os.path.dirname(destfile), exist_ok=True)
+        # Don't recopy files that haven't been updated
+        skip = False
+        if os.path.exists(destfile):
+            modTime1 = os.path.getmtime(srcfile)
+            modTime2 = os.path.getmtime(destfile)
+            if modTime1 > modTime2: skip = True
+        if skip == False:
+            try:
+                subprocess.call(['rsync', '-az', srcfile, destfile])
+            except Exception as e:
+                self.log_error('FILE_COPY_ERROR', f"{srcfile} to {destfile}")
+
+        return True
+
+
     def get_drp_files_list(self, datadir, koaid, level):
         '''
         Return list of files to archive for DRP specific to SCALES.
