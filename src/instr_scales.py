@@ -22,6 +22,7 @@ from astropy.visualization import ZScaleInterval, SqrtStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 #import pdb
 from PIL import Image
+from shutil import copy2
 
 
 class Scales(instrument.Instrument):
@@ -388,7 +389,7 @@ class Scales(instrument.Instrument):
         if not os.path.isfile(srcfile):
             return False
         outdir = self.dirs[f'lev{self.level}']
-        destfile = f'{outdir}/{koaid}_L(self.level).fits'
+        destfile = f'{outdir}/{koaid}_L{self.level}.fits'
         log.info(f"Copying {srcfile} to {destfile}")
         os.makedirs(os.path.dirname(destfile), exist_ok=True)
         # Don't recopy files that haven't been updated
@@ -399,9 +400,14 @@ class Scales(instrument.Instrument):
             if modTime1 > modTime2: skip = True
         if skip == False:
             try:
-                subprocess.call(['rsync', '-az', srcfile, destfile])
+                print(srcfile, destfile)
+                copy2(srcfile, destfile)
             except Exception as e:
                 self.log_error('FILE_COPY_ERROR', f"{srcfile} to {destfile}")
+                return False
+
+        self.drp_files = {koaid:[destfile]}
+        self.xfr_files = [destfile]
 
         return True
 
