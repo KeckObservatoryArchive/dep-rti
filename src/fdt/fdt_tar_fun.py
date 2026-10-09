@@ -36,6 +36,8 @@ class TarFun:
             obs_dir = Path(obs_path).parent
             with tarfile.open(tar_path, "a") as tar:
                 for filename in glob.glob(f"{obs_dir}/{koaid}*"):
+                    if filename.endswith((".log", ".xfr.table")):
+                        continue
                     self.log.debug(f'Adding: {filename} to {tar_path}')
                     tar.add(filename, arcname=Path(filename).name)
         except Exception as err:
